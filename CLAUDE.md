@@ -1,0 +1,79 @@
+@AGENTS.md
+
+# Fenro Dashboard
+
+An advanced GitHub dashboard (open PR and issue counts for followed
+repositories) and an agentic task list that carries context between sessions,
+in one Next.js app.
+
+Read [README.md](./README.md) for setup and deployment. This file is the
+working agreement.
+
+## Commands
+
+`pnpm verify` runs everything CI runs. Individually: `pnpm lint`,
+`pnpm typecheck`, `pnpm test`, `pnpm build`. Run `pnpm verify` before opening a
+pull request.
+
+## Layout
+
+```
+src/
+├── app/                      Next.js routes, layouts, route handlers
+├── modules/<context>/        one folder per bounded context
+│   ├── domain/
+│   ├── application/{commands,queries,ports}/
+│   ├── infrastructure/
+│   └── ui/
+└── shared/{domain,application,infrastructure,config}/
+```
+
+Contexts today: `github-insights`, `tasks`. Both are empty scaffolding — add
+code, don't reshape the folders without a reason.
+
+## Conventions
+
+**Dependencies point inwards.** `app` → `ui` → `application` → `domain`.
+`infrastructure` may depend on `application` and `domain`; nothing depends on
+`infrastructure`. `domain/` imports nothing from `next`, `react`, or any
+database client — if a domain file needs one, the rule is being broken.
+
+**Commands and queries are separate.** A command changes state and returns
+nothing; a query reads and never changes state. Both are plain objects with a
+`type` of `"<context>.<verb>"`, handled by a class in
+`application/commands/` or `application/queries/`. The contracts and the
+in-memory buses live in `src/shared/application/`.
+
+**Aggregates own their invariants.** Validation that protects a rule belongs in
+the aggregate or a value object, not in a route handler or a React component.
+Aggregates extend `AggregateRoot` from `src/shared/domain/` and record domain
+events with `record()`; the application layer drains them with
+`pullDomainEvents()`.
+
+**Expected failures are values.** Return `Result<T, E>` from
+`src/shared/domain/result.ts` rather than throwing. Throw only for bugs and for
+boundaries that cannot express failure any other way.
+
+**Ports live with the code that needs them, adapters in `infrastructure/`.**
+A repository interface belongs in `domain/`; the Postgres or GitHub-API class
+that implements it belongs in `infrastructure/`.
+
+**Route handlers and server actions stay thin.** Parse input, dispatch a
+command or ask a query, map the result to a response. No business logic.
+
+**Configuration is environment variables only.** Add a key to the schema in
+`src/shared/config/env.ts` and to `.env.example`, then read it through
+`getEnv()`. Never read `process.env` elsewhere, and keep the app free of
+Vercel-only runtime APIs so a move to AWS stays a deployment change.
+
+## Tests
+
+Vitest, jsdom, colocated as `*.test.ts(x)` next to the code. Test domain rules
+and handlers directly; reach for Testing Library when the behaviour is in a
+component. A test should fail without the change it covers.
+
+## Style
+
+Prettier decides formatting — don't hand-format, run `pnpm format`. Named
+exports except where Next.js requires a default (pages, layouts, route
+handlers). Comments explain why, not what.
