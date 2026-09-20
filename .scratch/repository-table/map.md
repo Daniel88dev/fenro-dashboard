@@ -40,9 +40,11 @@ before proposing new structure.
 - GitHub is the system of record for pull requests, issues and checks. This app
   owns no invariant over them. Any modelling that turns them into aggregates
   should be challenged.
-- Working assumption while ticket 04 is open, so nothing is blocked: **inline
-  expansion under the row, several rows may be open at once** (the first
-  artboard). Recorded as an assumption, not a decision.
+- The expansion mechanic is no longer an assumption: **inline expansion under
+  the row, several rows open at once** is what Daniel chose (ticket 04).
+- "You" is the **GitHub account signed in with OAuth** (ticket 03), so the
+  viewer and the credentials that read GitHub are per-request facts behind a
+  port, never configuration.
 
 ## Decisions so far
 
@@ -57,6 +59,14 @@ before proposing new structure.
   isolated inside every `use cache` scope, so a request-scoped container silently
   stops being shared. Full findings in
   [`docs/research/nextjs-16-rendering-strategy.md`](../../docs/research/nextjs-16-rendering-strategy.md).
+- [Who is "you"?](./issues/03-who-is-you.md): **Sign in with GitHub.** "You" is
+  the signed-in account and the app holds a token per user, so the viewer and
+  the GitHub credentials arrive per request and live behind ports. Unblocks the
+  shape of 05 and 07; the login itself is not built.
+- [Which expansion mechanic](./issues/04-which-expansion-mechanic.md): **inline
+  expansion under the row, several rows open at once** — artboards 1 and 2. The
+  drawer, the tabbed panel and the dense table are out. Forces a repeatable URL
+  parameter and per-panel loading and error states.
 
 ## Not yet specified
 
@@ -111,11 +121,11 @@ unclaimed — is where to start.
 | --- | ------------------------------------------------------------------------------------------ | -------- | ---------- | ------------ |
 | 01  | [GitHub API cost and shape for this table](./issues/01-github-api-cost-and-shape.md)       | research | —          | open         |
 | 02  | [Next.js 16 rendering and data strategy](./issues/02-nextjs-16-data-strategy.md)           | research | —          | **resolved** |
-| 03  | [Who is "you"?](./issues/03-who-is-you.md)                                                 | grilling | —          | open         |
-| 04  | [Which expansion mechanic](./issues/04-which-expansion-mechanic.md)                        | grilling | —          | open         |
+| 03  | [Who is "you"?](./issues/03-who-is-you.md)                                                 | grilling | —          | **resolved** |
+| 04  | [Which expansion mechanic](./issues/04-which-expansion-mechanic.md)                        | grilling | —          | **resolved** |
 | 05  | [Live read or synced snapshot](./issues/05-live-read-or-snapshot.md)                       | grilling | 01, 02, 03 | open         |
 | 06  | [What is an aggregate in github-insights](./issues/06-github-insights-domain-model.md)     | grilling | 05         | open         |
 | 07  | [Where state lives, and how it stays portable](./issues/07-persistence-and-portability.md) | grilling | 03, 05     | open         |
 | 08  | [What a task carries between sessions](./issues/08-tasks-domain-model.md)                  | grilling | 07         | open         |
 | 09  | [How the Tasks column crosses the boundary](./issues/09-crossing-the-context-boundary.md)  | grilling | 06, 08     | open         |
-| 10  | [Loading and URL strategy for the expansion](./issues/10-expansion-loading-and-url.md)     | grilling | 02, 04, 05 | open         |
+| 10  | [Loading and URL strategy for the expansion](./issues/10-expansion-loading-and-url.md)     | grilling | 05         | open         |

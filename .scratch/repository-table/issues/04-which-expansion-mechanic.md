@@ -1,7 +1,7 @@
 # Which expansion mechanic, and may several rows be open at once?
 
 Type: grilling
-Status: open
+Status: **resolved** — 2026-09-20
 Blocked by: —
 Part of: [map](../map.md)
 
@@ -18,11 +18,6 @@ Five artboards exist. Which one is the screen?
 4. **Dense table**: one line per repository so twenty fit on a screen, with a CI
    column showing every open PR's health as a row of dots.
 
-The prototype already exists
-([canvas](https://claude.ai/artifact/CHoCsPDAWY2tvnoL7gHW9t)), so this is a
-conversation over artboards rather than a new prototype — unless the answer is
-"none of these", in which case it becomes a prototype ticket.
-
 Two sub-questions the artboards deliberately leave open:
 
 - May two rows be expanded simultaneously, each on a different column? Artboard 2
@@ -31,4 +26,22 @@ Two sub-questions the artboards deliberately leave open:
 - Does the comparison the table exists for survive the detail? The dense variant
   is the best overview and the worst for detail; the drawer is the reverse.
 
-This is a decision only a human can make, and it gates ticket 10.
+## Answer
+
+**Artboard 1, and yes.** Daniel picked the first two artboards on 2026-09-20:
+inline expansion under the row, scoped to the column clicked, and several rows
+open at once on different columns. What was a recorded assumption is now the
+decision, and the drawer, the tabbed panel and the dense table are not the
+screen.
+
+Consequences, built in slice 1:
+
+- The URL parameter has to be **repeatable**, one entry per open panel, which is
+  what `?open=owner/name:column` is. The exact encoding is ticket 10's to
+  confirm.
+- Several panels can be in flight at once, so each one loads and fails on its
+  own — a panel's error must not take the table down.
+- The page gets taller as rows open, so expanding must not scroll or move focus.
+
+The alternatives stay in the prototype canvas as a record of what was
+considered, not as options still on the table.

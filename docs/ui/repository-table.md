@@ -146,19 +146,38 @@ These are tracked as tickets on the wayfinder map at
 [`.scratch/repository-table/map.md`](../../.scratch/repository-table/map.md).
 Two bear directly on this document:
 
-- **Which expansion mechanic, and may several rows be open at once?**
-  Recorded assumption, so work is not blocked: the first artboard —
-  **inline expansion under the row, several rows may be open at once**. Everything
-  below is written against that assumption and is cheap to change while the
-  expansion detail is loaded on demand rather than rendered up front.
+- ~~**Which expansion mechanic, and may several rows be open at once?**~~
+  **Settled on 2026-09-20**: the first artboard — inline expansion under the
+  row, scoped to the column clicked, several rows open at once on different
+  columns. The drawer, the tabbed panel and the dense table are not the screen.
 - **Is the table a live read or a snapshot?** The `synced 4 min ago` indicator and
   the **Sync now** button assume a snapshot. If the app reads GitHub live per
   request, both disappear and the freshness language changes.
 
+## What the built screen leaves out
+
+Slices 0 to 2 built this screen on fake data. Four things in the description
+above are deliberately absent, each because it belongs to a slice or a ticket
+that has not landed:
+
+- **`Sync now` and the `synced 4 min ago` indicator.** Both assume the numbers
+  are a snapshot, which is exactly what ticket 05 has not decided. Building them
+  would answer that question by accident.
+- **`Make a task from this` and `New task here`.** The seam between the two
+  halves of the product, and slice 7's to build.
+- **The task actions** — `Watch`, `Open`, `Resume`. They start and resume agent
+  sessions, which needs the `Task` aggregate (slice 8).
+- **The issue filter chips.** Real filtering over real issues, which is slice 5.
+
+Two smaller departures from the description: `Show the other 8 pull requests`
+links out to GitHub's own list, because the fake data holds only the subset the
+panel shows; and an issue's comment count is missing, because the prototype's
+sample data never had one.
+
 ## Not yet drawn
 
-The prototypes show the happy path only. Before this screen ships, each of these
-needs a decision and a design:
+The prototypes show the happy path only. The empty state and a failed panel are
+now built and tested. Each of the rest still needs a decision and a design:
 
 - **Empty**: no repositories watched yet; a repository with nothing open.
 - **Loading**: the table shell before the counts arrive, and a panel before its
@@ -173,7 +192,8 @@ needs a decision and a design:
 ## Accessibility notes for implementation
 
 The prototypes are pictures; these are requirements the real thing must meet and
-the prototypes do not prove.
+the prototypes do not prove. Everything in this list except the last is met and
+tested by the built screen.
 
 - Each count is a real `<button>` carrying `aria-expanded` and `aria-controls`
   pointing at its panel, not a clickable cell. A count alone is not an accessible

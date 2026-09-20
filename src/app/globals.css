@@ -12,6 +12,36 @@
   --font-mono: var(--font-geist-mono);
 }
 
+/*
+ * The dashboard palette from docs/ui/repository-table.md. Two accents carry
+ * meaning everywhere: teal for pull requests and healthy states, rust for
+ * issues and things going stale. A colour always means the same thing.
+ */
+@theme {
+  --color-ground: #f6f5f1;
+  --color-surface: #ffffff;
+  --color-surface-raised: #fbfaf7;
+  --color-surface-sunken: #f1efe9;
+  --color-hairline: #e3e1da;
+  --color-hairline-soft: #efede7;
+  --color-ink: #16161a;
+  --color-ink-soft: #4a4a50;
+  --color-ink-muted: #6b6b72;
+  --color-ink-faint: #9a9aa0;
+  --color-bar: #1c1d19;
+  --color-bar-ink: #e7e5dd;
+  --color-bar-ink-muted: #b9b6ac;
+  --color-bar-active: #2f3129;
+  --color-pr: #2e6f63;
+  --color-pr-strong: #235a50;
+  --color-issue: #a2542c;
+  --color-issue-strong: #8a4626;
+  --color-running: #b8862f;
+  --color-pr-wash: #e4efeb;
+  --color-issue-wash: #f6e9e1;
+  --color-neutral-wash: #efede7;
+}
+
 @media (prefers-color-scheme: dark) {
   :root {
     --background: #0a0a0a;

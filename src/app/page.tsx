@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 const modules = [
   {
     name: "GitHub insights",
@@ -23,8 +25,14 @@ export default function Home() {
           </h1>
           <p className="text-zinc-600 dark:text-zinc-400">
             GitHub insights and an agentic task list for the repositories you
-            care about. Nothing is wired up yet — this is the scaffold.
+            care about.
           </p>
+          <Link
+            href="/repositories"
+            className="w-fit rounded-lg bg-black px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800 dark:bg-zinc-50 dark:text-black dark:hover:bg-zinc-200"
+          >
+            Open the repositories dashboard
+          </Link>
         </header>
 
         <section className="flex flex-col gap-4">

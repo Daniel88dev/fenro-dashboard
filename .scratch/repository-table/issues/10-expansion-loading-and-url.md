@@ -2,7 +2,7 @@
 
 Type: grilling
 Status: open
-Blocked by: 02, 04, 05
+Blocked by: 05
 Part of: [map](../map.md)
 
 ## Question
@@ -30,3 +30,29 @@ When a count is clicked, where does the detail come from and what does the URL d
 The answer is what makes the expansion mechanic reversible. If detail is fetched
 per panel behind a query, swapping inline expansion for a drawer is a UI change
 and nothing more.
+
+## What slice 1 already assumes
+
+Built, so the screen could ship, and recorded here rather than in the plan
+because this ticket owns it. Each is cheap to change while the detail is fetched
+per panel.
+
+- **The detail is fetched on demand**, per open panel, behind its own query. So
+  swapping inline expansion for something else stays a UI change.
+- **Expansion lives in the URL**, as ticket 02 settled, encoded as one
+  repeatable `open` parameter per open panel, written `owner/name:column`:
+  `?open=nordwind/billing-core:prs&open=nordwind/docs-site:issues`. A pull
+  request's checks are a separate repeatable `pr` parameter, `owner/name:number`,
+  because they hang off a pull request rather than off the row. Closing a row's
+  pull requests panel closes any pull request opened inside it, so the URL never
+  carries state the reader cannot see.
+- **A panel that fails renders its own message** and leaves the table standing.
+- **Nothing streams per panel yet.** The screen awaits the open panels together,
+  because the fakes are in memory and a `<Suspense>` boundary around an instant
+  read buys nothing. Ticket 02's shape — a boundary per row's counts and a
+  nested one per panel, with `cacheComponents: true` — goes in with the real
+  GitHub reads in slice 3, which is when it starts to matter.
+
+What is still open: whether the "Show the other 8" link leads anywhere inside
+the app (today it points at GitHub), and what the loading and rate-limited
+states say, which waits on 05.

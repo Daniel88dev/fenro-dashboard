@@ -12,5 +12,8 @@ describe("Home", () => {
     ).toBeInTheDocument();
     expect(screen.getByText("GitHub insights")).toBeInTheDocument();
     expect(screen.getByText("Tasks")).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: "Open the repositories dashboard" }),
+    ).toHaveAttribute("href", "/repositories");
   });
 });
