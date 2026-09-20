@@ -80,6 +80,13 @@ Dependencies point inwards: `app` → `ui` → `application` → `domain`, and
 `infrastructure` depends on `application` and `domain` but nothing depends on
 `infrastructure`.
 
+## Docs
+
+Design and planning documents live in [docs/](./docs). Start with
+[the repository table](./docs/ui/repository-table.md) for the screen being built
+and the [implementation plan](./docs/implementation-plan.md) for how it maps onto
+the contexts above.
+
 ## Configuration
 
 Everything the app reads comes from plain environment variables, validated once
