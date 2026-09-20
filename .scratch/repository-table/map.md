@@ -109,7 +109,7 @@ unclaimed — is where to start.
 
 | #   | Ticket                                                                                     | Type     | Blocked by | Status       |
 | --- | ------------------------------------------------------------------------------------------ | -------- | ---------- | ------------ |
-| 01  | [GitHub API cost and shape for this table](./issues/01-github-api-cost-and-shape.md)       | research | —          | claimed      |
+| 01  | [GitHub API cost and shape for this table](./issues/01-github-api-cost-and-shape.md)       | research | —          | open         |
 | 02  | [Next.js 16 rendering and data strategy](./issues/02-nextjs-16-data-strategy.md)           | research | —          | **resolved** |
 | 03  | [Who is "you"?](./issues/03-who-is-you.md)                                                 | grilling | —          | open         |
 | 04  | [Which expansion mechanic](./issues/04-which-expansion-mechanic.md)                        | grilling | —          | open         |

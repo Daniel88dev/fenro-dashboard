@@ -1,7 +1,7 @@
 # GitHub API cost and shape for this table
 
 Type: research
-Status: claimed
+Status: open
 Blocked by: —
 Part of: [map](../map.md)
 
@@ -33,3 +33,29 @@ Specifically:
 
 The answer feeds ticket 05 directly: if a live read per page view is affordable,
 the snapshot machinery in the prototypes is unnecessary.
+
+## Attempted, not resolved
+
+Picked up on 2026-09-20 and **stopped unresolved**. It is back on the frontier,
+unclaimed; the next session should take it.
+
+The work needs official GitHub documentation — rate limit arithmetic, GraphQL
+point costs and the check-runs endpoints are precisely the things that must not be
+answered from memory. Fetching `docs.github.com` requires an approval this
+environment could not obtain at the time, so the research stopped partway, before
+any finding was established. **Nothing was written down, because a half-verified
+rate limit is worse than an open ticket**: it would be believed and built on.
+
+What it still needs, unchanged from the question above. When resuming, note that
+the GitHub MCP tools can answer some of it empirically against a real repository
+without fetching docs at all — a live call reveals the response shape, whether a
+PR's checks need a second round-trip, and what the rate-limit headers actually
+say. That is a decent substitute for the endpoint-shape questions, though not for
+the documented GraphQL point formula.
+
+This ticket blocks [05](./05-live-read-or-snapshot.md), the live-read-versus-
+snapshot decision, which most of the map hangs off. Ticket
+[02](./02-nextjs-16-data-strategy.md) already landed one finding that leans on 05:
+no `use cache` entry survives a deploy, so on a rate-limited API the first visitor
+after every deploy pays full cost for every visible row. How much that hurts is
+exactly what this ticket's numbers would tell us.
