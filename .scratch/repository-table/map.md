@@ -48,7 +48,15 @@ before proposing new structure.
 
 <!-- one line per resolved ticket, then the link for the detail -->
 
-_None yet. This map was charted on 2026-09-20; charting resolves nothing._
+- [Next.js 16 rendering and data strategy](./issues/02-nextjs-16-data-strategy.md):
+  static shell → `<Suspense>` per row's counts → nested `<Suspense>` per expanded
+  detail, with `cacheComponents: true` and all GitHub reads behind `'use cache'`
+  query functions. Expansion state lives in the URL. Server Actions are rejected
+  for the reads because Next dispatches them one at a time per client. Five
+  concrete traps for the CQRS layering, the sharpest being that `React.cache` is
+  isolated inside every `use cache` scope, so a request-scoped container silently
+  stops being shared. Full findings in
+  [`docs/research/nextjs-16-rendering-strategy.md`](../../docs/research/nextjs-16-rendering-strategy.md).
 
 ## Not yet specified
 
@@ -69,6 +77,12 @@ reaches it.
 - **The states not drawn.** Empty, loading, error, rate-limited, narrow
   viewports — listed under "Not yet drawn" in the design doc. Sharpens once 05
   and 10 land, because what can fail depends on where the data comes from.
+- **Where the GitHub response cache lives.** Surfaced by ticket 02: no `use cache`
+  entry survives a deploy, because the build id is part of the cache key. On a
+  rate-limited API with frequent deploys, the first visitor after each deploy pays
+  full cost for every visible row. That pushes toward owning the cache in
+  `infrastructure/` and letting `use cache` be a render concern only — but it is
+  ticket 05's call, so it sharpens once 05 lands.
 - **Deployment and secrets.** Where the token and the database URL live on
   Vercel and on AWS; whether anything needs to be long-running.
 - **The Tasks page.** The nav has one. This map is about the Repositories screen;
@@ -93,15 +107,15 @@ effort.
 Open children live in [`issues/`](./issues/). The frontier — open, unblocked,
 unclaimed — is where to start.
 
-| #   | Ticket                                                                                     | Type     | Blocked by |
-| --- | ------------------------------------------------------------------------------------------ | -------- | ---------- |
-| 01  | [GitHub API cost and shape for this table](./issues/01-github-api-cost-and-shape.md)       | research | —          |
-| 02  | [Next.js 16 rendering and data strategy](./issues/02-nextjs-16-data-strategy.md)           | research | —          |
-| 03  | [Who is "you"?](./issues/03-who-is-you.md)                                                 | grilling | —          |
-| 04  | [Which expansion mechanic](./issues/04-which-expansion-mechanic.md)                        | grilling | —          |
-| 05  | [Live read or synced snapshot](./issues/05-live-read-or-snapshot.md)                       | grilling | 01, 02, 03 |
-| 06  | [What is an aggregate in github-insights](./issues/06-github-insights-domain-model.md)     | grilling | 05         |
-| 07  | [Where state lives, and how it stays portable](./issues/07-persistence-and-portability.md) | grilling | 03, 05     |
-| 08  | [What a task carries between sessions](./issues/08-tasks-domain-model.md)                  | grilling | 07         |
-| 09  | [How the Tasks column crosses the boundary](./issues/09-crossing-the-context-boundary.md)  | grilling | 06, 08     |
-| 10  | [Loading and URL strategy for the expansion](./issues/10-expansion-loading-and-url.md)     | grilling | 02, 04, 05 |
+| #   | Ticket                                                                                     | Type     | Blocked by | Status       |
+| --- | ------------------------------------------------------------------------------------------ | -------- | ---------- | ------------ |
+| 01  | [GitHub API cost and shape for this table](./issues/01-github-api-cost-and-shape.md)       | research | —          | claimed      |
+| 02  | [Next.js 16 rendering and data strategy](./issues/02-nextjs-16-data-strategy.md)           | research | —          | **resolved** |
+| 03  | [Who is "you"?](./issues/03-who-is-you.md)                                                 | grilling | —          | open         |
+| 04  | [Which expansion mechanic](./issues/04-which-expansion-mechanic.md)                        | grilling | —          | open         |
+| 05  | [Live read or synced snapshot](./issues/05-live-read-or-snapshot.md)                       | grilling | 01, 02, 03 | open         |
+| 06  | [What is an aggregate in github-insights](./issues/06-github-insights-domain-model.md)     | grilling | 05         | open         |
+| 07  | [Where state lives, and how it stays portable](./issues/07-persistence-and-portability.md) | grilling | 03, 05     | open         |
+| 08  | [What a task carries between sessions](./issues/08-tasks-domain-model.md)                  | grilling | 07         | open         |
+| 09  | [How the Tasks column crosses the boundary](./issues/09-crossing-the-context-boundary.md)  | grilling | 06, 08     | open         |
+| 10  | [Loading and URL strategy for the expansion](./issues/10-expansion-loading-and-url.md)     | grilling | 02, 04, 05 | open         |

@@ -244,6 +244,58 @@ The alternative on the map is a third `dashboard` module owning the combined rea
 model. It is more honest about the composition being a real concept and costs a
 module whose only job is a join.
 
+## Rendering and data strategy _(settled — ticket 02)_
+
+Researched against the vendored docs of the installed `next@16.3.5` and verified
+against the shipped types; full findings in
+[`docs/research/nextjs-16-rendering-strategy.md`](./research/nextjs-16-rendering-strategy.md).
+
+The screen renders as a static shell, with one `<Suspense>` per row's counts and a
+nested one per expanded detail, so several open rows stream in parallel instead of
+queueing. Expansion state lives in the URL as a repeatable `?open=owner/repo`
+param. `cacheComponents: true` goes in `next.config.ts`, and every GitHub read
+sits behind a `'use cache'` function with an explicit `cacheLife` and a
+per-repository `cacheTag`.
+
+Four findings change the design above, rather than merely the components:
+
+1. **`'use cache'` belongs on the query handler's read function, below the bus —
+   never around the bus.** `React.cache` is isolated inside each `use cache`
+   scope, so a request-scoped composition root called from inside one silently
+   stops being shared: every cached query would get its own container and its own
+   deduplication. On a rate-limited API that means duplicated GitHub calls with
+   correct-looking results. Build the container in `cache()` _outside_ every
+   cached scope, and pass plain arguments in.
+2. **Read models must be plain objects, and now provably so.** Class instances
+   cannot cross an RSC serialization boundary, so `Entity`, `AggregateRoot`,
+   `ValueObject` and `UniqueId` can never be arguments to or returns from a cached
+   function, nor props to a client component. The conventions already said query
+   handlers return read models; the framework now enforces it.
+3. **`Result<T, Error>` should not cross a cache or server/client boundary**,
+   because `Error` is a class instance. Prefer
+   `Result<T, { code: string; message: string }>` for anything a query handler
+   returns — which is what the `GitHubUnavailable` shape in the port sketch above
+   should be.
+4. **Credentials must be read above the cached scope and passed in.** The
+   request-API restriction follows the call stack: an adapter that reaches for
+   `headers()`, or calls a helper that does, fails with
+   `next-request-in-use-cache` — and on a dynamic route that can pass `next build`
+   and fail under `next start`. `getEnv()` is safe because it reads `process.env`,
+   but if ticket 03 lands on per-user sign-in the token comes from a session, and
+   the `GitHubGateway` port must take credentials as an argument. Worth designing
+   for now, since it is free before the adapter exists.
+
+Two consequences beyond the screen. `revalidateTag(tag, profile)` takes a
+**required** second argument in this version, and the tag vocabulary is shared
+between the query side (which calls `cacheTag`) and the command side (which calls
+`updateTag`), so it belongs in one module under `application/` where the two
+cannot drift. And the README's "Moving to AWS later" section is now incomplete for
+Next 16: it predates `cacheHandlers` and `refreshTags()` for cross-instance tag
+invalidation, the build-time `NEXT_SERVER_ACTIONS_ENCRYPTION_KEY`, `deploymentId`,
+and the fact that an AWS ALB may buffer responses and silently defeat streaming.
+Left as it is here rather than rewritten, since it describes a deployment decision
+that is Daniel's to make.
+
 ## The order of work
 
 Slices, each shippable, each proving something. The first three need no decision
