@@ -60,7 +60,7 @@ export function PullRequestChecksView({
           href={pullRequestUrl}
           rel="noreferrer noopener"
           target="_blank"
-          className="border-bar bg-bar rounded-lg border px-[11px] py-1.5 text-[12px] font-medium text-white hover:bg-black"
+          className="border-ink bg-ink text-ground hover:bg-ink-soft rounded-lg border px-[11px] py-1.5 text-[12px] font-medium"
         >
           Open
           <span className="sr-only">{` pull request ${number}`}</span> on GitHub

@@ -9,13 +9,13 @@ export function DashboardChrome({ children }: { children: ReactNode }) {
   return (
     <div className="bg-ground text-ink flex min-h-full flex-1 flex-col font-sans">
       <header className="bg-bar text-bar-ink flex h-14 shrink-0 items-center gap-6 px-[26px]">
-        <span className="font-mono text-[15px] font-medium tracking-tight text-white">
+        <span className="text-bar-ink font-mono text-[15px] font-medium tracking-tight">
           Fenro
         </span>
         <nav aria-label="Main" className="flex items-center gap-1">
           <span
             aria-current="page"
-            className="bg-bar-active rounded-lg px-[11px] py-[7px] text-[13px] font-medium text-white"
+            className="bg-bar-active text-bar-ink rounded-lg px-[11px] py-[7px] text-[13px] font-medium"
           >
             Repositories
           </span>

@@ -3,6 +3,8 @@
 :root {
   --background: #ffffff;
   --foreground: #171717;
+  /* Let form controls, scrollbars and the caret follow the scheme too. */
+  color-scheme: light dark;
 }
 
 @theme inline {
@@ -15,7 +17,11 @@
 /*
  * The dashboard palette from docs/ui/repository-table.md. Two accents carry
  * meaning everywhere: teal for pull requests and healthy states, rust for
- * issues and things going stale. A colour always means the same thing.
+ * issues and things going stale. A colour always means the same thing, in
+ * either scheme.
+ *
+ * Every pair a reader has to read clears WCAG AA for small text in both
+ * schemes; src/app/palette.test.ts is what keeps that true.
  */
 @theme {
   --color-ground: #f6f5f1;
@@ -27,7 +33,9 @@
   --color-ink: #16161a;
   --color-ink-soft: #4a4a50;
   --color-ink-muted: #6b6b72;
-  --color-ink-faint: #9a9aa0;
+  /* Darker than the #9A9AA0 the design doc drew: that failed 4.5:1 on white,
+     and it is used here for pull request numbers, SHAs and durations. */
+  --color-ink-faint: #76757c;
   --color-bar: #1c1d19;
   --color-bar-ink: #e7e5dd;
   --color-bar-ink-muted: #b9b6ac;
@@ -36,16 +44,46 @@
   --color-pr-strong: #235a50;
   --color-issue: #a2542c;
   --color-issue-strong: #8a4626;
-  --color-running: #b8862f;
+  /* Likewise #B8862F, which reached only 3.2:1 behind the word "running". */
+  --color-running: #9a6d18;
   --color-pr-wash: #e4efeb;
   --color-issue-wash: #f6e9e1;
   --color-neutral-wash: #efede7;
 }
 
+/*
+ * Dark is the same palette, not a second one: the ground goes to warm
+ * near-black, the paper surfaces step up from it rather than down, and each
+ * accent is lifted until it carries the same meaning at the same strength.
+ * The tokens keep their names, so no component knows which scheme it is in.
+ */
 @media (prefers-color-scheme: dark) {
   :root {
     --background: #0a0a0a;
     --foreground: #ededed;
+
+    --color-ground: #121210;
+    --color-surface: #1b1b18;
+    --color-surface-raised: #222220;
+    --color-surface-sunken: #2a2a27;
+    --color-hairline: #34342f;
+    --color-hairline-soft: #2a2a26;
+    --color-ink: #edece6;
+    --color-ink-soft: #c7c5bd;
+    --color-ink-muted: #a5a29a;
+    --color-ink-faint: #8a8880;
+    --color-bar: #0c0d0b;
+    --color-bar-ink: #e7e5dd;
+    --color-bar-ink-muted: #9c9a91;
+    --color-bar-active: #2f3129;
+    --color-pr: #62b8a5;
+    --color-pr-strong: #8ed4c2;
+    --color-issue: #de8f5f;
+    --color-issue-strong: #efaf86;
+    --color-running: #d7a94e;
+    --color-pr-wash: #1e3b34;
+    --color-issue-wash: #3a2418;
+    --color-neutral-wash: #2b2b27;
   }
 }
 

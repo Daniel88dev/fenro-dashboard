@@ -50,7 +50,7 @@ export function WatchRepositoryForm({
       <button
         type="submit"
         disabled={pending}
-        className="border-bar bg-bar h-[34px] cursor-pointer rounded-[9px] border px-[13px] text-[12.5px] font-medium text-white hover:bg-black disabled:opacity-60"
+        className="border-ink bg-ink text-ground hover:bg-ink-soft h-[34px] cursor-pointer rounded-[9px] border px-[13px] text-[12.5px] font-medium disabled:opacity-60"
       >
         Watch a repository
       </button>
