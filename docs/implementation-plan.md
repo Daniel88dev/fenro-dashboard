@@ -302,7 +302,7 @@ Slices, each shippable, each proving something. The first three need no decision
 from the map, which is the point: the screen can start while the architecture
 argument is still running.
 
-### Slice 0 — the table, on fake data
+### Slice 0 — the table, on fake data _(built)_
 
 Route `/repositories`; the `repository-rows` and `dashboard-totals` queries; an
 in-memory read-model adapter seeded with the prototype's sample repositories; the
@@ -315,7 +315,7 @@ query bus reaches a React server component.
 _Proven by:_ a query-handler test, and a Testing Library test that the table
 renders six rows with the right counts.
 
-### Slice 1 — expansion, still fake
+### Slice 1 — expansion, still fake _(built)_
 
 The counts become buttons; panels open beneath the row; the PR, issue and task
 panels render from `open-pull-requests`, `open-issues` and `tasks-for-repository`
@@ -327,7 +327,7 @@ accessibility requirements in the design doc get met and tested.
 _Proven by:_ a test that clicking a count reveals the panel and sets
 `aria-expanded`, and that collapsing returns focus.
 
-### Slice 2 — `WatchedRepository`
+### Slice 2 — `WatchedRepository` _(built)_
 
 The aggregate, its value objects, events and repository port; the `watch` and
 `unwatch` commands; an in-memory repository; the **Watch a repository** form as a
@@ -336,6 +336,24 @@ counts.
 
 _Proven by:_ domain tests for the invariants, a handler test for the duplicate
 rule, and a test that unwatching removes the row.
+
+Three things the first three slices decided as they were built, none of which
+the plan had named:
+
+- **`WatchedRepository.watch` does not return a `Result`.** The only expected
+  failure, coordinates that are not a repository, belongs to
+  `RepositoryCoordinates.create`, so an aggregate can never hold an invalid one.
+- **The panel queries return a summary and a total, not a bare array.** A panel
+  shows what needs attention and says how much it is not showing, which a
+  `PullRequestSummary[]` cannot carry.
+- **Watching is idempotent rather than an error.** A command bus returns
+  nothing, so the "already watching" message is the route's, asked as a query
+  before dispatch; the handler enforces the rule by refusing to create a second
+  aggregate.
+
+`cacheComponents` is still off and there is no `<Suspense>` boundary per panel:
+ticket 02's rendering shape is what slice 3 turns on, when the reads are remote
+and the boundaries start to earn their keep.
 
 **Slices 3 onward need the map.** Do not start them before the ticket named.
 
@@ -377,13 +395,16 @@ Stated plainly, so nobody mistakes a proposal for a decision:
 
 | Guess                                                          | Ticket                                                                        |
 | -------------------------------------------------------------- | ----------------------------------------------------------------------------- |
-| Inline expansion, several rows open at once                    | [04](../.scratch/repository-table/issues/04-which-expansion-mechanic.md)      |
 | A snapshot with a sync, rather than a live read                | [05](../.scratch/repository-table/issues/05-live-read-or-snapshot.md)         |
 | `WatchedRepository` is the only aggregate in `github-insights` | [06](../.scratch/repository-table/issues/06-github-insights-domain-model.md)  |
-| A single user, identified by a token in the environment        | [03](../.scratch/repository-table/issues/03-who-is-you.md)                    |
 | `Session` is an entity inside `Task`                           | [08](../.scratch/repository-table/issues/08-tasks-domain-model.md)            |
 | The two contexts are joined in the route                       | [09](../.scratch/repository-table/issues/09-crossing-the-context-boundary.md) |
 | Expansion detail is fetched on demand                          | [10](../.scratch/repository-table/issues/10-expansion-loading-and-url.md)     |
 
-Every one of them is cheap to change while slices 0–2 are the only thing built,
-which is why those three come first.
+Two of the original guesses are no longer guesses. Daniel settled the expansion
+mechanic ([04](../.scratch/repository-table/issues/04-which-expansion-mechanic.md):
+inline under the row, several rows open at once) and the identity
+([03](../.scratch/repository-table/issues/03-who-is-you.md): sign in with
+GitHub, a token per user rather than one in the environment). The rest are cheap
+to change while slices 0–2 are the only thing built, which is why those three
+come first.

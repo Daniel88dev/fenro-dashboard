@@ -99,30 +99,52 @@ worth handing to the next session.
 Warm paper rather than the scaffold's plain zinc, and two accents used
 **semantically everywhere** — a colour always means the same thing.
 
-| Token            | Value     | Meaning                                       |
-| ---------------- | --------- | --------------------------------------------- |
-| `ground`         | `#F6F5F1` | Page background                               |
-| `surface`        | `#FFFFFF` | Table, panels, cards                          |
-| `surface-sunken` | `#F1EFE9` | Expanded panel background                     |
-| `hairline`       | `#E3E1DA` | Borders and row rules                         |
-| `ink`            | `#16161A` | Primary text                                  |
-| `ink-muted`      | `#6B6B72` | Secondary text, hints                         |
-| `ink-faint`      | `#9A9AA0` | Timestamps, counts at rest                    |
-| `bar`            | `#1C1D19` | Top bar                                       |
-| `pr`             | `#2E6F63` | Pull requests, passing checks, healthy states |
-| `pr-strong`      | `#235A50` | Hover / pressed on the above                  |
-| `issue`          | `#A2542C` | Issues, failures, things going stale          |
-| `issue-strong`   | `#8A4626` | Hover / pressed on the above                  |
-| `running`        | `#B8862F` | Checks and sessions still in flight           |
-| `pr-wash`        | `#E4EFEB` | Tint behind a teal chip                       |
-| `issue-wash`     | `#F6E9E1` | Tint behind a rust chip                       |
+| Token            | Light     | Dark      | Meaning                                       |
+| ---------------- | --------- | --------- | --------------------------------------------- |
+| `ground`         | `#F6F5F1` | `#121210` | Page background                               |
+| `surface`        | `#FFFFFF` | `#1B1B18` | Table, panels, cards                          |
+| `surface-raised` | `#FBFAF7` | `#222220` | Table header strip, expanded panel background |
+| `surface-sunken` | `#F1EFE9` | `#2A2A27` | Hover on a count, rules inside a panel        |
+| `hairline`       | `#E3E1DA` | `#34342F` | Borders and row rules                         |
+| `hairline-soft`  | `#EFEDE7` | `#2A2A26` | The rule above an expanded panel              |
+| `ink`            | `#16161A` | `#EDECE6` | Primary text                                  |
+| `ink-soft`       | `#4A4A50` | `#C7C5BD` | Text on a neutral chip                        |
+| `ink-muted`      | `#6B6B72` | `#A5A29A` | Secondary text, hints                         |
+| `ink-faint`      | `#76757C` | `#8A8880` | Timestamps, numbers, SHAs, durations          |
+| `bar`            | `#1C1D19` | `#0C0D0B` | Top bar                                       |
+| `bar-ink`        | `#E7E5DD` | `#E7E5DD` | Text in the top bar                           |
+| `bar-ink-muted`  | `#B9B6AC` | `#9C9A91` | A nav item that is not the current page       |
+| `bar-active`     | `#2F3129` | `#2F3129` | The current nav item's pill                   |
+| `pr`             | `#2E6F63` | `#62B8A5` | Pull requests, passing checks, healthy states |
+| `pr-strong`      | `#235A50` | `#8ED4C2` | Text on a teal chip                           |
+| `issue`          | `#A2542C` | `#DE8F5F` | Issues, failures, things going stale          |
+| `issue-strong`   | `#8A4626` | `#EFAF86` | Text on a rust chip                           |
+| `running`        | `#9A6D18` | `#D7A94E` | Checks and sessions still in flight           |
+| `pr-wash`        | `#E4EFEB` | `#1E3B34` | Tint behind a teal chip                       |
+| `issue-wash`     | `#F6E9E1` | `#3A2418` | Tint behind a rust chip                       |
+| `neutral-wash`   | `#EFEDE7` | `#2B2B27` | Tint behind a neutral chip                    |
+
+Dark is the same palette rather than a second one: the ground goes to warm
+near-black, the paper surfaces step **up** from it instead of down, and each
+accent is lifted until it carries the same meaning at the same strength. The
+tokens keep their names in both, so no component knows which scheme it is in
+and there is not a single `dark:` variant in the screen.
+
+Two light values differ from what the prototypes drew, because the prototypes
+failed this document's own 4.5:1 rule at the sizes they are used:
+`ink-faint` was `#9A9AA0` (2.8:1 on white, and it carries pull request numbers,
+SHAs and durations) and `running` was `#B8862F` (3.2:1 behind the word
+`running`). `src/app/palette.test.ts` checks every pair a reader has to read,
+in both schemes.
 
 Typography: **Geist** for prose and UI, **Geist Mono** for every repository name,
 count, branch, SHA, issue or PR number, task id and check name. Anything that is
 an identifier or a quantity is mono; anything that is a sentence is not.
 
-When these are adopted they belong in `src/app/globals.css` as Tailwind v4
-`@theme` tokens, not as hex values scattered through components.
+These live in `src/app/globals.css` as Tailwind v4 `@theme` tokens, with the
+dark values redefined under `prefers-color-scheme: dark`, not as hex values
+scattered through components. The scheme follows the operating system; there is
+no in-app toggle yet.
 
 ## The alternatives, and what they were for
 
@@ -146,19 +168,38 @@ These are tracked as tickets on the wayfinder map at
 [`.scratch/repository-table/map.md`](../../.scratch/repository-table/map.md).
 Two bear directly on this document:
 
-- **Which expansion mechanic, and may several rows be open at once?**
-  Recorded assumption, so work is not blocked: the first artboard —
-  **inline expansion under the row, several rows may be open at once**. Everything
-  below is written against that assumption and is cheap to change while the
-  expansion detail is loaded on demand rather than rendered up front.
+- ~~**Which expansion mechanic, and may several rows be open at once?**~~
+  **Settled on 2026-09-20**: the first artboard — inline expansion under the
+  row, scoped to the column clicked, several rows open at once on different
+  columns. The drawer, the tabbed panel and the dense table are not the screen.
 - **Is the table a live read or a snapshot?** The `synced 4 min ago` indicator and
   the **Sync now** button assume a snapshot. If the app reads GitHub live per
   request, both disappear and the freshness language changes.
 
+## What the built screen leaves out
+
+Slices 0 to 2 built this screen on fake data. Four things in the description
+above are deliberately absent, each because it belongs to a slice or a ticket
+that has not landed:
+
+- **`Sync now` and the `synced 4 min ago` indicator.** Both assume the numbers
+  are a snapshot, which is exactly what ticket 05 has not decided. Building them
+  would answer that question by accident.
+- **`Make a task from this` and `New task here`.** The seam between the two
+  halves of the product, and slice 7's to build.
+- **The task actions** — `Watch`, `Open`, `Resume`. They start and resume agent
+  sessions, which needs the `Task` aggregate (slice 8).
+- **The issue filter chips.** Real filtering over real issues, which is slice 5.
+
+Two smaller departures from the description: `Show the other 8 pull requests`
+links out to GitHub's own list, because the fake data holds only the subset the
+panel shows; and an issue's comment count is missing, because the prototype's
+sample data never had one.
+
 ## Not yet drawn
 
-The prototypes show the happy path only. Before this screen ships, each of these
-needs a decision and a design:
+The prototypes show the happy path only. The empty state and a failed panel are
+now built and tested. Each of the rest still needs a decision and a design:
 
 - **Empty**: no repositories watched yet; a repository with nothing open.
 - **Loading**: the table shell before the counts arrive, and a panel before its
@@ -173,15 +214,17 @@ needs a decision and a design:
 ## Accessibility notes for implementation
 
 The prototypes are pictures; these are requirements the real thing must meet and
-the prototypes do not prove.
+the prototypes do not prove. Everything in this list except the last is met and
+tested by the built screen.
 
 - Each count is a real `<button>` carrying `aria-expanded` and `aria-controls`
   pointing at its panel, not a clickable cell. A count alone is not an accessible
   name: label it (`12 open pull requests in nordwind/billing-core`).
 - Colour is never the only carrier of meaning. A failing check reads `failed`, a
   passing one reads `passed`; the dots in the dense variant need text alternatives.
-- `#6B6B72` on `#F6F5F1` clears 4.5:1. `#9A9AA0` does not — restrict it to text at
-  24px and above, or darken it.
+- Every foreground/background pair the reader has to read clears 4.5:1, in both
+  schemes, checked by `src/app/palette.test.ts`. `#9A9AA0` did not, which is why
+  `ink-faint` is darker here than in the prototypes.
 - Expanding a row must not move focus, and collapsing must return focus to the
   count that opened the panel.
 - Relative times (`26 min ago`) need a `<time datetime>` with the absolute value.
