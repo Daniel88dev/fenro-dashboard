@@ -18,12 +18,15 @@ import {
   type ColumnToggle,
   type RepositoryRowView,
 } from "@/modules/github-insights/ui/repository-table";
+import { signedInUserQuery } from "@/modules/identity/application/queries/signed-in-user";
+import { SignInPanel } from "@/modules/identity/ui/sign-in-panel";
 import { taskCountsByRepositoryQuery } from "@/modules/tasks/application/queries/task-counts-by-repository";
 import { tasksForRepositoryQuery } from "@/modules/tasks/application/queries/tasks-for-repository";
 import { TasksPanel } from "@/modules/tasks/ui/tasks-panel";
 import { isErr } from "@/shared/domain";
 import { getContainer } from "@/shared/infrastructure/container";
 
+import { signInWithGitHubAction } from "../sign-in/actions";
 import { unwatchRepositoryAction, watchRepositoryAction } from "./actions";
 import {
   isOpen,
@@ -81,6 +84,12 @@ export async function RepositoriesScreen({
   const state = parseExpansion(await searchParams);
   const now = new Date();
   const { queryBus } = await getContainer(now);
+
+  // "You" is the signed-in GitHub account (ticket 03); without one there is
+  // nobody to read GitHub as, so the table waits for sign-in.
+  if (!(await queryBus.ask(signedInUserQuery()))) {
+    return <SignInPanel action={signInWithGitHubAction} />;
+  }
 
   const [rows, totals, taskCounts] = await Promise.all([
     queryBus.ask(repositoryRowsQuery()),

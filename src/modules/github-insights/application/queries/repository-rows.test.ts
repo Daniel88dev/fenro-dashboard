@@ -16,7 +16,7 @@ const now = new Date("2026-09-20T12:00:00Z");
 
 const reader = () =>
   new InMemoryRepositoryInsightsReader(
-    { login: "Daniel88dev" },
+    { login: "Daniel88dev", accessToken: "not-used-by-the-fake" },
     undefined,
     () => now,
   );

@@ -6,6 +6,7 @@ import { unwatchRepositoryCommand } from "@/modules/github-insights/application/
 import { watchRepositoryCommand } from "@/modules/github-insights/application/commands/watch-repository";
 import { repositoryRowsQuery } from "@/modules/github-insights/application/queries/repository-rows";
 import { RepositoryCoordinates } from "@/modules/github-insights/domain";
+import { signedInUserQuery } from "@/modules/identity/application/queries/signed-in-user";
 import type { WatchFormState } from "@/modules/github-insights/ui/watch-repository-form";
 import { isErr, isOk } from "@/shared/domain";
 import { getContainer } from "@/shared/infrastructure/container";
@@ -28,6 +29,11 @@ export async function watchRepositoryAction(
   }
 
   const { commandBus, queryBus } = await getContainer();
+  // A server action is a public endpoint whether or not the page showed the
+  // form, so it checks for itself.
+  if (!(await queryBus.ask(signedInUserQuery()))) {
+    return { error: "Sign in with GitHub to watch a repository." };
+  }
   const { owner, name, fullName } = coordinates.value;
 
   const rows = await queryBus.ask(repositoryRowsQuery());
@@ -52,7 +58,9 @@ export async function unwatchRepositoryAction(
   const coordinates = RepositoryCoordinates.create(owner, name);
   if (isErr(coordinates)) return;
 
-  const { commandBus } = await getContainer();
+  const { commandBus, queryBus } = await getContainer();
+  if (!(await queryBus.ask(signedInUserQuery()))) return;
+
   await commandBus.dispatch(
     unwatchRepositoryCommand(coordinates.value.owner, coordinates.value.name),
   );

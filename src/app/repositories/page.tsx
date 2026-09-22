@@ -2,6 +2,7 @@ import { Suspense } from "react";
 
 import { DashboardChrome } from "@/modules/github-insights/ui/dashboard-chrome";
 
+import { SignedInAccount } from "../signed-in-account";
 import { RepositoriesScreen } from "./repositories-screen";
 
 export const metadata = {
@@ -19,7 +20,13 @@ export default function RepositoriesPage({
   searchParams,
 }: PageProps<"/repositories">) {
   return (
-    <DashboardChrome>
+    <DashboardChrome
+      account={
+        <Suspense fallback={null}>
+          <SignedInAccount />
+        </Suspense>
+      }
+    >
       <Suspense fallback={<TableSkeleton />}>
         <RepositoriesScreen searchParams={searchParams} />
       </Suspense>

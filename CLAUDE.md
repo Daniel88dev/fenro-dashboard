@@ -28,8 +28,8 @@ src/
 └── shared/{domain,application,infrastructure,config}/
 ```
 
-Contexts today: `github-insights`, `tasks`. Both are empty scaffolding — add
-code, don't reshape the folders without a reason.
+Contexts today: `github-insights`, `tasks`, and `identity` (GitHub sign-in).
+Add code, don't reshape the folders without a reason.
 
 ## Conventions
 
@@ -60,6 +60,12 @@ that implements it belongs in `infrastructure/`.
 
 **Route handlers and server actions stay thin.** Parse input, dispatch a
 command or ask a query, map the result to a response. No business logic.
+
+**Tables live with their context.** Each context that persists keeps its
+Drizzle tables in `infrastructure/persistence/schema.ts`. Change the schema,
+then run `pnpm db:generate` and commit the migration it writes to `drizzle/`;
+never edit a generated migration by hand. Adapters receive the database from
+the composition root rather than importing the client.
 
 **Configuration is environment variables only.** Add a key to the schema in
 `src/shared/config/env.ts` and to `.env.example`, then read it through

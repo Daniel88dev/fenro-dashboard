@@ -42,16 +42,19 @@ What follows from it, and what is already built against it:
 
 - The viewer and the credentials that read GitHub on their behalf are both
   **per-request facts**, so they are a port rather than configuration:
-  `application/ports/viewer.ts`. Until the login exists, `SampleViewerProvider`
-  stands in, and the sample data already distinguishes the viewer from everyone
-  else through that port — the fake reader maps the signed-in login to "you".
+  `application/ports/viewer.ts`. `SignedInViewerProvider` fills it from the
+  identity context: the signed-in GitHub login and that account's OAuth token.
+  The fake reader still maps the login to "you".
 - The composition root is **built per request** and given the viewer, so the
   OAuth adapter plugs in there without the domain or any query handler changing.
 - Ticket 02's fourth finding now binds: the token must be read **above** every
   `use cache` scope and passed in, never reached for from inside one.
-- Still open, and now ticket 07's to answer: whether watched repositories are
-  per user or global, and where the per-user token is stored.
-- `GITHUB_TOKEN` stays in the env schema as the optional fallback it already is;
-  the OAuth client id and secret are added when the login is built.
+- Still open, and ticket 07's to answer: whether watched repositories are per
+  user or global.
+- `GITHUB_TOKEN` stays in the env schema as the optional fallback it already is.
 
-The login itself is **not built yet** — slices 0 to 2 run on fake data.
+**Built 2026-09-22.** Better Auth with GitHub as the only provider, over
+Postgres through Drizzle, in `src/modules/identity/`. The token is stored per
+user in Better Auth's `account` table, encrypted with `BETTER_AUTH_SECRET`, and
+asked for `read:user`, `user:email` and `repo`. The table itself still reads
+fake data.
