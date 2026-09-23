@@ -26,13 +26,16 @@ import { taskCountsByRepositoryQuery } from "@/modules/tasks/application/queries
 import { tasksForRepositoryQuery } from "@/modules/tasks/application/queries/tasks-for-repository";
 import { TasksPanel } from "@/modules/tasks/ui/tasks-panel";
 import { isErr } from "@/shared/domain";
-import { getContainer } from "@/shared/infrastructure/container";
+import {
+  getAuthenticator,
+  getContainer,
+} from "@/shared/infrastructure/container";
 
 import { signInWithGitHubAction } from "../sign-in/actions";
 import {
+  addRepositoriesAction,
   syncRepositoriesAction,
   unwatchRepositoryAction,
-  watchRepositoryAction,
 } from "./actions";
 import {
   isOpen,
@@ -201,7 +204,9 @@ export async function RepositoriesScreen({
         openTasks={openTasks}
         filter={state.filter}
         now={now}
-        watchAction={watchRepositoryAction}
+        addAction={addRepositoriesAction}
+        repositoriesSource="/api/github/repositories"
+        accessSettingsUrl={getAuthenticator().gitHubAccessSettingsUrl()}
       />
       <RepositoryTable
         rows={views}

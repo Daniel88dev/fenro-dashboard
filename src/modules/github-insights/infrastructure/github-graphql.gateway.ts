@@ -4,6 +4,7 @@ import {
   gitHubFailure,
   type GitHubFailure,
   type GitHubGateway,
+  type GitHubRepository,
 } from "@/modules/github-insights/application/ports/github-gateway";
 import type {
   CheckRecord,
@@ -25,6 +26,12 @@ const TIMEOUT_MS = 20_000;
  * How much of a repository one sync copies. The counts are GitHub's totals
  * whatever these are; the lists only feed the panels, which show fewer.
  */
+/**
+ * How many of the viewer's repositories the picker offers. Five pages cover
+ * most people; whoever has more finds the recently pushed ones first.
+ */
+export const REPOSITORY_LIST_LIMITS = { perPage: 100, pages: 5 } as const;
+
 export const SNAPSHOT_LIMITS = {
   pullRequests: 50,
   issues: 50,
@@ -37,6 +44,10 @@ export const SNAPSHOT_LIMITS = {
  * both totals, each open pull request with its reviews and the checks on its
  * head commit, and the open issues. GraphQL's `issues` excludes pull requests,
  * unlike REST's, so the issue count is not inflated.
+ *
+ * No field of `Team` is selected: GitHub checks scopes against the query text,
+ * and any Team field needs `read:org`, which the sign-in does not ask for. With
+ * one in the query every sync is refused, team review request or not.
  */
 const SNAPSHOT_QUERY = /* GraphQL */ `
   query RepositorySnapshot($owner: String!, $name: String!) {
@@ -63,7 +74,6 @@ const SNAPSHOT_QUERY = /* GraphQL */ `
                 ... on User { login }
                 ... on Bot { login }
                 ... on Mannequin { login }
-                ... on Team { combinedSlug }
               }
             }
           }
@@ -108,12 +118,20 @@ const SNAPSHOT_QUERY = /* GraphQL */ `
   }
 `;
 
-const FIND_QUERY = /* GraphQL */ `
-  query FindRepository($owner: String!, $name: String!) {
-    repository(owner: $owner, name: $name) {
-      name
-      owner {
-        login
+/** Most recently pushed first, which is the order people look for them in. */
+const LIST_QUERY = /* GraphQL */ `
+  query ViewerRepositories($after: String) {
+    viewer {
+      repositories(
+        first: ${REPOSITORY_LIST_LIMITS.perPage}
+        after: $after
+        affiliations: [OWNER, COLLABORATOR, ORGANIZATION_MEMBER]
+        ownerAffiliations: [OWNER, COLLABORATOR, ORGANIZATION_MEMBER]
+        isArchived: false
+        orderBy: { field: PUSHED_AT, direction: DESC }
+      ) {
+        pageInfo { hasNextPage endCursor }
+        nodes { nameWithOwner isPrivate description pushedAt }
       }
     }
   }
@@ -158,7 +176,6 @@ const pullRequestNode = z.object({
             .object({
               __typename: z.string(),
               login: z.string().optional(),
-              combinedSlug: z.string().optional(),
             })
             .nullable(),
         })
@@ -216,11 +233,28 @@ const snapshotData = z.object({
     .nullable(),
 });
 
-const findData = z.object({
-  repository: z
-    .object({ name: z.string(), owner: z.object({ login: z.string() }) })
-    .nullable(),
+const listData = z.object({
+  viewer: z.object({
+    repositories: z.object({
+      pageInfo: z.object({
+        hasNextPage: z.boolean(),
+        endCursor: z.string().nullable(),
+      }),
+      nodes: z.array(
+        z
+          .object({
+            nameWithOwner: z.string(),
+            isPrivate: z.boolean(),
+            description: z.string().nullable(),
+            pushedAt: nullableDate,
+          })
+          .nullable(),
+      ),
+    }),
+  }),
 });
+
+type ListData = z.infer<typeof listData>;
 
 const graphQlResponse = z.object({
   data: z.unknown().optional(),
@@ -241,21 +275,39 @@ export class GitHubGraphqlGateway implements GitHubGateway {
     private readonly fetchImpl: Fetch = fetch,
   ) {}
 
-  async findRepository(
-    coordinates: RepositoryCoordinates,
-  ): Promise<Result<RepositoryCoordinates, GitHubFailure>> {
-    const response = await this.#query(FIND_QUERY, coordinates, findData);
-    if (isErr(response)) return response;
+  async listRepositories(): Promise<
+    Result<readonly GitHubRepository[], GitHubFailure>
+  > {
+    const found: GitHubRepository[] = [];
+    let after: string | null = null;
 
-    const repository = response.value.repository;
-    if (!repository) return err(notFound(coordinates));
-    const found = RepositoryCoordinates.create(
-      repository.owner.login,
-      repository.name,
-    );
-    // GitHub's own spelling always passes; if it ever did not, the typed one
-    // is still a repository GitHub just said exists.
-    return ok(isErr(found) ? coordinates : found.value);
+    for (let page = 0; page < REPOSITORY_LIST_LIMITS.pages; page++) {
+      const response: Result<ListData, GitHubFailure> = await this.#query(
+        LIST_QUERY,
+        { after },
+        listData,
+      );
+      if (isErr(response)) return response;
+
+      const { nodes, pageInfo }: ListData["viewer"]["repositories"] =
+        response.value.viewer.repositories;
+      for (const node of nodes) {
+        if (!node) continue;
+        const coordinates = RepositoryCoordinates.parse(node.nameWithOwner);
+        if (isErr(coordinates)) continue;
+        found.push({
+          owner: coordinates.value.owner,
+          name: coordinates.value.name,
+          isPrivate: node.isPrivate,
+          description: node.description,
+          pushedAt: node.pushedAt,
+        });
+      }
+
+      if (!pageInfo.hasNextPage || !pageInfo.endCursor) break;
+      after = pageInfo.endCursor;
+    }
+    return ok(found);
   }
 
   async fetchSnapshot(
@@ -263,7 +315,7 @@ export class GitHubGraphqlGateway implements GitHubGateway {
   ): Promise<Result<RepositorySnapshot, GitHubFailure>> {
     const response = await this.#query(
       SNAPSHOT_QUERY,
-      coordinates,
+      { owner: coordinates.owner, name: coordinates.name },
       snapshotData,
     );
     if (isErr(response)) return response;
@@ -304,7 +356,7 @@ export class GitHubGraphqlGateway implements GitHubGateway {
 
   async #query<T>(
     query: string,
-    coordinates: RepositoryCoordinates,
+    variables: Record<string, string | null>,
     schema: z.ZodType<T>,
   ): Promise<Result<T, GitHubFailure>> {
     if (!this.accessToken) {
@@ -325,52 +377,87 @@ export class GitHubGraphqlGateway implements GitHubGateway {
           "content-type": "application/json",
           "user-agent": "fenro-dashboard",
         },
-        body: JSON.stringify({
-          query,
-          variables: { owner: coordinates.owner, name: coordinates.name },
-        }),
+        body: JSON.stringify({ query, variables }),
         signal: AbortSignal.timeout(TIMEOUT_MS),
         cache: "no-store",
       });
-    } catch {
-      return err(unavailable());
+    } catch (error) {
+      return err(logged(unavailable("GitHub did not answer."), error));
     }
-
-    const failure = failureFromStatus(response);
-    if (failure) return err(failure);
 
     let body: unknown;
     try {
       body = await response.json();
     } catch {
-      return err(unavailable());
+      body = null;
     }
+
+    const failure = failureFromStatus(response, body);
+    if (failure) return err(logged(failure));
 
     const parsed = graphQlResponse.safeParse(body);
-    if (!parsed.success) return err(unavailable());
-
-    const errors = parsed.data.errors ?? [];
-    if (errors.some((error) => error.type === "RATE_LIMITED")) {
-      return err(rateLimited());
+    if (!parsed.success) {
+      return err(
+        logged(unavailable("GitHub sent an answer this app cannot read.")),
+      );
     }
+
     // A missing repository comes back as `repository: null` beside a
     // NOT_FOUND error; the callers turn the null into the failure.
-    const blocking = errors.filter((error) => error.type !== "NOT_FOUND");
-    if (blocking.length > 0 || parsed.data.data === undefined) {
-      return err(unavailable());
+    const errors = (parsed.data.errors ?? []).filter(
+      (error) => error.type !== "NOT_FOUND",
+    );
+    if (errors.length > 0) return err(logged(failureFromErrors(errors)));
+    if (parsed.data.data === undefined) {
+      return err(logged(unavailable("GitHub sent no data.")));
     }
 
     const data = schema.safeParse(parsed.data.data);
-    return data.success ? ok(data.data) : err(unavailable());
+    if (!data.success) {
+      return err(
+        logged(
+          unavailable("GitHub sent an answer this app cannot read."),
+          z.prettifyError(data.error),
+        ),
+      );
+    }
+    return ok(data.data);
   }
 }
 
-function failureFromStatus(response: Response): GitHubFailure | null {
+type GraphQlError = { readonly type?: string; readonly message: string };
+
+/**
+ * GitHub's own words go on the row, so a person can act on them — an
+ * organization that has to approve the app says so in its message.
+ */
+function failureFromErrors(errors: readonly GraphQlError[]): GitHubFailure {
+  const said = gitHubSaid(errors[0]?.message);
+  if (errors.some((error) => error.type === "RATE_LIMITED")) {
+    return rateLimited();
+  }
+  if (errors.some((error) => error.type === "INSUFFICIENT_SCOPES")) {
+    return gitHubFailure(
+      "github-unauthorized",
+      `GitHub says this sign-in is missing a permission. Sign out and in again. ${said}`,
+    );
+  }
+  if (errors.some((error) => error.type === "FORBIDDEN")) {
+    return gitHubFailure("github-forbidden", `GitHub refused access. ${said}`);
+  }
+  return unavailable(`GitHub refused the request. ${said}`);
+}
+
+function failureFromStatus(
+  response: Response,
+  body: unknown,
+): GitHubFailure | null {
   if (response.ok) return null;
+  const said = gitHubSaid(messageOf(body));
   if (response.status === 401) {
     return gitHubFailure(
       "github-unauthorized",
-      "GitHub no longer accepts your sign-in. Sign in again to refresh.",
+      "GitHub no longer accepts your sign-in. Sign out and in again.",
     );
   }
   if (
@@ -381,20 +468,45 @@ function failureFromStatus(response: Response): GitHubFailure | null {
   ) {
     return rateLimited();
   }
-  return unavailable();
+  if (response.status === 403) {
+    return gitHubFailure("github-forbidden", `GitHub refused access. ${said}`);
+  }
+  return unavailable(`GitHub answered ${response.status}. ${said}`);
 }
 
-function unavailable(): GitHubFailure {
-  return gitHubFailure(
-    "github-unavailable",
-    "GitHub did not answer. Showing the last numbers it gave.",
-  );
+const MESSAGE_LIMIT = 300;
+
+function gitHubSaid(message: string | undefined): string {
+  if (!message) return "";
+  const trimmed =
+    message.length > MESSAGE_LIMIT
+      ? `${message.slice(0, MESSAGE_LIMIT - 1)}…`
+      : message;
+  return `It said: “${trimmed}”`;
+}
+
+function messageOf(body: unknown): string | undefined {
+  const parsed = z.object({ message: z.string() }).safeParse(body);
+  return parsed.success ? parsed.data.message : undefined;
+}
+
+/**
+ * The row shows the failure; the server log keeps it too, with the detail a
+ * person does not need, so it can be diagnosed without reproducing it.
+ */
+function logged(failure: GitHubFailure, detail?: unknown): GitHubFailure {
+  console.warn(`[github] ${failure.code}: ${failure.message}`, detail ?? "");
+  return failure;
+}
+
+function unavailable(reason: string): GitHubFailure {
+  return gitHubFailure("github-unavailable", reason.trim());
 }
 
 function rateLimited(): GitHubFailure {
   return gitHubFailure(
     "github-rate-limited",
-    "GitHub's rate limit is used up for now. Showing the last numbers it gave.",
+    "GitHub's rate limit is used up for now. Try again later.",
   );
 }
 
@@ -434,8 +546,7 @@ function toPullRequestRecord(node: PullRequestNode): PullRequestRecord {
     reviewDecision: toReviewDecision(node.reviewDecision),
     requestedReviewers: node.reviewRequests.nodes.flatMap((request) => {
       const reviewer = request?.requestedReviewer;
-      const name = reviewer?.login ?? reviewer?.combinedSlug;
-      return name ? [name] : [];
+      return reviewer?.login ? [reviewer.login] : [];
     }),
     approvedBy: reviewersIn("APPROVED"),
     changesRequestedBy: reviewersIn("CHANGES_REQUESTED"),

@@ -86,7 +86,7 @@ returns nothing; the type is `<context>.<verb>`.
 
 | Command                                         | Raised by                                                  |
 | ----------------------------------------------- | ---------------------------------------------------------- |
-| `github-insights.watch-repository`              | **Watch a repository** in the toolbar                      |
+| `github-insights.watch-repository`              | **Add repositories** in the toolbar, once per ticked repo  |
 | `github-insights.unwatch-repository`            | Row menu                                                   |
 | `github-insights.sync-repository`               | **Sync now** — exists only if ticket 05 chooses a snapshot |
 | `github-insights.sync-all-watched-repositories` | The same, for the header's freshness indicator             |

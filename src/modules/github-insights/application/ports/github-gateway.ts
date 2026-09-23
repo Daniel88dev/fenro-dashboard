@@ -6,6 +6,7 @@ import type { RepositorySnapshot } from "./repository-snapshot";
 export type GitHubFailureCode =
   | "github-unauthorized"
   | "github-rate-limited"
+  | "github-forbidden"
   | "github-not-found"
   | "github-unavailable";
 
@@ -26,6 +27,15 @@ export function gitHubFailure(
   return { code, message };
 }
 
+/** A repository the viewer can see, as the picker offers it. */
+export type GitHubRepository = {
+  readonly owner: string;
+  readonly name: string;
+  readonly isPrivate: boolean;
+  readonly description: string | null;
+  readonly pushedAt: Date | null;
+};
+
 /**
  * Everything this context asks GitHub. An implementation is bound to one
  * viewer's token by the composition root, so no command, query or handler
@@ -33,12 +43,12 @@ export function gitHubFailure(
  */
 export interface GitHubGateway {
   /**
-   * The repository as GitHub spells it, if the viewer can see it. People type
-   * names in any case; GitHub's spelling is what gets stored.
+   * The repositories the viewer owns, collaborates on or can see through an
+   * organization, spelled as GitHub spells them. Archived ones are left out.
    */
-  findRepository(
-    coordinates: RepositoryCoordinates,
-  ): Promise<Result<RepositoryCoordinates, GitHubFailure>>;
+  listRepositories(): Promise<
+    Result<readonly GitHubRepository[], GitHubFailure>
+  >;
 
   /** Open pull requests, reviews, checks and open issues, in one read. */
   fetchSnapshot(

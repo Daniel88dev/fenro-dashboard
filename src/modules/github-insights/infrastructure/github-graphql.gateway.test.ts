@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { RepositoryCoordinates } from "@/modules/github-insights/domain";
 import { isErr, unwrap } from "@/shared/domain";
@@ -29,12 +29,7 @@ const repository = {
         reviewRequests: {
           nodes: [
             { requestedReviewer: { __typename: "User", login: "mira" } },
-            {
-              requestedReviewer: {
-                __typename: "Team",
-                combinedSlug: "nordwind/payments",
-              },
-            },
+            { requestedReviewer: { __typename: "Team" } },
           ],
         },
         latestOpinionatedReviews: {
@@ -107,7 +102,20 @@ const repository = {
   },
 };
 
+function queryOf(fetchImpl: ReturnType<typeof respond>, call = 0) {
+  const [, init] = fetchImpl.mock.calls[call] as [string, RequestInit];
+  return JSON.parse(String(init.body)) as {
+    query: string;
+    variables: Record<string, unknown>;
+  };
+}
+
 describe("GitHubGraphqlGateway", () => {
+  beforeEach(() => {
+    // Every failure is logged for the server's operator; not for the test run.
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+  });
+
   it("reads a repository into a snapshot, with the viewer's token", async () => {
     const fetchImpl = respond({ data: { repository } });
     const gateway = new GitHubGraphqlGateway("gho_token", fetchImpl);
@@ -131,7 +139,7 @@ describe("GitHubGraphqlGateway", () => {
       number: 476,
       author: "Daniel88dev",
       reviewDecision: "changes-requested",
-      requestedReviewers: ["mira", "nordwind/payments"],
+      requestedReviewers: ["mira"],
       approvedBy: ["mira"],
       changesRequestedBy: ["tom"],
       headSha: "3f0b7c1aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
@@ -168,19 +176,103 @@ describe("GitHubGraphqlGateway", () => {
     expect(isErr(result) && result.error.code).toBe("github-not-found");
   });
 
-  it("returns GitHub's spelling of a repository it found", async () => {
-    const gateway = new GitHubGraphqlGateway(
+  it("asks for nothing that needs a scope sign-in does not request", async () => {
+    // Any Team field needs read:org, and GitHub refuses the whole query for it.
+    const fetchImpl = respond({ data: { repository } });
+
+    await new GitHubGraphqlGateway("gho_token", fetchImpl).fetchSnapshot(
+      billing,
+    );
+
+    expect(queryOf(fetchImpl).query).not.toMatch(/on Team/);
+  });
+
+  it("lists the viewer's repositories page by page, as GitHub spells them", async () => {
+    const page = (
+      names: string[],
+      endCursor: string | null,
+      hasNextPage: boolean,
+    ) => ({
+      data: {
+        viewer: {
+          repositories: {
+            pageInfo: { hasNextPage, endCursor },
+            nodes: names.map((nameWithOwner) => ({
+              nameWithOwner,
+              isPrivate: true,
+              description: null,
+              pushedAt: "2026-09-23T09:00:00Z",
+            })),
+          },
+        },
+      },
+    });
+    const answers = [
+      page(["Nordwind/Billing-Core"], "cursor-1", true),
+      page(["Daniel88dev/fenro-dashboard"], null, false),
+    ];
+    const fetchImpl = vi.fn(async () =>
+      Response.json(answers.shift()),
+    ) as unknown as ReturnType<typeof respond>;
+
+    const listed = unwrap(
+      await new GitHubGraphqlGateway("gho_token", fetchImpl).listRepositories(),
+    );
+
+    expect(listed.map((one) => `${one.owner}/${one.name}`)).toEqual([
+      "Nordwind/Billing-Core",
+      "Daniel88dev/fenro-dashboard",
+    ]);
+    expect(listed[0]).toMatchObject({
+      isPrivate: true,
+      pushedAt: new Date("2026-09-23T09:00:00Z"),
+    });
+    expect(queryOf(fetchImpl, 1).variables).toEqual({ after: "cursor-1" });
+    // Organization repositories are left out unless asked for by owner too.
+    expect(queryOf(fetchImpl).query).toMatch(
+      /ownerAffiliations: \[OWNER, COLLABORATOR, ORGANIZATION_MEMBER\]/,
+    );
+  });
+
+  it("passes on what GitHub said when it refuses a query", async () => {
+    const scopes = new GitHubGraphqlGateway(
       "gho_token",
       respond({
-        data: {
-          repository: { name: "Billing-Core", owner: { login: "Nordwind" } },
-        },
+        errors: [
+          {
+            type: "INSUFFICIENT_SCOPES",
+            message: "Your token has not been granted the required scopes.",
+          },
+        ],
+      }),
+    );
+    const restricted = new GitHubGraphqlGateway(
+      "gho_token",
+      respond({
+        data: { repository: null },
+        errors: [
+          {
+            type: "FORBIDDEN",
+            message:
+              "The nordwind organization has enabled OAuth App access restrictions.",
+          },
+        ],
       }),
     );
 
-    const found = unwrap(await gateway.findRepository(billing));
+    const [missingScope, forbidden] = await Promise.all([
+      scopes.fetchSnapshot(billing),
+      restricted.fetchSnapshot(billing),
+    ]);
 
-    expect(found.fullName).toBe("Nordwind/Billing-Core");
+    expect(isErr(missingScope) && missingScope.error).toMatchObject({
+      code: "github-unauthorized",
+      message: expect.stringContaining("has not been granted"),
+    });
+    expect(isErr(forbidden) && forbidden.error).toMatchObject({
+      code: "github-forbidden",
+      message: expect.stringContaining("OAuth App access restrictions"),
+    });
   });
 
   it("tells a spent rate limit apart from GitHub being down", async () => {

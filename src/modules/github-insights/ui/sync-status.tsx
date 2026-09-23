@@ -3,7 +3,7 @@
 import { formatAbsolute, formatRelativeTime } from "./format";
 import { useSync } from "./sync-context";
 
-function Spinner() {
+export function Spinner() {
   return (
     <span
       aria-hidden

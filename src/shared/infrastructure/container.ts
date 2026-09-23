@@ -18,11 +18,6 @@ import {
   type DashboardTotalsResult,
 } from "@/modules/github-insights/application/queries/dashboard-totals";
 import {
-  LookUpRepositoryHandler,
-  type LookUpRepositoryQuery,
-  type LookUpRepositoryResult,
-} from "@/modules/github-insights/application/queries/look-up-repository";
-import {
   OpenIssuesHandler,
   type OpenIssuesQuery,
   type OpenIssuesResult,
@@ -42,6 +37,11 @@ import {
   type RepositoryRowsQuery,
   type RepositoryRowsResult,
 } from "@/modules/github-insights/application/queries/repository-rows";
+import {
+  WatchableRepositoriesHandler,
+  type WatchableRepositoriesQuery,
+  type WatchableRepositoriesResult,
+} from "@/modules/github-insights/application/queries/watchable-repositories";
 import type { WatchedRepositoryRepository } from "@/modules/github-insights/domain";
 import { DrizzleRepositorySnapshotStore } from "@/modules/github-insights/infrastructure/drizzle-repository-snapshot.store";
 import { DrizzleWatchedRepositoryRepository } from "@/modules/github-insights/infrastructure/drizzle-watched-repository.repository";
@@ -142,9 +142,9 @@ export function buildContainer(parts: ContainerParts): Container {
     "github-insights.open-issues",
     new OpenIssuesHandler(watchedRepositories, insights),
   );
-  queryBus.register<LookUpRepositoryQuery, LookUpRepositoryResult>(
-    "github-insights.look-up-repository",
-    new LookUpRepositoryHandler(gitHub),
+  queryBus.register<WatchableRepositoriesQuery, WatchableRepositoriesResult>(
+    "github-insights.watchable-repositories",
+    new WatchableRepositoriesHandler(gitHub, watchedRepositories),
   );
   queryBus.register<SignedInUserQuery, SignedInUser | null>(
     "identity.signed-in-user",

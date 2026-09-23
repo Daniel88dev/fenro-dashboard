@@ -39,7 +39,9 @@ is not yet settled.
 
 The page title, the count of watched repositories, and three totals across all of
 them: open pull requests, open issues, tasks. Then a toolbar: a repository
-filter, **Sync now**, **Watch a repository**.
+filter, **Sync now**, **Add repositories**. Adding opens a searchable list of
+the repositories GitHub lets the viewer see, read when the picker opens; ticked
+ones are watched. Nobody types `owner/name`.
 
 ### The table
 

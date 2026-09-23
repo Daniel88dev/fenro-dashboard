@@ -2,13 +2,15 @@ import {
   gitHubFailure,
   type GitHubFailure,
   type GitHubGateway,
+  type GitHubRepository,
 } from "@/modules/github-insights/application/ports/github-gateway";
 import type { RepositorySnapshot } from "@/modules/github-insights/application/ports/repository-snapshot";
 import type { RepositoryCoordinates } from "@/modules/github-insights/domain";
 import { err, ok, type Result } from "@/shared/domain";
 
 /**
- * GitHub for tests: answers from a map of snapshots keyed `owner/name`, or
+ * GitHub for tests: answers from a map of snapshots keyed `owner/name` (which
+ * are also the repositories the viewer can see), or
  * with the failure a test sets, and counts every call so a test can prove a
  * sync did not happen.
  */
@@ -24,15 +26,24 @@ export class FakeGitHubGateway implements GitHubGateway {
     this.snapshots[fullName] = snapshot;
   }
 
-  findRepository(
-    coordinates: RepositoryCoordinates,
-  ): Promise<Result<RepositoryCoordinates, GitHubFailure>> {
-    this.calls.push(`find ${coordinates.fullName}`);
+  listRepositories(): Promise<
+    Result<readonly GitHubRepository[], GitHubFailure>
+  > {
+    this.calls.push("list");
     if (this.failure) return Promise.resolve(err(this.failure));
     return Promise.resolve(
-      this.#known(coordinates)
-        ? ok(coordinates)
-        : err(this.#notFound(coordinates)),
+      ok(
+        Object.keys(this.snapshots).map((fullName) => {
+          const [owner = "", name = ""] = fullName.split("/");
+          return {
+            owner,
+            name,
+            isPrivate: false,
+            description: null,
+            pushedAt: null,
+          };
+        }),
+      ),
     );
   }
 

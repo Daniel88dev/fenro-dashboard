@@ -133,6 +133,13 @@ one call, a failed sync keeps the last good numbers and says so on the row,
 and a failure is not retried on its own for five minutes. The rules live in
 `SyncState` in `src/modules/github-insights/domain/`.
 
+A failed sync shows GitHub's own message on the row and logs it on the server
+as `[github] <code>: <message>`. Repositories of an organization with OAuth app
+access restrictions stay hidden until an owner approves the app; **Add
+repositories** links to the GitHub page where you ask. The sign-in asks for
+`repo` and nothing more, so queries must not select `Team` fields, which need
+`read:org`.
+
 ## Configuration
 
 Everything the app reads comes from plain environment variables, validated once

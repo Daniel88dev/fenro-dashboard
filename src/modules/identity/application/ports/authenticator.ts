@@ -36,4 +36,10 @@ export interface Authenticator {
   }): Promise<string>;
 
   signOut(): Promise<void>;
+
+  /**
+   * GitHub's page where the user reviews what this app may read, and asks an
+   * organization to let it in. `null` when no OAuth app is configured.
+   */
+  gitHubAccessSettingsUrl(): string | null;
 }
