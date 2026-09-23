@@ -9,6 +9,11 @@
  */
 export type Viewer = {
   readonly login: string;
+  /**
+   * The viewer's GitHub OAuth token. Only an adapter that calls GitHub reads
+   * it; keep it out of read models, props and anything cached.
+   */
+  readonly accessToken: string;
 };
 
 export interface ViewerProvider {

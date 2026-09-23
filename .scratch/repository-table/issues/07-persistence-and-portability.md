@@ -32,3 +32,23 @@ how the app talks to it is undecided.
 The last point matters most for sequencing: if an in-memory implementation of
 every port is the first thing built, this decision can land late without blocking
 the screen.
+
+## Partly answered — 2026-09-22
+
+Daniel chose **Postgres, reached through Drizzle** (`drizzle-orm` over the plain
+`pg` driver and a `DATABASE_URL`), with `drizzle-kit` migrations checked in
+under `drizzle/`. That works the same on Vercel with any hosted Postgres and on
+a container next to RDS.
+
+- Sessions and the per-user GitHub token now persist, in the identity context's
+  tables (`src/modules/identity/infrastructure/persistence/schema.ts`).
+- Each context keeps its tables next to its adapters at
+  `infrastructure/persistence/schema.ts`; `drizzle.config.ts` globs them into
+  one migration history.
+- The pool is created on first use and shared per process
+  (`src/shared/infrastructure/database/client.ts`); adapters get the database
+  from the composition root.
+
+Still open: what else persists (watched repositories per user or global, tasks,
+and mirrored GitHub data if ticket 05 picks a snapshot), and the in-memory
+adapters stay until those land.

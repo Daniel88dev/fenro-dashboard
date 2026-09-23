@@ -1,0 +1,16 @@
+# Local Postgres for development: `docker compose up -d`, then `pnpm db:migrate`.
+# Matches DATABASE_URL in .env.example. Production uses any hosted Postgres.
+services:
+  postgres:
+    image: postgres:17
+    environment:
+      POSTGRES_USER: fenro
+      POSTGRES_PASSWORD: fenro
+      POSTGRES_DB: fenro
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+
+volumes:
+  postgres-data:

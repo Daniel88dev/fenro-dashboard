@@ -4,8 +4,17 @@ import type { ReactNode } from "react";
  * The near-black bar from the design. Tasks and Settings are named but not
  * linked: neither screen exists yet, and a link that 404s is worse than a
  * label that waits.
+ *
+ * `account` is a slot rather than something this component fetches: who is
+ * signed in belongs to the identity context, and the route composes the two.
  */
-export function DashboardChrome({ children }: { children: ReactNode }) {
+export function DashboardChrome({
+  children,
+  account,
+}: {
+  children: ReactNode;
+  account?: ReactNode;
+}) {
   return (
     <div className="bg-ground text-ink flex min-h-full flex-1 flex-col font-sans">
       <header className="bg-bar text-bar-ink flex h-14 shrink-0 items-center gap-6 px-[26px]">
@@ -26,6 +35,7 @@ export function DashboardChrome({ children }: { children: ReactNode }) {
             Settings
           </span>
         </nav>
+        {account ? <div className="ml-auto">{account}</div> : null}
       </header>
 
       <main className="flex min-h-0 flex-1 flex-col gap-[18px] px-8 py-[26px]">
