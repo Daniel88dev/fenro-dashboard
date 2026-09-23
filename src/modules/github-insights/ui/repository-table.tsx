@@ -20,6 +20,8 @@ export type RepositoryRowView = {
   readonly lastActivityAt: Date | null;
   /** Why the latest sync failed, while the counts are from an older one. */
   readonly syncFailure: string | null;
+  /** The header already explains the rate limit; the row only points at it. */
+  readonly rateLimited: boolean;
   readonly pullRequests: ColumnToggle;
   readonly issues: ColumnToggle;
   readonly tasks: ColumnToggle;
@@ -46,9 +48,8 @@ export function RepositoryTable({
     return (
       <div className="border-hairline bg-surface overflow-hidden rounded-xl border">
         <p className="text-ink-muted px-[18px] py-10 text-center text-[13px]">
-          Nothing watched yet. Add a repository as{" "}
-          <span className="font-mono">owner/name</span> to see what is open in
-          it.
+          Nothing watched yet. Use Add repositories to pick the ones you want to
+          follow.
         </p>
       </div>
     );
@@ -84,7 +85,9 @@ export function RepositoryTable({
                       className="text-issue-strong truncate text-[11.5px]"
                       title={row.syncFailure}
                     >
-                      Last sync failed: {row.syncFailure}
+                      {row.rateLimited
+                        ? "Not refreshed: rate limit used up"
+                        : `Last sync failed: ${row.syncFailure}`}
                     </span>
                   ) : null}
                 </div>

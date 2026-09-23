@@ -5,15 +5,17 @@ import type {
   RepositorySnapshot,
 } from "../ports/repository-snapshot";
 import type { Watcher } from "../ports/viewer";
-import type {
-  CheckRollup,
-  IssueSummary,
-  OpenIssues,
-  OpenPullRequests,
-  PullRequestChecks,
-  PullRequestSummary,
-  RepositoryCounts,
-  ReviewState,
+import {
+  NO_ISSUE_FILTER,
+  type CheckRollup,
+  type IssueFilter,
+  type IssueSummary,
+  type OpenIssues,
+  type OpenPullRequests,
+  type PullRequestChecks,
+  type PullRequestSummary,
+  type RepositoryCounts,
+  type ReviewState,
 } from "./read-models";
 
 /**
@@ -207,9 +209,34 @@ export function openPullRequestsFrom(
   return { summary, totalOpen: snapshot.openPullRequests, shown };
 }
 
+function passes(
+  issue: IssueRecord,
+  watcher: Watcher,
+  filter: IssueFilter,
+): boolean {
+  if (filter.assignedToMe && !isAssignedTo(issue, watcher)) return false;
+  if (filter.needsTriage && issue.labels.length > 0) return false;
+  return true;
+}
+
+/**
+ * Unless asked for oldest first, what is assigned to the viewer leads, then
+ * whatever moved most recently.
+ */
+function issueOrder(watcher: Watcher, filter: IssueFilter) {
+  if (filter.order === "oldest") {
+    return (one: IssueRecord, other: IssueRecord) =>
+      one.openedAt.getTime() - other.openedAt.getTime();
+  }
+  return (one: IssueRecord, other: IssueRecord) =>
+    Number(isAssignedTo(other, watcher)) - Number(isAssignedTo(one, watcher)) ||
+    other.updatedAt.getTime() - one.updatedAt.getTime();
+}
+
 export function openIssuesFrom(
   snapshot: RepositorySnapshot,
   watcher: Watcher,
+  filter: IssueFilter = NO_ISSUE_FILTER,
 ): OpenIssues {
   const all = snapshot.issues;
   const assigned = all.filter((issue) => isAssignedTo(issue, watcher)).length;
@@ -221,13 +248,9 @@ export function openIssuesFrom(
   if (unlabelled > 0) parts.push(`${unlabelled} unlabelled`);
   const summary = snapshot.openIssues === 0 ? "nothing open" : parts.join(", ");
 
-  const shown = [...all]
-    .sort(
-      (one, other) =>
-        Number(isAssignedTo(other, watcher)) -
-          Number(isAssignedTo(one, watcher)) ||
-        other.updatedAt.getTime() - one.updatedAt.getTime(),
-    )
+  const matching = all.filter((issue) => passes(issue, watcher, filter));
+  const shown = [...matching]
+    .sort(issueOrder(watcher, filter))
     .slice(0, PANEL_LIMIT)
     .map((issue): IssueSummary => ({
       number: issue.number,
@@ -244,7 +267,14 @@ export function openIssuesFrom(
             ),
     }));
 
-  return { summary, totalOpen: snapshot.openIssues, shown };
+  return {
+    summary,
+    totalOpen: snapshot.openIssues,
+    shown,
+    matching: matching.length,
+    complete: all.length >= snapshot.openIssues,
+    stored: all.length,
+  };
 }
 
 /** "41 s", "1 m 12 s" — how the prototype writes a check's duration. */

@@ -11,6 +11,7 @@ import { InMemoryWatchedRepositoryRepository } from "@/modules/github-insights/i
 import { SYNC_POLICY } from "@/modules/github-insights/domain";
 
 import {
+  SYNC_CONCURRENCY,
   SyncWatchedRepositoriesHandler,
   syncWatchedRepositoriesCommand,
 } from "./sync-watched-repositories";
@@ -149,6 +150,26 @@ describe("sync-watched-repositories", () => {
     await handler.handle(syncWatchedRepositoriesCommand("user-1", "automatic"));
 
     expect(gitHub.calls).toEqual([]);
+  });
+
+  it("stops asking GitHub once its rate limit has run out", async () => {
+    const names = Array.from(
+      { length: SYNC_CONCURRENCY + 2 },
+      (_, index) => `nordwind/repo-${index}`,
+    );
+    const { handler, gitHub, stored } = await setUp(...names);
+    gitHub.failure = gitHubFailure(
+      "github-rate-limited",
+      "GitHub's rate limit is used up for now. Try again later.",
+    );
+
+    await handler.handle(syncWatchedRepositoriesCommand("user-1", "automatic"));
+
+    expect(gitHub.calls.length).toBeLessThanOrEqual(SYNC_CONCURRENCY);
+    const first = await stored("nordwind/repo-0");
+    expect(first.repository.sync.isRateLimited).toBe(true);
+    const last = await stored(names.at(-1)!);
+    expect(last.repository.sync.lastAttemptedAt).toBeNull();
   });
 
   it("makes one GitHub call when two requests sync at once", async () => {

@@ -6,6 +6,7 @@ import {
   SyncState,
   WatchedRepository,
   type ConcurrentModification,
+  type SyncFailureKind,
   type WatchedRepositoryRepository,
 } from "@/modules/github-insights/domain";
 import { err, ok, UniqueId, unwrap, type Result } from "@/shared/domain";
@@ -122,6 +123,7 @@ export class DrizzleWatchedRepositoryRepository implements WatchedRepositoryRepo
         lastSyncedAt: row.lastSyncedAt,
         lastAttemptedAt: row.lastSyncAttemptedAt,
         lastFailure: row.lastSyncFailure,
+        lastFailureKind: failureKind(row.lastSyncFailureKind),
         startedAt: row.syncStartedAt,
       }),
     );
@@ -141,6 +143,13 @@ function toValues(repository: WatchedRepository) {
     lastSyncedAt: sync.lastSyncedAt,
     lastSyncAttemptedAt: sync.lastAttemptedAt,
     lastSyncFailure: sync.lastFailure,
+    lastSyncFailureKind: sync.lastFailureKind,
     syncStartedAt: sync.startedAt,
   };
+}
+
+/** Anything this version does not recognise reads as a plain failure. */
+function failureKind(value: string | null): SyncFailureKind | null {
+  if (value === null) return null;
+  return value === "rate-limited" ? "rate-limited" : "failed";
 }

@@ -139,7 +139,29 @@ describe("dashboard-totals", () => {
       openIssues: 47,
       syncedAt: new Date("2026-09-23T10:00:00Z"),
       neverSynced: 1,
+      rateLimited: false,
     });
+  });
+
+  it("says the rate limit ran out when any repository's sync was refused for it", async () => {
+    const { billing } = setUp();
+    unwrap(billing.startSync("manual", now));
+    billing.failSync("GitHub's rate limit is used up.", now, "rate-limited");
+    const repositories = new InMemoryWatchedRepositoryRepository([billing]);
+    const insights = new SnapshotInsightsReader(
+      new InMemoryRepositorySnapshotStore(),
+      () => now,
+    );
+
+    const totals = unwrap(
+      await new DashboardTotalsHandler(
+        repositories,
+        insights,
+        () => now,
+      ).handle({ type: "github-insights.dashboard-totals", watcher: daniel }),
+    );
+
+    expect(totals.rateLimited).toBe(true);
   });
 });
 

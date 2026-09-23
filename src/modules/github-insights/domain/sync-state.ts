@@ -14,6 +14,11 @@ export const SYNC_POLICY = {
   staleAfterMs: 60 * MINUTE,
   /** A failed sync is not retried on its own until this has passed. */
   retryAfterFailureMs: 5 * MINUTE,
+  /**
+   * Longer after GitHub said the rate limit is used up: it resets within the
+   * hour, and asking again sooner only spends the calls it has left.
+   */
+  retryAfterRateLimitMs: 15 * MINUTE,
   /** Refresh pressed again this soon after the last attempt does nothing. */
   manualCooldownMs: 1 * MINUTE,
   /**
@@ -26,11 +31,18 @@ export const SYNC_POLICY = {
 /** Refresh pressed by a person, or a visit finding the numbers stale. */
 export type SyncTrigger = "manual" | "automatic";
 
+/**
+ * Why a sync failed, as far as the policy cares: GitHub rationing calls is
+ * waited out differently from anything else going wrong.
+ */
+export type SyncFailureKind = "rate-limited" | "failed";
+
 type Props = {
   readonly lastSyncedAt: Date | null;
   readonly lastAttemptedAt: Date | null;
   /** Why the latest attempt failed; cleared by the next success. */
   readonly lastFailure: string | null;
+  readonly lastFailureKind: SyncFailureKind | null;
   /** When the sync in flight started, or null when none is. */
   readonly startedAt: Date | null;
 };
@@ -50,6 +62,7 @@ export class SyncState extends ValueObject<Props> {
       lastSyncedAt: null,
       lastAttemptedAt: null,
       lastFailure: null,
+      lastFailureKind: null,
       startedAt: null,
     });
   }
@@ -68,6 +81,18 @@ export class SyncState extends ValueObject<Props> {
 
   get lastFailure(): string | null {
     return this.props.lastFailure;
+  }
+
+  get lastFailureKind(): SyncFailureKind | null {
+    return this.props.lastFailureKind;
+  }
+
+  /** The latest attempt was refused because GitHub's rate limit ran out. */
+  get isRateLimited(): boolean {
+    return (
+      this.props.lastFailure !== null &&
+      this.props.lastFailureKind === "rate-limited"
+    );
   }
 
   get startedAt(): Date | null {
@@ -96,10 +121,12 @@ export class SyncState extends ValueObject<Props> {
    */
   isDueAutomatically(now: Date): boolean {
     if (!this.isStale(now) || this.isInProgress(now)) return false;
+    const wait = this.isRateLimited
+      ? SYNC_POLICY.retryAfterRateLimitMs
+      : SYNC_POLICY.retryAfterFailureMs;
     return (
       this.props.lastAttemptedAt === null ||
-      elapsed(this.props.lastAttemptedAt, now) >=
-        SYNC_POLICY.retryAfterFailureMs
+      elapsed(this.props.lastAttemptedAt, now) >= wait
     );
   }
 
@@ -130,14 +157,16 @@ export class SyncState extends ValueObject<Props> {
       ...this.props,
       lastSyncedAt: now,
       lastFailure: null,
+      lastFailureKind: null,
       startedAt: null,
     });
   }
 
-  failed(reason: string): SyncState {
+  failed(reason: string, kind: SyncFailureKind = "failed"): SyncState {
     return new SyncState({
       ...this.props,
       lastFailure: reason,
+      lastFailureKind: kind,
       startedAt: null,
     });
   }

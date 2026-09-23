@@ -38,6 +38,8 @@ export const watchedRepository = pgTable(
     lastSyncedAt: instant("last_synced_at"),
     lastSyncAttemptedAt: instant("last_sync_attempted_at"),
     lastSyncFailure: text("last_sync_failure"),
+    /** `rate-limited` or `failed`; null on rows from before it was kept. */
+    lastSyncFailureKind: text("last_sync_failure_kind"),
     /** When the sync in flight started; the lease two requests race for. */
     syncStartedAt: instant("sync_started_at"),
     /** Bumped on every save, so a save over someone else's fails. */

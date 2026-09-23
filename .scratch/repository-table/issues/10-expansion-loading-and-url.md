@@ -1,7 +1,7 @@
 # Loading and URL strategy for the expansion
 
 Type: grilling
-Status: open
+Status: defaults built, open for Daniel to overturn
 Blocked by: 05
 Part of: [map](../map.md)
 
@@ -53,6 +53,27 @@ per panel.
   nested one per panel, with `cacheComponents: true` — goes in with the real
   GitHub reads in slice 3, which is when it starts to matter.
 
-What is still open: whether the "Show the other 8" link leads anywhere inside
-the app (today it points at GitHub), and what the loading and rate-limited
-states say, which waits on 05.
+## What slice 4 settled by default
+
+Ticket 05 landed (a synced snapshot), so the panels read Postgres, not
+GitHub. Built on 2026-09-23 with these defaults; each is cheap to change:
+
+- **Streaming per panel.** Every open panel, and every open pull request's
+  checks, has its own `<Suspense>` and its own error boundary (`catchError`
+  from `next/error`). `cacheComponents` stays off, because nothing here is
+  shared between viewers for `'use cache'` to keep.
+- **Loading copy**: the panel's own title, then `Loading pull requests…` (or
+  issues, or tasks) and three placeholder lines; `Loading the checks for
+#476…` for an open pull request.
+- **Error copy**: `The pull requests could not be loaded.` with **Try again**
+  for a panel that throws, fixed text because production redacts server
+  error messages. Failures a query can explain keep their own sentence.
+- **Rate-limited copy**: said once in the header, `GitHub's rate limit is used
+up. Showing numbers from 20 min ago.`; rows say `Not refreshed: rate limit
+used up`. The sync stops at the first rate-limited answer and waits 15
+  minutes before retrying on its own.
+- **"Show the other 8" leads to GitHub**, as a search that mirrors any pressed
+  issue chips, rather than to an in-app list: the snapshot stores at most 50
+  of each, and replacing GitHub's lists is out of scope on the map.
+- **Issue chips in the URL** as a repeatable `issues=owner/name:chip`,
+  released when the row's issues panel closes, like its pull requests.

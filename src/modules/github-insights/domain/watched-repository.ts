@@ -14,7 +14,11 @@ import {
   RepositoryWatched,
 } from "./events";
 import type { RepositoryCoordinates } from "./repository-coordinates";
-import { SyncState, type SyncTrigger } from "./sync-state";
+import {
+  SyncState,
+  type SyncFailureKind,
+  type SyncTrigger,
+} from "./sync-state";
 
 type Props = {
   /**
@@ -102,9 +106,9 @@ export class WatchedRepository extends AggregateRoot<Props> {
     );
   }
 
-  failSync(reason: string, now: Date): void {
+  failSync(reason: string, now: Date, kind: SyncFailureKind = "failed"): void {
     this.#requireSyncInFlight();
-    this.#sync = this.#sync.failed(reason);
+    this.#sync = this.#sync.failed(reason, kind);
     this.record(
       new RepositorySyncFailed(
         this.id.value,

@@ -66,6 +66,7 @@ export async function loadRepositoryRows(
           lastActivityAt: count?.lastActivityAt ?? null,
           syncedAt: sync.lastSyncedAt,
           syncFailure: sync.lastFailure,
+          rateLimited: sync.isRateLimited,
           needsSync: sync.isDueAutomatically(now),
         };
       })

@@ -14,17 +14,21 @@ export function Spinner() {
 
 /**
  * The header's freshness line and its Refresh button. While a sync runs it
- * says so, and the numbers around it stay as they were until it lands.
+ * says so, and the numbers around it stay as they were until it lands. When
+ * GitHub has refused a sync for the rate limit, it says that once here rather
+ * than on every row, and still says how old the numbers are.
  */
 export function SyncStatus({
   syncedAt,
   neverSynced,
   watched,
+  rateLimited = false,
   now,
 }: {
   syncedAt: Date | null;
   neverSynced: number;
   watched: number;
+  rateLimited?: boolean;
   now: Date;
 }) {
   const { syncing, refresh } = useSync();
@@ -41,6 +45,24 @@ export function SyncStatus({
             <Spinner />
             Updating from GitHub…
           </>
+        ) : rateLimited ? (
+          <span className="text-issue-strong">
+            GitHub&apos;s rate limit is used up.{" "}
+            {syncedAt === null ? (
+              "Nothing synced yet."
+            ) : (
+              <>
+                Showing numbers from{" "}
+                <time
+                  dateTime={syncedAt.toISOString()}
+                  title={formatAbsolute(syncedAt)}
+                >
+                  {formatRelativeTime(syncedAt, now)}
+                </time>
+                .
+              </>
+            )}
+          </span>
         ) : syncedAt === null ? (
           watched === 0 ? null : (
             "Not synced yet"

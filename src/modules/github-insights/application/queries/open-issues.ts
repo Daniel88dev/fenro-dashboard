@@ -7,7 +7,11 @@ import type { WatchedRepositoryRepository } from "@/modules/github-insights/doma
 import type { Query, QueryHandler } from "@/shared/application";
 import { isErr, type Result } from "@/shared/domain";
 
-import type { OpenIssues } from "./read-models";
+import {
+  NO_ISSUE_FILTER,
+  type IssueFilter,
+  type OpenIssues,
+} from "./read-models";
 import { findWatched } from "./watched-lookup";
 
 export type OpenIssuesResult = Result<OpenIssues, InsightsUnavailable>;
@@ -19,14 +23,16 @@ export type OpenIssuesQuery = Query<
   readonly watcher: Watcher;
   readonly owner: string;
   readonly name: string;
+  readonly filter: IssueFilter;
 };
 
 export function openIssuesQuery(
   watcher: Watcher,
   owner: string,
   name: string,
+  filter: IssueFilter = NO_ISSUE_FILTER,
 ): OpenIssuesQuery {
-  return { type: "github-insights.open-issues", watcher, owner, name };
+  return { type: "github-insights.open-issues", watcher, owner, name, filter };
 }
 
 export class OpenIssuesHandler implements QueryHandler<
@@ -46,6 +52,10 @@ export class OpenIssuesHandler implements QueryHandler<
       query.name,
     );
     if (isErr(watched)) return watched;
-    return this.insights.openIssues(query.watcher, watched.value.id.value);
+    return this.insights.openIssues(
+      query.watcher,
+      watched.value.id.value,
+      query.filter,
+    );
   }
 }

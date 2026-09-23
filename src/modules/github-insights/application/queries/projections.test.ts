@@ -195,6 +195,82 @@ describe("openIssuesFrom", () => {
     expect(panel.shown[0]?.assignee).toBe("you");
     expect(panel.shown[1]?.label).toBe("bug");
   });
+
+  const issues = [
+    anIssue({
+      number: 1,
+      labels: ["bug"],
+      assignees: ["Daniel88dev"],
+      openedAt: new Date("2026-09-01T00:00:00Z"),
+    }),
+    anIssue({
+      number: 2,
+      assignees: ["mira"],
+      openedAt: new Date("2026-08-01T00:00:00Z"),
+    }),
+    anIssue({
+      number: 3,
+      assignees: ["Daniel88dev"],
+      openedAt: new Date("2026-07-01T00:00:00Z"),
+    }),
+  ];
+  const filter = {
+    assignedToMe: false,
+    needsTriage: false,
+    order: "attention",
+  } as const;
+
+  it("narrows to what is assigned to you, or what nobody has labelled", () => {
+    const snapshot = aSnapshot({ issues });
+
+    const assigned = openIssuesFrom(snapshot, daniel, {
+      ...filter,
+      assignedToMe: true,
+    });
+    const triage = openIssuesFrom(snapshot, daniel, {
+      ...filter,
+      needsTriage: true,
+    });
+    const both = openIssuesFrom(snapshot, daniel, {
+      ...filter,
+      assignedToMe: true,
+      needsTriage: true,
+    });
+
+    expect(assigned.shown.map((issue) => issue.number).sort()).toEqual([1, 3]);
+    expect(triage.shown.map((issue) => issue.number).sort()).toEqual([2, 3]);
+    expect(both.shown.map((issue) => issue.number)).toEqual([3]);
+    expect(both.matching).toBe(1);
+  });
+
+  it("keeps the summary about every open issue while a chip is pressed", () => {
+    const panel = openIssuesFrom(aSnapshot({ issues }), daniel, {
+      ...filter,
+      needsTriage: true,
+    });
+
+    expect(panel.summary).toBe("2 assigned to you, 2 unlabelled");
+  });
+
+  it("lists the oldest first when asked, whoever it is assigned to", () => {
+    const panel = openIssuesFrom(aSnapshot({ issues }), daniel, {
+      ...filter,
+      order: "oldest",
+    });
+
+    expect(panel.shown.map((issue) => issue.number)).toEqual([3, 2, 1]);
+  });
+
+  it("says whether the stored issues are all of them", () => {
+    expect(openIssuesFrom(aSnapshot({ issues }), daniel).complete).toBe(true);
+
+    const partial = openIssuesFrom(
+      aSnapshot({ issues, openIssues: 312 }),
+      daniel,
+    );
+    expect(partial.complete).toBe(false);
+    expect(partial.stored).toBe(3);
+  });
 });
 
 describe("blockingReasonFor", () => {

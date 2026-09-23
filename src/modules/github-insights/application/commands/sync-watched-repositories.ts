@@ -41,7 +41,9 @@ export const SYNC_CONCURRENCY = 4;
  * Each repository stands alone. Claiming the sync is a save that fails if
  * another request claimed it first, so two tabs refreshing together make one
  * call per repository; and a failure is recorded on that repository while the
- * last good snapshot stays where it was.
+ * last good snapshot stays where it was. The one exception is GitHub's rate
+ * limit, which belongs to the token rather than to a repository: once it runs
+ * out, the repositories not yet asked about are left for a later sync.
  */
 export class SyncWatchedRepositoriesHandler implements CommandHandler<SyncWatchedRepositoriesCommand> {
   constructor(
@@ -53,21 +55,31 @@ export class SyncWatchedRepositoriesHandler implements CommandHandler<SyncWatche
 
   async handle(command: SyncWatchedRepositoriesCommand): Promise<void> {
     const watched = await this.repositories.findAllFor(command.watcherId);
+    const run = { rateLimited: false };
     await forEachWithConcurrency(watched, SYNC_CONCURRENCY, (repository) =>
-      this.#sync(repository, command.trigger),
+      run.rateLimited
+        ? Promise.resolve()
+        : this.#sync(repository, command.trigger, run),
     );
   }
 
   async #sync(
     repository: WatchedRepository,
     trigger: SyncTrigger,
+    run: { rateLimited: boolean },
   ): Promise<void> {
     if (isErr(repository.startSync(trigger, this.clock()))) return;
     if (isErr(await this.repositories.save(repository))) return;
 
     const snapshot = await this.gitHub.fetchSnapshot(repository.coordinates);
     if (isErr(snapshot)) {
-      repository.failSync(snapshot.error.message, this.clock());
+      const rateLimited = snapshot.error.code === "github-rate-limited";
+      if (rateLimited) run.rateLimited = true;
+      repository.failSync(
+        snapshot.error.message,
+        this.clock(),
+        rateLimited ? "rate-limited" : "failed",
+      );
     } else {
       await this.snapshots.replace(repository.id.value, snapshot.value);
       repository.completeSync(this.clock());

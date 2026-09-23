@@ -1,0 +1,1 @@
+ALTER TABLE "github_watched_repository" ADD COLUMN "last_sync_failure_kind" text;

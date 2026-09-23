@@ -4,6 +4,7 @@ import {
   SyncState,
   WatchedRepository,
   type ConcurrentModification,
+  type SyncFailureKind,
   type WatchedRepositoryRepository,
 } from "@/modules/github-insights/domain";
 import { err, ok, UniqueId, unwrap, type Result } from "@/shared/domain";
@@ -17,6 +18,7 @@ type Row = {
   readonly lastSyncedAt: Date | null;
   readonly lastAttemptedAt: Date | null;
   readonly lastFailure: string | null;
+  readonly lastFailureKind: SyncFailureKind | null;
   readonly startedAt: Date | null;
   readonly version: number;
 };
@@ -112,6 +114,7 @@ export class InMemoryWatchedRepositoryRepository implements WatchedRepositoryRep
         lastSyncedAt: row.lastSyncedAt,
         lastAttemptedAt: row.lastAttemptedAt,
         lastFailure: row.lastFailure,
+        lastFailureKind: row.lastFailureKind,
         startedAt: row.startedAt,
       }),
     );
@@ -131,6 +134,7 @@ function toRow(repository: WatchedRepository, version: number): Row {
     lastSyncedAt: sync.lastSyncedAt,
     lastAttemptedAt: sync.lastAttemptedAt,
     lastFailure: sync.lastFailure,
+    lastFailureKind: sync.lastFailureKind,
     startedAt: sync.startedAt,
     version,
   };

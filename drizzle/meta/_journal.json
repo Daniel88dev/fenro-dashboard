@@ -15,6 +15,13 @@
       "when": 1790189178433,
       "tag": "0001_github_insights",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1790192315527,
+      "tag": "0002_github_sync_failure_kind",
+      "breakpoints": true
     }
   ]
 }
