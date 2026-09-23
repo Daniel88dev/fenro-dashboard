@@ -52,7 +52,7 @@
     "typescript": "^5",
     "vitest": "^5.0.1"
   },
-  "packageManager": "pnpm@10.33.0",
+  "packageManager": "pnpm@12.5.0",
   "description": "GitHub insights and an agentic task list for the repositories you care about.",
   "engines": {
     "node": ">=22.0.0"
