@@ -1,7 +1,7 @@
 # How does the Tasks column cross the context boundary?
 
 Type: grilling
-Status: open
+Status: resolved
 Blocked by: 06, 08
 Part of: [map](../map.md)
 
@@ -35,3 +35,8 @@ Sub-questions:
   reference or an opaque string the tasks context never interprets?
 - What happens to tasks when a repository is unwatched? They are not the GitHub
   context's to delete.
+
+## Answer — 2026-09-23
+
+The route asks both buses and zips on `owner/name`, case-insensitively, as the
+plan proposed. Unwatching a repository leaves its tasks alone.

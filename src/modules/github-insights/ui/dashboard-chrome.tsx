@@ -1,9 +1,22 @@
+import Link from "next/link";
 import type { ReactNode } from "react";
 
+type Screen = "repositories" | "settings";
+
+const SCREENS: readonly {
+  screen: Screen | null;
+  label: string;
+  href: string | null;
+}[] = [
+  { screen: "repositories", label: "Repositories", href: "/repositories" },
+  // Named but not linked until its screen exists: a link that 404s is worse
+  // than a label that waits.
+  { screen: null, label: "Tasks", href: null },
+  { screen: "settings", label: "Settings", href: "/settings" },
+];
+
 /**
- * The near-black bar from the design. Tasks and Settings are named but not
- * linked: neither screen exists yet, and a link that 404s is worse than a
- * label that waits.
+ * The near-black bar from the design.
  *
  * `account` is a slot rather than something this component fetches: who is
  * signed in belongs to the identity context, and the route composes the two.
@@ -11,9 +24,11 @@ import type { ReactNode } from "react";
 export function DashboardChrome({
   children,
   account,
+  current = "repositories",
 }: {
   children: ReactNode;
   account?: ReactNode;
+  current?: Screen;
 }) {
   return (
     <div className="bg-ground text-ink flex min-h-full flex-1 flex-col font-sans">
@@ -22,18 +37,29 @@ export function DashboardChrome({
           Fenro
         </span>
         <nav aria-label="Main" className="flex items-center gap-1">
-          <span
-            aria-current="page"
-            className="bg-bar-active text-bar-ink rounded-lg px-[11px] py-[7px] text-[13px] font-medium"
-          >
-            Repositories
-          </span>
-          <span className="text-bar-ink-muted rounded-lg px-[11px] py-[7px] text-[13px]">
-            Tasks
-          </span>
-          <span className="text-bar-ink-muted rounded-lg px-[11px] py-[7px] text-[13px]">
-            Settings
-          </span>
+          {SCREENS.map(({ screen, label, href }) => {
+            const here = screen === current;
+            const className = here
+              ? "bg-bar-active text-bar-ink rounded-lg px-[11px] py-[7px] text-[13px] font-medium"
+              : "text-bar-ink-muted rounded-lg px-[11px] py-[7px] text-[13px]";
+            return href && !here ? (
+              <Link
+                key={label}
+                href={href}
+                className={`${className} hover:text-bar-ink focus-visible:outline-bar-ink focus-visible:outline-2`}
+              >
+                {label}
+              </Link>
+            ) : (
+              <span
+                key={label}
+                aria-current={here ? "page" : undefined}
+                className={className}
+              >
+                {label}
+              </span>
+            );
+          })}
         </nav>
         {account ? <div className="ml-auto">{account}</div> : null}
       </header>

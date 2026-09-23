@@ -140,6 +140,30 @@ repositories** links to the GitHub page where you ask. The sign-in asks for
 `repo` and nothing more, so queries must not select `Team` fields, which need
 `read:org`.
 
+## Tasks for AI agents
+
+Tasks are built for agents first. An agent connects to the MCP server at
+`<APP_URL>/api/mcp` (Streamable HTTP, stateless) and reads and changes tasks
+there: it takes the next ready task, claims it for a session, records
+decisions and discoveries in the task's journal, ticks off acceptance criteria
+and finishes with a handoff summary the next session reads first. Tasks can
+have sub-tasks, block each other, and link to where they came from (a GitHub
+issue or pull request, a Jira or Linear issue, any URL).
+
+To connect Claude Code, sign in, open **Settings**, create a token under
+**Agent access** and run the command it shows once:
+
+```bash
+claude mcp add --transport http fenro http://localhost:3000/api/mcp \
+  --header "Authorization: Bearer fenro_pat_…"
+```
+
+Any MCP client that can send a bearer header works the same way. A token acts
+as you on your tasks; give each agent its own, so its sessions show under its
+name, and untick **Can change tasks** for one that should only read. Only a
+hash of the secret is stored. The model and the tools are described in
+[docs/tasks/agent-task-management.md](./docs/tasks/agent-task-management.md).
+
 ## Configuration
 
 Everything the app reads comes from plain environment variables, validated once

@@ -1,7 +1,6 @@
 // @vitest-environment node
 import { sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/node-postgres";
-import { migrate } from "drizzle-orm/node-postgres/migrator";
 import { Pool } from "pg";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 
@@ -39,7 +38,6 @@ describe.skipIf(!url)("Postgres adapters", () => {
   beforeAll(async () => {
     pool = new Pool({ connectionString: url });
     db = drizzle({ client: pool });
-    await migrate(db, { migrationsFolder: "drizzle" });
   });
 
   beforeEach(async () => {
