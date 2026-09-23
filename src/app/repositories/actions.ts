@@ -1,52 +1,71 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { refresh, revalidatePath } from "next/cache";
 
+import { syncWatchedRepositoriesCommand } from "@/modules/github-insights/application/commands/sync-watched-repositories";
 import { unwatchRepositoryCommand } from "@/modules/github-insights/application/commands/unwatch-repository";
 import { watchRepositoryCommand } from "@/modules/github-insights/application/commands/watch-repository";
-import { repositoryRowsQuery } from "@/modules/github-insights/application/queries/repository-rows";
-import { RepositoryCoordinates } from "@/modules/github-insights/domain";
+import { watchableRepositoriesQuery } from "@/modules/github-insights/application/queries/watchable-repositories";
+import {
+  RepositoryCoordinates,
+  type SyncTrigger,
+} from "@/modules/github-insights/domain";
 import { signedInUserQuery } from "@/modules/identity/application/queries/signed-in-user";
-import type { WatchFormState } from "@/modules/github-insights/ui/watch-repository-form";
-import { isErr, isOk } from "@/shared/domain";
+import type { AddRepositoriesState } from "@/modules/github-insights/ui/add-repositories";
+import { isErr } from "@/shared/domain";
 import { getContainer } from "@/shared/infrastructure/container";
 
-/**
- * Thin, as the working agreement asks: parse the input, ask a query, dispatch a
- * command, map the result to something the form can render. The rule that one
- * repository is watched once is the handler's; the message explaining it is
- * this layer's.
- */
-export async function watchRepositoryAction(
-  _state: WatchFormState,
-  formData: FormData,
-): Promise<WatchFormState> {
-  const raw = String(formData.get("repository") ?? "");
+/** How many repositories one submission may add. */
+const ADD_LIMIT = 100;
 
-  const coordinates = RepositoryCoordinates.parse(raw);
-  if (isErr(coordinates)) {
-    return { error: coordinates.error.message };
+/**
+ * Thin, as the working agreement asks: parse the input, ask a query, dispatch
+ * commands, map the result to something the picker can render. Only
+ * repositories GitHub lists for this viewer are watched, whatever the form
+ * posted, and each is stored as GitHub spells it.
+ */
+export async function addRepositoriesAction(
+  _state: AddRepositoriesState,
+  formData: FormData,
+): Promise<AddRepositoriesState> {
+  const picked = formData
+    .getAll("repository")
+    .map((value) => String(value).toLowerCase());
+  if (picked.length === 0) {
+    return { error: "Pick at least one repository.", added: 0 };
+  }
+  if (picked.length > ADD_LIMIT) {
+    return {
+      error: `Add at most ${ADD_LIMIT} repositories at a time.`,
+      added: 0,
+    };
   }
 
   const { commandBus, queryBus } = await getContainer();
   // A server action is a public endpoint whether or not the page showed the
-  // form, so it checks for itself.
-  if (!(await queryBus.ask(signedInUserQuery()))) {
-    return { error: "Sign in with GitHub to watch a repository." };
-  }
-  const { owner, name, fullName } = coordinates.value;
-
-  const rows = await queryBus.ask(repositoryRowsQuery());
-  if (
-    isOk(rows) &&
-    rows.value.some((row) => row.owner === owner && row.name === name)
-  ) {
-    return { error: `You are already watching ${fullName}.` };
+  // picker, so it checks for itself.
+  const user = await queryBus.ask(signedInUserQuery());
+  if (!user) {
+    return { error: "Sign in with GitHub to add repositories.", added: 0 };
   }
 
-  await commandBus.dispatch(watchRepositoryCommand(owner, name));
+  const listed = await queryBus.ask(watchableRepositoriesQuery(user.id));
+  if (isErr(listed)) return { error: listed.error.message, added: 0 };
+
+  const wanted = new Set(picked);
+  const toWatch = listed.value.filter(
+    (repository) =>
+      !repository.watched &&
+      wanted.has(`${repository.owner}/${repository.name}`.toLowerCase()),
+  );
+  for (const repository of toWatch) {
+    await commandBus.dispatch(
+      watchRepositoryCommand(user.id, repository.owner, repository.name),
+    );
+  }
+
   revalidatePath("/repositories");
-  return { error: null };
+  return { error: null, added: toWatch.length };
 }
 
 export async function unwatchRepositoryAction(
@@ -59,10 +78,36 @@ export async function unwatchRepositoryAction(
   if (isErr(coordinates)) return;
 
   const { commandBus, queryBus } = await getContainer();
-  if (!(await queryBus.ask(signedInUserQuery()))) return;
+  const user = await queryBus.ask(signedInUserQuery());
+  if (!user) return;
 
   await commandBus.dispatch(
-    unwatchRepositoryCommand(coordinates.value.owner, coordinates.value.name),
+    unwatchRepositoryCommand(
+      user.id,
+      coordinates.value.owner,
+      coordinates.value.name,
+    ),
   );
   revalidatePath("/repositories");
+}
+
+const TRIGGERS: readonly SyncTrigger[] = ["manual", "automatic"];
+
+/**
+ * Refresh, pressed or started by a stale page. The client only says which;
+ * the watched repositories' sync policy decides what is actually read from
+ * GitHub, with a token that never leaves the server. `refresh()` sends the
+ * page, re-rendered from the database, back in the same response.
+ */
+export async function syncRepositoriesAction(
+  trigger: SyncTrigger,
+): Promise<void> {
+  if (!TRIGGERS.includes(trigger)) return;
+
+  const { commandBus, queryBus } = await getContainer();
+  const user = await queryBus.ask(signedInUserQuery());
+  if (!user) return;
+
+  await commandBus.dispatch(syncWatchedRepositoriesCommand(user.id, trigger));
+  refresh();
 }

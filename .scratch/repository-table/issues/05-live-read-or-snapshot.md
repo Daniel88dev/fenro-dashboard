@@ -1,7 +1,7 @@
 # Live read, or a synced snapshot?
 
 Type: grilling
-Status: open
+Status: resolved
 Blocked by: 01, 02, 03
 Part of: [map](../map.md)
 
@@ -30,3 +30,32 @@ question moot, and is worth naming explicitly before choosing.
 
 Ticket 03 matters here because a per-user token changes what can be cached and
 shared.
+
+## Answer — 2026-09-23
+
+**A synced snapshot in Postgres**, Daniel's call: records of repositories, pull
+requests, approvals, CI checks and issues live in our database, pages are
+server-rendered from it, and refreshes go through the app. GitHub is often
+unavailable, and the rate limit should not be spent per page view.
+
+Daniel asked whether the browser could fetch GitHub itself and post the records
+back. It could (GitHub allows browser calls), but it was turned down: rate
+limits are per token wherever the call comes from, so it saves nothing; the
+browser would need the `repo`-scoped token; the server could not trust posted
+records without re-reading GitHub; and only the server can dedupe two tabs. So
+the browser asks for a sync and the server does it.
+
+What that settles:
+
+- `github-insights` persists: `WatchedRepository` (per signed-in user) with its
+  sync state, and a snapshot per watched repository.
+- `sync-watched-repositories` exists, with a `manual` (Refresh) and an
+  `automatic` (stale on visit) trigger. `SyncState` owns the policy: stale
+  after an hour, Refresh ignored within a minute of the last attempt, a
+  failure not retried on its own for five minutes, a two-minute lease so a
+  crashed sync does not block the next.
+- Nothing runs on a schedule, so there is nothing platform-specific to port.
+- A rate-limit exhaustion is a stale snapshot with a note on the row, not a
+  page error.
+- For ticket 01: one GraphQL query per repository covers both counts, reviews,
+  the check rollup and every check on each pull request's head commit.

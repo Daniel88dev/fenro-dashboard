@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 
 import { CountToggle } from "./count-toggle";
 import { formatAbsolute, formatRelativeTime } from "./format";
+import { RowSyncIndicator, SyncProgressBar } from "./sync-status";
 
 export type ColumnToggle = {
   readonly count: number;
@@ -17,6 +18,8 @@ export type RepositoryRowView = {
   readonly owner: string;
   readonly name: string;
   readonly lastActivityAt: Date | null;
+  /** Why the latest sync failed, while the counts are from an older one. */
+  readonly syncFailure: string | null;
   readonly pullRequests: ColumnToggle;
   readonly issues: ColumnToggle;
   readonly tasks: ColumnToggle;
@@ -52,7 +55,8 @@ export function RepositoryTable({
   }
 
   return (
-    <div className="border-hairline bg-surface overflow-hidden rounded-xl border">
+    <div className="border-hairline bg-surface relative overflow-hidden rounded-xl border">
+      <SyncProgressBar />
       <div
         className={`${GRID} border-hairline bg-surface-raised text-ink-muted border-b py-[11px] text-[11px] font-medium tracking-wide uppercase`}
       >
@@ -75,7 +79,19 @@ export function RepositoryTable({
                   <span className="text-ink-muted truncate text-[11.5px]">
                     {row.owner}
                   </span>
+                  {row.syncFailure ? (
+                    <span
+                      className="text-issue-strong truncate text-[11.5px]"
+                      title={row.syncFailure}
+                    >
+                      Last sync failed: {row.syncFailure}
+                    </span>
+                  ) : null}
                 </div>
+                <RowSyncIndicator
+                  repositoryId={row.id}
+                  fullName={`${row.owner}/${row.name}`}
+                />
                 {unwatchAction ? (
                   <form action={unwatchAction} className="ml-auto pr-3">
                     <input type="hidden" name="owner" value={row.owner} />

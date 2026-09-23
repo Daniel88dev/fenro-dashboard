@@ -86,7 +86,7 @@ returns nothing; the type is `<context>.<verb>`.
 
 | Command                                         | Raised by                                                  |
 | ----------------------------------------------- | ---------------------------------------------------------- |
-| `github-insights.watch-repository`              | **Watch a repository** in the toolbar                      |
+| `github-insights.watch-repository`              | **Add repositories** in the toolbar, once per ticked repo  |
 | `github-insights.unwatch-repository`            | Row menu                                                   |
 | `github-insights.sync-repository`               | **Sync now** — exists only if ticket 05 chooses a snapshot |
 | `github-insights.sync-all-watched-repositories` | The same, for the header's freshness indicator             |
@@ -357,11 +357,21 @@ and the boundaries start to earn their keep.
 
 **Slices 3 onward need the map.** Do not start them before the ticket named.
 
-### Slice 3 — real GitHub counts _(needs 01, 05)_
+### Slice 3 — real GitHub data, synced _(built)_
 
-The `GitHubGateway` port's real adapter. Counts and last-activity become true.
-Whether a `sync-repository` command exists, and whether the header says
-`synced 4 min ago`, is ticket 05's to answer.
+Ticket 05 answered: a synced snapshot. `WatchedRepository` is stored in
+Postgres per signed-in user and carries a `SyncState` that decides when GitHub
+may be asked again. `sync-watched-repositories` reads each due repository with
+one GraphQL query through the `GitHubGateway` adapter and swaps its snapshot
+(pull requests with reviews and checks, issues, both totals) in one
+transaction. The query side reads the snapshot behind the unchanged
+`RepositoryInsightsReader` port, and works out "needs you" per viewer when it
+reads. The header shows `Synced 12 min ago` and a Refresh button; a page whose
+rows are over an hour old syncs on its own once it is on screen.
+
+This also brings slices 4 and 5 forward: the pull request panel, the checks
+view and the issues panel all read the same snapshot. Their filter chips and
+per-panel loading states (ticket 10) are still to do.
 
 ### Slice 4 — real pull requests and checks _(needs 01, 10)_
 

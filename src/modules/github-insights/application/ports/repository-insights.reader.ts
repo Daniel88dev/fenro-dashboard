@@ -1,4 +1,3 @@
-import type { RepositoryCoordinates } from "@/modules/github-insights/domain";
 import type { Result } from "@/shared/domain";
 
 import type {
@@ -7,6 +6,7 @@ import type {
   PullRequestChecks,
   RepositoryCounts,
 } from "../queries/read-models";
+import type { Watcher } from "./viewer";
 
 /**
  * Failures a panel can render without taking the table down. A plain object
@@ -23,25 +23,33 @@ export function insightsUnavailable(message: string): InsightsUnavailable {
 }
 
 /**
- * Everything the query side reads about a repository it does not own. Whether
- * the implementation calls GitHub per request or serves a synced snapshot is
- * ticket 05's to decide; this port is what keeps that decision swappable.
+ * Everything the query side reads about the repositories a watcher follows,
+ * keyed by the watched repository's id. Ticket 05 settled on a synced
+ * snapshot, so the implementation reads what the last sync stored and never
+ * calls GitHub; this port is what would keep a live read swappable in.
+ *
+ * A repository never synced has no counts and empty panels, rather than an
+ * error: watching one is visible before its first sync lands.
  */
 export interface RepositoryInsightsReader {
   countsFor(
-    coordinates: readonly RepositoryCoordinates[],
+    watcher: Watcher,
+    repositoryIds: readonly string[],
   ): Promise<Result<RepositoryCounts[], InsightsUnavailable>>;
 
   openPullRequests(
-    coordinates: RepositoryCoordinates,
+    watcher: Watcher,
+    repositoryId: string,
   ): Promise<Result<OpenPullRequests, InsightsUnavailable>>;
 
   pullRequestChecks(
-    coordinates: RepositoryCoordinates,
+    watcher: Watcher,
+    repositoryId: string,
     number: number,
   ): Promise<Result<PullRequestChecks | null, InsightsUnavailable>>;
 
   openIssues(
-    coordinates: RepositoryCoordinates,
+    watcher: Watcher,
+    repositoryId: string,
   ): Promise<Result<OpenIssues, InsightsUnavailable>>;
 }

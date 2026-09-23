@@ -6,6 +6,8 @@ import type {
   SignedInUser,
 } from "@/modules/identity/application/ports/authenticator";
 
+import { getEnv } from "@/shared/config/env";
+
 import type { Auth } from "./better-auth";
 
 type SessionUser = {
@@ -28,6 +30,18 @@ export function toSignedInUser(user: SessionUser): SignedInUser | null {
     githubLogin: user.githubLogin,
     image: user.image ?? null,
   };
+}
+
+/**
+ * An organization with OAuth app access restrictions hides its repositories
+ * from this app until an owner approves it; this page is where a member asks.
+ */
+export function gitHubAccessSettingsUrl(
+  clientId: string | undefined,
+): string | null {
+  return clientId
+    ? `https://github.com/settings/connections/applications/${encodeURIComponent(clientId)}`
+    : null;
 }
 
 export class BetterAuthAuthenticator implements Authenticator {
@@ -97,5 +111,9 @@ export class BetterAuthAuthenticator implements Authenticator {
   async signOut(): Promise<void> {
     const requestHeaders = await headers();
     await this.auth().api.signOut({ headers: requestHeaders });
+  }
+
+  gitHubAccessSettingsUrl(): string | null {
+    return gitHubAccessSettingsUrl(getEnv().GITHUB_CLIENT_ID);
   }
 }

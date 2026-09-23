@@ -2,10 +2,8 @@ import Form from "next/form";
 
 import type { DashboardTotals } from "@/modules/github-insights/application/queries/read-models";
 
-import {
-  WatchRepositoryForm,
-  type WatchFormState,
-} from "./watch-repository-form";
+import { SyncStatus } from "./sync-status";
+import { AddRepositories, type AddRepositoriesState } from "./add-repositories";
 
 function Total({
   value,
@@ -30,15 +28,21 @@ export function DashboardHeader({
   totals,
   openTasks,
   filter,
-  watchAction,
+  now,
+  addAction,
+  repositoriesSource,
+  accessSettingsUrl,
 }: {
   totals: DashboardTotals;
   openTasks: number;
   filter: string;
-  watchAction: (
-    state: WatchFormState,
+  now: Date;
+  addAction: (
+    state: AddRepositoriesState,
     formData: FormData,
-  ) => Promise<WatchFormState>;
+  ) => Promise<AddRepositoriesState>;
+  repositoriesSource: string;
+  accessSettingsUrl: string | null;
 }) {
   return (
     <header className="flex flex-wrap items-end justify-between gap-4">
@@ -76,6 +80,12 @@ export function DashboardHeader({
       </div>
 
       <div className="flex flex-wrap items-start gap-2">
+        <SyncStatus
+          syncedAt={totals.syncedAt}
+          neverSynced={totals.neverSynced}
+          watched={totals.watchedRepositories}
+          now={now}
+        />
         <Form action="/repositories" className="flex items-center">
           <label htmlFor="repository-filter" className="sr-only">
             Filter repositories
@@ -89,7 +99,11 @@ export function DashboardHeader({
             className="border-hairline bg-surface text-ink placeholder:text-ink-faint focus-visible:outline-pr h-[34px] w-[190px] rounded-[9px] border px-3 text-[13px] focus-visible:outline-2 focus-visible:outline-offset-1"
           />
         </Form>
-        <WatchRepositoryForm action={watchAction} />
+        <AddRepositories
+          source={repositoriesSource}
+          action={addAction}
+          accessSettingsUrl={accessSettingsUrl}
+        />
       </div>
     </header>
   );

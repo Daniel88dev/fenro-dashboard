@@ -5,7 +5,7 @@ import type {
 
 /** The two facts this context needs from whoever handles sign-in. */
 export type SignedInAccount = {
-  login(): Promise<string | null>;
+  user(): Promise<{ readonly id: string; readonly login: string } | null>;
   accessToken(): Promise<string | null>;
 };
 
@@ -18,13 +18,13 @@ export class SignedInViewerProvider implements ViewerProvider {
   constructor(private readonly account: SignedInAccount) {}
 
   async current(): Promise<Viewer | null> {
-    const login = await this.account.login();
-    if (!login) return null;
+    const user = await this.account.user();
+    if (!user) return null;
 
     // Without a token there is nobody GitHub will answer for, so no viewer.
     const accessToken = await this.account.accessToken();
     if (!accessToken) return null;
 
-    return { login, accessToken };
+    return { id: user.id, login: user.login, accessToken };
   }
 }

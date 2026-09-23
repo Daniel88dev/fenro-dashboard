@@ -1,4 +1,8 @@
 import {
+  SyncWatchedRepositoriesHandler,
+  type SyncWatchedRepositoriesCommand,
+} from "@/modules/github-insights/application/commands/sync-watched-repositories";
+import {
   UnwatchRepositoryHandler,
   type UnwatchRepositoryCommand,
 } from "@/modules/github-insights/application/commands/unwatch-repository";
@@ -6,7 +10,8 @@ import {
   WatchRepositoryHandler,
   type WatchRepositoryCommand,
 } from "@/modules/github-insights/application/commands/watch-repository";
-import type { Viewer } from "@/modules/github-insights/application/ports/viewer";
+import type { GitHubGateway } from "@/modules/github-insights/application/ports/github-gateway";
+import type { RepositorySnapshotStore } from "@/modules/github-insights/application/ports/repository-snapshot";
 import {
   DashboardTotalsHandler,
   type DashboardTotalsQuery,
@@ -32,11 +37,17 @@ import {
   type RepositoryRowsQuery,
   type RepositoryRowsResult,
 } from "@/modules/github-insights/application/queries/repository-rows";
+import {
+  WatchableRepositoriesHandler,
+  type WatchableRepositoriesQuery,
+  type WatchableRepositoriesResult,
+} from "@/modules/github-insights/application/queries/watchable-repositories";
 import type { WatchedRepositoryRepository } from "@/modules/github-insights/domain";
-import { InMemoryRepositoryInsightsReader } from "@/modules/github-insights/infrastructure/in-memory-repository-insights.reader";
-import { InMemoryWatchedRepositoryRepository } from "@/modules/github-insights/infrastructure/in-memory-watched-repository.repository";
-import { sampleWatchedRepositories } from "@/modules/github-insights/infrastructure/sample-watched-repositories";
+import { DrizzleRepositorySnapshotStore } from "@/modules/github-insights/infrastructure/drizzle-repository-snapshot.store";
+import { DrizzleWatchedRepositoryRepository } from "@/modules/github-insights/infrastructure/drizzle-watched-repository.repository";
+import { GitHubGraphqlGateway } from "@/modules/github-insights/infrastructure/github-graphql.gateway";
 import { SignedInViewerProvider } from "@/modules/github-insights/infrastructure/signed-in-viewer.provider";
+import { SnapshotInsightsReader } from "@/modules/github-insights/infrastructure/snapshot-insights.reader";
 import type {
   Authenticator,
   SignedInUser,
@@ -66,11 +77,11 @@ import { getDatabase } from "@/shared/infrastructure/database/client";
  * The composition root: the one place allowed to know every module, so nothing
  * else has to.
  *
- * It is rebuilt per request rather than shared, because the adapters are
- * constructed with the signed-in viewer's GitHub credentials (ticket 03). The stores it wires stay process-wide, so what you watch
- * survives the request that watched it. Per
- * docs/research/nextjs-16-rendering-strategy.md this must be built *outside*
- * every `use cache` scope and passed plain arguments in.
+ * It is rebuilt per request rather than shared, because the GitHub adapter is
+ * constructed with the signed-in viewer's token (ticket 03), and the watched
+ * repository store remembers which version of each aggregate this request
+ * loaded. Per docs/research/nextjs-16-rendering-strategy.md it must be built
+ * *outside* every `use cache` scope and passed plain arguments in.
  */
 export type Container = {
   readonly commandBus: CommandBus;
@@ -79,53 +90,61 @@ export type Container = {
 
 export type ContainerParts = {
   readonly watchedRepositories: WatchedRepositoryRepository;
+  readonly snapshots: RepositorySnapshotStore;
+  /** Already bound to the viewer's token, or to none when signed out. */
+  readonly gitHub: GitHubGateway;
   readonly tasks: TaskReader;
   readonly authenticator: Authenticator;
-  readonly viewer: Viewer | null;
-  /**
-   * One instant for the whole request. The sample data holds ages as offsets,
-   * so a second `new Date()` in the renderer would round them down by a day.
-   */
-  readonly now: Date;
+  readonly clock: () => Date;
 };
 
 export function buildContainer(parts: ContainerParts): Container {
-  const insights = new InMemoryRepositoryInsightsReader(
-    parts.viewer,
-    undefined,
-    () => parts.now,
-  );
+  const { watchedRepositories, snapshots, gitHub, clock } = parts;
+  const insights = new SnapshotInsightsReader(snapshots, clock);
 
   const commandBus = new CommandBus();
   commandBus.register<WatchRepositoryCommand>(
     "github-insights.watch-repository",
-    new WatchRepositoryHandler(parts.watchedRepositories),
+    new WatchRepositoryHandler(watchedRepositories),
   );
   commandBus.register<UnwatchRepositoryCommand>(
     "github-insights.unwatch-repository",
-    new UnwatchRepositoryHandler(parts.watchedRepositories),
+    new UnwatchRepositoryHandler(watchedRepositories),
+  );
+  commandBus.register<SyncWatchedRepositoriesCommand>(
+    "github-insights.sync-watched-repositories",
+    new SyncWatchedRepositoriesHandler(
+      watchedRepositories,
+      gitHub,
+      snapshots,
+      clock,
+    ),
   );
 
   const queryBus = new QueryBus();
   queryBus.register<RepositoryRowsQuery, RepositoryRowsResult>(
     "github-insights.repository-rows",
-    new RepositoryRowsHandler(parts.watchedRepositories, insights),
+    new RepositoryRowsHandler(watchedRepositories, insights, clock),
   );
   queryBus.register<DashboardTotalsQuery, DashboardTotalsResult>(
     "github-insights.dashboard-totals",
-    new DashboardTotalsHandler(parts.watchedRepositories, insights),
+    new DashboardTotalsHandler(watchedRepositories, insights, clock),
   );
   queryBus.register<OpenPullRequestsQuery, OpenPullRequestsResult>(
     "github-insights.open-pull-requests",
-    new OpenPullRequestsHandler(insights),
+    new OpenPullRequestsHandler(watchedRepositories, insights),
   );
   queryBus.register<PullRequestChecksQuery, PullRequestChecksResult>(
     "github-insights.pull-request-checks",
-    new PullRequestChecksHandler(insights),
+    new PullRequestChecksHandler(watchedRepositories, insights),
   );
   queryBus.register<OpenIssuesQuery, OpenIssuesResult>(
     "github-insights.open-issues",
-    new OpenIssuesHandler(insights),
+    new OpenIssuesHandler(watchedRepositories, insights),
+  );
+  queryBus.register<WatchableRepositoriesQuery, WatchableRepositoriesResult>(
+    "github-insights.watchable-repositories",
+    new WatchableRepositoriesHandler(gitHub, watchedRepositories),
   );
   queryBus.register<SignedInUserQuery, SignedInUser | null>(
     "identity.signed-in-user",
@@ -143,14 +162,7 @@ export function buildContainer(parts: ContainerParts): Container {
   return { commandBus, queryBus };
 }
 
-/**
- * Process-wide state, so watching a repository outlives the request. These are
- * fakes: real persistence is ticket 07's to choose, and until it lands a fresh
- * process starts from the sample data again.
- */
-const watchedRepositories = new InMemoryWatchedRepositoryRepository(
-  sampleWatchedRepositories(),
-);
+/** Tasks are still a fake: the tasks context gets its own store in slice 6. */
 const tasks = new InMemoryTaskReader();
 
 /**
@@ -162,25 +174,33 @@ const authenticator: Authenticator = new BetterAuthAuthenticator(auth);
 
 /** The identity context answers the two questions github-insights asks. */
 const viewerProvider = new SignedInViewerProvider({
-  login: async () => (await authenticator.signedInUser())?.githubLogin ?? null,
+  user: async () => {
+    const user = await authenticator.signedInUser();
+    return user ? { id: user.id, login: user.githubLogin } : null;
+  },
   accessToken: () => authenticator.gitHubAccessToken(),
 });
 
-export async function getContainer(now: Date = new Date()): Promise<Container> {
+/**
+ * `now` pins the clock for a render, so the relative times on screen and the
+ * "is it stale" answers agree. Commands leave it out and get a live clock, so
+ * a sync records when it actually finished.
+ */
+export async function getContainer(now?: Date): Promise<Container> {
+  // Who is asking comes first: it reads the request, which is also what keeps
+  // `next build` from reaching the database below.
+  const viewer = await viewerProvider.current();
+  const db = getDatabase();
   return buildContainer({
-    watchedRepositories,
+    watchedRepositories: new DrizzleWatchedRepositoryRepository(db),
+    snapshots: new DrizzleRepositorySnapshotStore(db),
+    gitHub: new GitHubGraphqlGateway(viewer?.accessToken ?? null),
     tasks,
     authenticator,
-    viewer: await viewerProvider.current(),
-    now,
+    clock: now ? () => now : () => new Date(),
   });
 }
 
-/**
- * Sign-in and sign-out are steps in GitHub's OAuth protocol, not changes to
- * anything this app models, so the server actions that run them talk to the
- * port directly rather than through the command bus.
- */
 export function getAuthenticator(): Authenticator {
   return authenticator;
 }

@@ -30,6 +30,12 @@ const envSchema = z.object({
   /** Postgres connection string, e.g. postgres://user:pass@host:5432/fenro. */
   DATABASE_URL: optional(z.string()),
   /**
+   * A throwaway Postgres for the adapter tests, which migrate it and empty
+   * its tables. Never point it at a database whose data you want. Unset, those
+   * tests are skipped.
+   */
+  TEST_DATABASE_URL: optional(z.string()),
+  /**
    * Signs session cookies and encrypts the stored GitHub tokens. Rotating it
    * signs everybody out and makes stored tokens unreadable until they sign in
    * again.

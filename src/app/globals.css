@@ -52,6 +52,24 @@
 }
 
 /*
+ * The bar that runs along the table while a sync is fetching from GitHub. It
+ * only moves where the reader has not asked for reduced motion; the words in
+ * the header say the same thing either way.
+ */
+@theme {
+  --animate-sync-bar: sync-bar 1.4s ease-in-out infinite;
+
+  @keyframes sync-bar {
+    0% {
+      transform: translateX(-100%);
+    }
+    100% {
+      transform: translateX(250%);
+    }
+  }
+}
+
+/*
  * Dark is the same palette, not a second one: the ground goes to warm
  * near-black, the paper surfaces step up from it rather than down, and each
  * accent is lifted until it carries the same meaning at the same strength.
