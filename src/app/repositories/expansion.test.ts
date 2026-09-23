@@ -1,10 +1,12 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  isIssueChipPressed,
   isOpen,
   isPullRequestOpen,
   panelId,
   parseExpansion,
+  toggleIssueChipHref,
   togglePanelHref,
   togglePullRequestHref,
 } from "./expansion";
@@ -119,6 +121,78 @@ describe("togglePullRequestHref", () => {
         476,
       ),
     ).toBe("/repositories?open=nordwind%2Fbilling-core%3Aprs");
+  });
+});
+
+describe("issue chips", () => {
+  const issuesOpen = { open: "nordwind/billing-core:issues" };
+
+  it("reads the chips pressed on each issues panel, and drops unknown ones", () => {
+    const parsed = state({
+      ...issuesOpen,
+      issues: [
+        "nordwind/billing-core:assigned",
+        "nordwind/billing-core:oldest",
+        "nordwind/billing-core:stale",
+      ],
+    });
+
+    expect(
+      isIssueChipPressed(parsed, "nordwind", "billing-core", "assigned"),
+    ).toBe(true);
+    expect(
+      isIssueChipPressed(parsed, "nordwind", "billing-core", "oldest"),
+    ).toBe(true);
+    expect(
+      isIssueChipPressed(parsed, "nordwind", "billing-core", "triage"),
+    ).toBe(false);
+    expect(parsed.issueChips).toHaveLength(2);
+  });
+
+  it("presses a chip and releases it again", () => {
+    const released = state(issuesOpen);
+    const pressed = state({
+      ...issuesOpen,
+      issues: "nordwind/billing-core:triage",
+    });
+
+    expect(
+      toggleIssueChipHref(
+        "/repositories",
+        released,
+        "nordwind",
+        "billing-core",
+        "triage",
+      ),
+    ).toBe(
+      "/repositories?open=nordwind%2Fbilling-core%3Aissues&issues=nordwind%2Fbilling-core%3Atriage",
+    );
+    expect(
+      toggleIssueChipHref(
+        "/repositories",
+        pressed,
+        "nordwind",
+        "billing-core",
+        "triage",
+      ),
+    ).toBe("/repositories?open=nordwind%2Fbilling-core%3Aissues");
+  });
+
+  it("releases a row's chips when its issues panel closes", () => {
+    const current = state({
+      open: ["nordwind/billing-core:issues", "nordwind/docs-site:issues"],
+      issues: ["nordwind/billing-core:assigned", "nordwind/docs-site:oldest"],
+    });
+
+    expect(
+      togglePanelHref("/repositories", current, {
+        owner: "nordwind",
+        name: "billing-core",
+        column: "issues",
+      }),
+    ).toBe(
+      "/repositories?open=nordwind%2Fdocs-site%3Aissues&issues=nordwind%2Fdocs-site%3Aoldest",
+    );
   });
 });
 

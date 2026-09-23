@@ -80,6 +80,21 @@ describe("SyncState", () => {
     ).toBe(true);
   });
 
+  it("waits longer before retrying on its own once GitHub's rate limit ran out", () => {
+    const limited = unwrap(SyncState.never().start("automatic", t0)).failed(
+      "GitHub's rate limit is used up for now.",
+      "rate-limited",
+    );
+
+    expect(limited.isRateLimited).toBe(true);
+    expect(
+      limited.isDueAutomatically(later(t0, SYNC_POLICY.retryAfterFailureMs)),
+    ).toBe(false);
+    expect(
+      limited.isDueAutomatically(later(t0, SYNC_POLICY.retryAfterRateLimitMs)),
+    ).toBe(true);
+  });
+
   it("keeps the last good sync time when a later sync fails", () => {
     const failed = unwrap(
       syncedAt(t0).start("manual", later(t0, 2 * MINUTE)),
@@ -99,6 +114,7 @@ describe("SyncState", () => {
     ).succeeded(later(t0, 2 * MINUTE));
 
     expect(recovered.lastFailure).toBeNull();
+    expect(recovered.isRateLimited).toBe(false);
     expect(recovered.lastSyncedAt).toEqual(later(t0, 2 * MINUTE));
   });
 });

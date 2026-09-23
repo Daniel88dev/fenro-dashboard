@@ -59,7 +59,7 @@ describe.skipIf(!url)("Postgres adapters", () => {
         t0,
       );
       unwrap(watched.startSync("manual", t0));
-      watched.failSync("GitHub is down.", t0);
+      watched.failSync("GitHub's rate limit is used up.", t0, "rate-limited");
       unwrap(await repositories.save(watched));
 
       const [restored] = await new DrizzleWatchedRepositoryRepository(
@@ -69,7 +69,10 @@ describe.skipIf(!url)("Postgres adapters", () => {
       expect(restored?.id.equals(watched.id)).toBe(true);
       expect(restored?.coordinates.fullName).toBe("nordwind/billing-core");
       expect(restored?.sync.lastAttemptedAt).toEqual(t0);
-      expect(restored?.sync.lastFailure).toBe("GitHub is down.");
+      expect(restored?.sync.lastFailure).toBe(
+        "GitHub's rate limit is used up.",
+      );
+      expect(restored?.sync.isRateLimited).toBe(true);
       expect(restored?.sync.startedAt).toBeNull();
     });
 

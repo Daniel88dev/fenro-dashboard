@@ -1,13 +1,13 @@
+import type { ReactNode } from "react";
+
 import type {
   OpenPullRequests,
-  PullRequestChecks,
   PullRequestSummary,
 } from "@/modules/github-insights/application/queries/read-models";
 
 import { Chip } from "./chip";
 import { formatAbsolute, formatAge } from "./format";
 import { MoreOnGitHub, Panel } from "./panel";
-import { PullRequestChecksView } from "./pull-request-checks-view";
 import { ToggleButton } from "./toggle-button";
 import { reviewTone, rollupClass } from "./tones";
 
@@ -16,7 +16,11 @@ export type PullRequestView = {
   readonly expanded: boolean;
   readonly href: string;
   readonly checksId: string;
-  readonly checks: PullRequestChecks | null;
+  /**
+   * The checks view, rendered by the caller behind its own loading and error
+   * states, so an open pull request streams in without holding up the panel.
+   */
+  readonly checks: ReactNode;
 };
 
 export function PullRequestsPanel({
@@ -89,14 +93,7 @@ export function PullRequestsPanel({
             </span>
           </ToggleButton>
 
-          {expanded && checks ? (
-            <PullRequestChecksView
-              id={checksId}
-              checks={checks}
-              number={summary.number}
-              pullRequestUrl={`${repositoryUrl}/pull/${summary.number}`}
-            />
-          ) : null}
+          {expanded ? checks : null}
         </div>
       ))}
     </Panel>

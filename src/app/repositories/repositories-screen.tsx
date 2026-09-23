@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { Suspense, type ReactNode } from "react";
 
 import { dashboardTotalsQuery } from "@/modules/github-insights/application/queries/dashboard-totals";
 import { openIssuesQuery } from "@/modules/github-insights/application/queries/open-issues";
@@ -6,10 +6,26 @@ import { openPullRequestsQuery } from "@/modules/github-insights/application/que
 import { pullRequestChecksQuery } from "@/modules/github-insights/application/queries/pull-request-checks";
 import { repositoryRowsQuery } from "@/modules/github-insights/application/queries/repository-rows";
 import type { Watcher } from "@/modules/github-insights/application/ports/viewer";
-import type { RepositoryRow } from "@/modules/github-insights/application/queries/read-models";
+import type {
+  IssueFilter,
+  RepositoryRow,
+} from "@/modules/github-insights/application/queries/read-models";
 import { DashboardHeader } from "@/modules/github-insights/ui/dashboard-header";
-import { IssuesPanel } from "@/modules/github-insights/ui/issues-panel";
-import { PanelError } from "@/modules/github-insights/ui/panel";
+import {
+  IssuesPanel,
+  type IssueChipView,
+} from "@/modules/github-insights/ui/issues-panel";
+import {
+  ChecksLoading,
+  ChecksMessage,
+  PanelError,
+  PanelLoading,
+} from "@/modules/github-insights/ui/panel";
+import {
+  ChecksBoundary,
+  PanelBoundary,
+} from "@/modules/github-insights/ui/panel-boundary";
+import { PullRequestChecksView } from "@/modules/github-insights/ui/pull-request-checks-view";
 import {
   PullRequestsPanel,
   type PullRequestView,
@@ -38,14 +54,17 @@ import {
   unwatchRepositoryAction,
 } from "./actions";
 import {
+  isIssueChipPressed,
   isOpen,
   isPullRequestOpen,
   panelId,
   parseExpansion,
+  toggleIssueChipHref,
   togglePanelHref,
   togglePullRequestHref,
   type Column,
   type ExpansionState,
+  type IssueChip,
   type SearchParams,
 } from "./expansion";
 
@@ -129,67 +148,108 @@ export async function RepositoriesScreen({
     0,
   );
 
-  const views: RepositoryRowView[] = await Promise.all(
-    visible.map(async (row) => {
-      const fullName = `${row.owner}/${row.name}`;
-      const taskCount = taskCounts[fullName] ?? {
-        total: 0,
-        running: 0,
-        hint: "no tasks",
-      };
+  const views: RepositoryRowView[] = visible.map((row) => {
+    const fullName = `${row.owner}/${row.name}`;
+    const taskCount = taskCounts[fullName] ?? {
+      total: 0,
+      running: 0,
+      hint: "no tasks",
+    };
 
-      const panels: { key: string; node: ReactNode }[] = [];
+    // Each open panel streams in behind its own boundary, so several rows
+    // open at once load side by side and one failing leaves the rest.
+    const panels: { key: string; node: ReactNode }[] = [];
+    const repository = { owner: row.owner, name: row.name };
 
-      if (isOpen(state, { ...row, column: "prs" })) {
-        panels.push({
-          key: "prs",
-          node: await pullRequestsPanel(queryBus, watcher, state, row, now),
-        });
-      }
-      if (isOpen(state, { ...row, column: "issues" })) {
-        panels.push({
-          key: "issues",
-          node: await issuesPanel(queryBus, watcher, row, now),
-        });
-      }
-      if (isOpen(state, { ...row, column: "tasks" })) {
-        panels.push({ key: "tasks", node: await tasksPanel(queryBus, row) });
-      }
+    if (isOpen(state, { ...repository, column: "prs" })) {
+      panels.push({
+        key: "prs",
+        node: (
+          <StreamedPanel
+            id={panelId({ ...repository, column: "prs" })}
+            title="Open pull requests"
+            what="pull requests"
+          >
+            <PullRequestsSection
+              queryBus={queryBus}
+              watcher={watcher}
+              state={state}
+              repository={repository}
+              now={now}
+            />
+          </StreamedPanel>
+        ),
+      });
+    }
+    if (isOpen(state, { ...repository, column: "issues" })) {
+      panels.push({
+        key: "issues",
+        node: (
+          <StreamedPanel
+            id={panelId({ ...repository, column: "issues" })}
+            title="Open issues"
+            what="issues"
+          >
+            <IssuesSection
+              queryBus={queryBus}
+              watcher={watcher}
+              state={state}
+              repository={repository}
+              now={now}
+            />
+          </StreamedPanel>
+        ),
+      });
+    }
+    if (isOpen(state, { ...repository, column: "tasks" })) {
+      panels.push({
+        key: "tasks",
+        node: (
+          <StreamedPanel
+            id={panelId({ ...repository, column: "tasks" })}
+            title="Tasks on this repository"
+            what="tasks"
+          >
+            <TasksSection queryBus={queryBus} repository={repository} />
+          </StreamedPanel>
+        ),
+      });
+    }
 
-      return {
-        id: row.id,
-        owner: row.owner,
-        name: row.name,
-        lastActivityAt: row.lastActivityAt,
-        syncFailure: row.syncFailure,
-        pullRequests: toggleFor(
-          state,
-          row,
-          "prs",
-          row.openPullRequests,
-          row.pullRequestHint,
-          "open pull requests",
-        ),
-        issues: toggleFor(
-          state,
-          row,
-          "issues",
-          row.openIssues,
-          row.issueHint,
-          "open issues",
-        ),
-        tasks: toggleFor(
-          state,
-          row,
-          "tasks",
-          taskCount.total,
-          taskCount.hint,
-          "tasks",
-        ),
-        panels,
-      };
-    }),
-  );
+    return {
+      id: row.id,
+      owner: row.owner,
+      name: row.name,
+      lastActivityAt: row.lastActivityAt,
+      syncFailure: row.syncFailure,
+      rateLimited: row.rateLimited,
+      pullRequests: toggleFor(
+        state,
+        row,
+        "prs",
+        row.openPullRequests,
+        row.pullRequestHint,
+        "open pull requests",
+      ),
+      issues: toggleFor(
+        state,
+        row,
+        "issues",
+        row.openIssues,
+        row.issueHint,
+        "open issues",
+      ),
+      tasks: toggleFor(
+        state,
+        row,
+        "tasks",
+        taskCount.total,
+        taskCount.hint,
+        "tasks",
+      ),
+      panels,
+    };
+  });
 
   // Every row syncs, filtered out or not: the filter narrows what is shown,
   // not what is kept fresh.
@@ -219,16 +279,46 @@ export async function RepositoriesScreen({
 
 type Bus = Awaited<ReturnType<typeof getContainer>>["queryBus"];
 
-async function pullRequestsPanel(
-  queryBus: Bus,
-  watcher: Watcher,
-  state: ExpansionState,
-  row: { owner: string; name: string },
-  now: Date,
-): Promise<ReactNode> {
-  const id = panelId({ ...row, column: "prs" });
+type Repository = { readonly owner: string; readonly name: string };
+
+function StreamedPanel({
+  id,
+  title,
+  what,
+  children,
+}: {
+  id: string;
+  title: string;
+  what: string;
+  children: ReactNode;
+}) {
+  const noun = `The ${what}`;
+  return (
+    <PanelBoundary id={id} title={title} what={noun}>
+      <Suspense fallback={<PanelLoading id={id} title={title} what={what} />}>
+        {children}
+      </Suspense>
+    </PanelBoundary>
+  );
+}
+
+async function PullRequestsSection({
+  queryBus,
+  watcher,
+  state,
+  repository,
+  now,
+}: {
+  queryBus: Bus;
+  watcher: Watcher;
+  state: ExpansionState;
+  repository: Repository;
+  now: Date;
+}) {
+  const { owner, name } = repository;
+  const id = panelId({ owner, name, column: "prs" });
   const result = await queryBus.ask(
-    openPullRequestsQuery(watcher, row.owner, row.name),
+    openPullRequestsQuery(watcher, owner, name),
   );
   if (isErr(result)) {
     return (
@@ -240,46 +330,37 @@ async function pullRequestsPanel(
     );
   }
 
-  const views: PullRequestView[] = await Promise.all(
-    result.value.shown.map(async (summary) => {
-      const expanded = isPullRequestOpen(
-        state,
-        row.owner,
-        row.name,
-        summary.number,
-      );
-      const checks = expanded
-        ? await queryBus.ask(
-            pullRequestChecksQuery(
-              watcher,
-              row.owner,
-              row.name,
-              summary.number,
-            ),
-          )
-        : null;
-
-      return {
-        summary,
-        expanded,
-        href: togglePullRequestHref(
-          PATH,
-          state,
-          row.owner,
-          row.name,
-          summary.number,
-        ),
-        checksId: `${id}-pr-${summary.number}`,
-        checks: checks && !isErr(checks) ? checks.value : null,
-      };
-    }),
-  );
+  const views: PullRequestView[] = result.value.shown.map((summary) => {
+    const checksId = `${id}-pr-${summary.number}`;
+    const expanded = isPullRequestOpen(state, owner, name, summary.number);
+    return {
+      summary,
+      expanded,
+      href: togglePullRequestHref(PATH, state, owner, name, summary.number),
+      checksId,
+      checks: expanded ? (
+        <ChecksBoundary id={checksId} number={summary.number}>
+          <Suspense
+            fallback={<ChecksLoading id={checksId} number={summary.number} />}
+          >
+            <ChecksSection
+              queryBus={queryBus}
+              watcher={watcher}
+              repository={repository}
+              number={summary.number}
+              id={checksId}
+            />
+          </Suspense>
+        </ChecksBoundary>
+      ) : null,
+    };
+  });
 
   return (
     <PullRequestsPanel
       id={id}
-      owner={row.owner}
-      name={row.name}
+      owner={owner}
+      name={name}
       data={result.value}
       views={views}
       now={now}
@@ -287,15 +368,84 @@ async function pullRequestsPanel(
   );
 }
 
-async function issuesPanel(
-  queryBus: Bus,
-  watcher: Watcher,
-  row: { owner: string; name: string },
-  now: Date,
-): Promise<ReactNode> {
-  const id = panelId({ ...row, column: "issues" });
+async function ChecksSection({
+  queryBus,
+  watcher,
+  repository,
+  number,
+  id,
+}: {
+  queryBus: Bus;
+  watcher: Watcher;
+  repository: Repository;
+  number: number;
+  id: string;
+}) {
+  const { owner, name } = repository;
+  const checks = await queryBus.ask(
+    pullRequestChecksQuery(watcher, owner, name, number),
+  );
+  if (isErr(checks)) {
+    return (
+      <ChecksMessage id={id} tone="attention">
+        {checks.error.message}
+      </ChecksMessage>
+    );
+  }
+  if (checks.value === null) {
+    return (
+      <ChecksMessage id={id} tone="neutral">
+        {`#${number} was not in the last sync. It may have been merged or closed since.`}
+      </ChecksMessage>
+    );
+  }
+  return (
+    <PullRequestChecksView
+      id={id}
+      checks={checks.value}
+      number={number}
+      pullRequestUrl={`https://github.com/${owner}/${name}/pull/${number}`}
+    />
+  );
+}
+
+const ISSUE_CHIP_LABELS: Record<IssueChip, string> = {
+  assigned: "Assigned to me",
+  triage: "Needs triage",
+  oldest: "Oldest first",
+};
+
+function issueFilterFor(
+  state: ExpansionState,
+  { owner, name }: Repository,
+): IssueFilter {
+  const pressed = (chip: IssueChip) =>
+    isIssueChipPressed(state, owner, name, chip);
+  return {
+    assignedToMe: pressed("assigned"),
+    needsTriage: pressed("triage"),
+    order: pressed("oldest") ? "oldest" : "attention",
+  };
+}
+
+async function IssuesSection({
+  queryBus,
+  watcher,
+  state,
+  repository,
+  now,
+}: {
+  queryBus: Bus;
+  watcher: Watcher;
+  state: ExpansionState;
+  repository: Repository;
+  now: Date;
+}) {
+  const { owner, name } = repository;
+  const id = panelId({ owner, name, column: "issues" });
+  const filter = issueFilterFor(state, repository);
   const result = await queryBus.ask(
-    openIssuesQuery(watcher, row.owner, row.name),
+    openIssuesQuery(watcher, owner, name, filter),
   );
   if (isErr(result)) {
     return (
@@ -303,22 +453,36 @@ async function issuesPanel(
     );
   }
 
+  const chips: IssueChipView[] = (
+    Object.keys(ISSUE_CHIP_LABELS) as IssueChip[]
+  ).map((chip) => ({
+    label: ISSUE_CHIP_LABELS[chip],
+    href: toggleIssueChipHref(PATH, state, owner, name, chip),
+    pressed: isIssueChipPressed(state, owner, name, chip),
+  }));
+
   return (
     <IssuesPanel
       id={id}
-      owner={row.owner}
-      name={row.name}
+      owner={owner}
+      name={name}
       data={result.value}
+      filter={filter}
+      chips={chips}
       now={now}
     />
   );
 }
 
-async function tasksPanel(
-  queryBus: Bus,
-  row: { owner: string; name: string },
-): Promise<ReactNode> {
-  const id = panelId({ ...row, column: "tasks" });
-  const data = await queryBus.ask(tasksForRepositoryQuery(row.owner, row.name));
+async function TasksSection({
+  queryBus,
+  repository,
+}: {
+  queryBus: Bus;
+  repository: Repository;
+}) {
+  const { owner, name } = repository;
+  const id = panelId({ owner, name, column: "tasks" });
+  const data = await queryBus.ask(tasksForRepositoryQuery(owner, name));
   return <TasksPanel id={id} data={data} />;
 }

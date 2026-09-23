@@ -1,6 +1,7 @@
 import type { Result } from "@/shared/domain";
 
 import type {
+  IssueFilter,
   OpenIssues,
   OpenPullRequests,
   PullRequestChecks,
@@ -51,5 +52,6 @@ export interface RepositoryInsightsReader {
   openIssues(
     watcher: Watcher,
     repositoryId: string,
+    filter: IssueFilter,
   ): Promise<Result<OpenIssues, InsightsUnavailable>>;
 }

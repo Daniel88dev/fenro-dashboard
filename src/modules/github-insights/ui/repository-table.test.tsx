@@ -32,6 +32,7 @@ function row(overrides: Partial<RepositoryRowView> = {}): RepositoryRowView {
     name: "billing-core",
     lastActivityAt: new Date("2026-09-20T11:34:00Z"),
     syncFailure: null,
+    rateLimited: false,
     pullRequests: toggle({
       count: 12,
       hint: "3 need you",
@@ -160,6 +161,24 @@ describe("RepositoryTable", () => {
       screen.getByText("Last sync failed: GitHub did not answer."),
     ).toBeInTheDocument();
     expect(screen.getByText("12")).toBeInTheDocument();
+  });
+
+  it("points at the header when the rate limit stopped a row's sync", () => {
+    render(
+      <RepositoryTable
+        rows={[
+          row({
+            syncFailure: "GitHub's rate limit is used up for now.",
+            rateLimited: true,
+          }),
+        ]}
+        now={now}
+      />,
+    );
+
+    expect(
+      screen.getByText("Not refreshed: rate limit used up"),
+    ).toBeInTheDocument();
   });
 
   it("says so when nothing is watched", () => {

@@ -42,6 +42,7 @@ export function totalsOf(rows: readonly RepositoryRow[]): DashboardTotals {
         ? null
         : new Date(Math.min(...synced.map((date) => date.getTime()))),
     neverSynced: rows.length - synced.length,
+    rateLimited: rows.some((row) => row.rateLimited),
   };
 }
 

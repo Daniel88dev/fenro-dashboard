@@ -14,6 +14,7 @@ import type {
 } from "@/modules/github-insights/application/ports/repository-snapshot";
 import type { Watcher } from "@/modules/github-insights/application/ports/viewer";
 import type {
+  IssueFilter,
   OpenIssues,
   OpenPullRequests,
   PullRequestChecks,
@@ -75,8 +76,9 @@ export class SnapshotInsightsReader implements RepositoryInsightsReader {
   async openIssues(
     watcher: Watcher,
     repositoryId: string,
+    filter: IssueFilter,
   ): Promise<Result<OpenIssues, InsightsUnavailable>> {
-    return ok(openIssuesFrom(await this.#one(repositoryId), watcher));
+    return ok(openIssuesFrom(await this.#one(repositoryId), watcher, filter));
   }
 
   async #one(repositoryId: string): Promise<RepositorySnapshot> {

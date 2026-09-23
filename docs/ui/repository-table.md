@@ -85,6 +85,12 @@ pull request and arrives already carrying it as context.
 Filter chips (`Assigned to me`, `Needs triage`, `Oldest first`), then per issue:
 number, title, a label chip, age, assignee, comment count.
 
+The chips toggle independently and live in the URL. `Needs triage` means
+nobody has labelled the issue yet, the same count the summary line calls
+`unlabelled`. `Oldest first` orders by when the issue was opened, dropping the
+usual "assigned to you first". The summary line keeps speaking for every open
+issue, whatever is pressed.
+
 ### Tasks
 
 Per task: id, title, a last-activity line (`Session 1 running, 6 min in`,
@@ -180,38 +186,44 @@ Two bear directly on this document:
 
 ## What the built screen leaves out
 
-Slices 0 to 2 built this screen on fake data. Four things in the description
-above are deliberately absent, each because it belongs to a slice or a ticket
-that has not landed:
+Three things in the description above are deliberately absent, each because
+it belongs to a slice that has not landed:
 
-- **`Sync now` and the `synced 4 min ago` indicator.** Both assume the numbers
-  are a snapshot, which is exactly what ticket 05 has not decided. Building them
-  would answer that question by accident.
 - **`Make a task from this` and `New task here`.** The seam between the two
   halves of the product, and slice 7's to build.
 - **The task actions** — `Watch`, `Open`, `Resume`. They start and resume agent
   sessions, which needs the `Task` aggregate (slice 8).
-- **The issue filter chips.** Real filtering over real issues, which is slice 5.
+- **An issue's comment count**, because the sync does not read it yet.
 
-Two smaller departures from the description: `Show the other 8 pull requests`
-links out to GitHub's own list, because the fake data holds only the subset the
-panel shows; and an issue's comment count is missing, because the prototype's
-sample data never had one.
+`Show the other 8 pull requests` links out to GitHub's own list rather than
+listing the rest in place: the synced snapshot holds at most 50 of each, and
+the dashboard points at GitHub rather than replacing it. On the issues panel
+the link carries the pressed chips over as a GitHub search.
 
-## Not yet drawn
+## States beyond the happy path
 
-The prototypes show the happy path only. The empty state and a failed panel are
-now built and tested. Each of the rest still needs a decision and a design:
+The prototypes show the happy path only. What is built:
 
-- **Empty**: no repositories watched yet; a repository with nothing open.
-- **Loading**: the table shell before the counts arrive, and a panel before its
-  detail arrives. With counts and detail loaded separately, these are two
-  different states.
-- **Error**: a repository whose last sync failed, and a panel whose detail could
-  not be fetched, without failing the whole table.
-- **Rate-limited**: what the header says when GitHub has refused a refresh.
-- **Narrow viewports**: the table is drawn at 1280px. Five numeric columns plus a
-  name do not survive a phone unchanged.
+- **Empty**: nothing watched yet points at **Add repositories**; a filtered
+  issues panel with no match says `No open issue matches these filters.`
+- **Loading**: the table shell says `Loading the repositories you watch…`.
+  Each panel streams in on its own, showing its title, `Loading pull
+requests…` (or issues, or tasks) and three grey placeholder lines, so the
+  row does not jump when the detail lands. An open pull request's checks say
+  `Loading the checks for #476…`.
+- **Error**: a row whose last sync failed says why, under its name, beside the
+  numbers it kept. A panel that cannot be read says so in its own place with
+  **Try again**, and the rest of the table stands. A pull request no longer in
+  the last sync says it may have been merged or closed.
+- **Rate-limited**: the header says `GitHub's rate limit is used up. Showing
+numbers from 20 min ago.`, once, and the affected rows only say
+  `Not refreshed: rate limit used up`. Refresh stays available.
+- **Partial snapshot**: a filtered issues panel on a repository with more open
+  issues than the sync stores says it only looked at the most recently updated
+  ones and links to the full search on GitHub.
+
+Still undrawn: **narrow viewports**. The table is drawn at 1280px, and five
+numeric columns plus a name do not survive a phone unchanged.
 
 ## Accessibility notes for implementation
 

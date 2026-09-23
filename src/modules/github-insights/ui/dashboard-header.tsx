@@ -83,6 +83,7 @@ export function DashboardHeader({
         <SyncStatus
           syncedAt={totals.syncedAt}
           neverSynced={totals.neverSynced}
+          rateLimited={totals.rateLimited}
           watched={totals.watchedRepositories}
           now={now}
         />

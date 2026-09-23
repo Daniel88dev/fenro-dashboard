@@ -18,6 +18,8 @@ export type RepositoryRow = {
   readonly syncedAt: Date | null;
   /** Why the latest sync failed, while the numbers are from an older one. */
   readonly syncFailure: string | null;
+  /** The latest sync was refused because GitHub's rate limit ran out. */
+  readonly rateLimited: boolean;
   /** Whether opening the page should refresh this row from GitHub. */
   readonly needsSync: boolean;
 };
@@ -46,6 +48,11 @@ export type DashboardTotals = {
    */
   readonly syncedAt: Date | null;
   readonly neverSynced: number;
+  /**
+   * Some repository's latest sync was refused for the rate limit, which
+   * belongs to the viewer's token, so the header says it once for all rows.
+   */
+  readonly rateLimited: boolean;
 };
 
 export type ReviewState =
@@ -97,8 +104,34 @@ export type IssueSummary = {
   readonly assignee: string | null;
 };
 
+/**
+ * How the issues panel narrows and orders its list: the filter chips. The
+ * panel's summary line still speaks for every open issue.
+ */
+export type IssueFilter = {
+  readonly assignedToMe: boolean;
+  /** Nobody has labelled it yet. */
+  readonly needsTriage: boolean;
+  readonly order: "attention" | "oldest";
+};
+
+export const NO_ISSUE_FILTER: IssueFilter = {
+  assignedToMe: false,
+  needsTriage: false,
+  order: "attention",
+};
+
 export type OpenIssues = {
   readonly summary: string;
   readonly totalOpen: number;
   readonly shown: readonly IssueSummary[];
+  /** How many of the stored issues pass the filter. */
+  readonly matching: number;
+  /**
+   * Whether the last sync stored every open issue. When it did not, a filter
+   * only saw the most recently updated ones, and the panel has to say so.
+   */
+  readonly complete: boolean;
+  /** How many issues the last sync stored. */
+  readonly stored: number;
 };

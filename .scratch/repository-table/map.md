@@ -89,9 +89,9 @@ reaches it.
 - **Refresh cadence and who triggers it.** Depends entirely on 05. If it is a
   snapshot: background schedule, on-view refresh, webhooks, or only the
   **Sync now** button; and what runs the schedule somewhere portable.
-- **The states not drawn.** Empty, loading, error, rate-limited, narrow
-  viewports — listed under "Not yet drawn" in the design doc. Sharpens once 05
-  and 10 land, because what can fail depends on where the data comes from.
+- **Narrow viewports.** The only state still undrawn: empty, loading, error
+  and rate-limited are built (see "States beyond the happy path" in the design
+  doc). Five numeric columns plus a name do not survive a phone unchanged.
 - **Where the GitHub response cache lives.** Surfaced by ticket 02: no `use cache`
   entry survives a deploy, because the build id is part of the cache key. On a
   rate-limited API with frequent deploys, the first visitor after each deploy pays
@@ -122,15 +122,15 @@ effort.
 Open children live in [`issues/`](./issues/). The frontier — open, unblocked,
 unclaimed — is where to start.
 
-| #   | Ticket                                                                                     | Type     | Blocked by | Status       |
-| --- | ------------------------------------------------------------------------------------------ | -------- | ---------- | ------------ |
-| 01  | [GitHub API cost and shape for this table](./issues/01-github-api-cost-and-shape.md)       | research | —          | open         |
-| 02  | [Next.js 16 rendering and data strategy](./issues/02-nextjs-16-data-strategy.md)           | research | —          | **resolved** |
-| 03  | [Who is "you"?](./issues/03-who-is-you.md)                                                 | grilling | —          | **resolved** |
-| 04  | [Which expansion mechanic](./issues/04-which-expansion-mechanic.md)                        | grilling | —          | **resolved** |
-| 05  | [Live read or synced snapshot](./issues/05-live-read-or-snapshot.md)                       | grilling | 01, 02, 03 | **resolved** |
-| 06  | [What is an aggregate in github-insights](./issues/06-github-insights-domain-model.md)     | grilling | 05         | open         |
-| 07  | [Where state lives, and how it stays portable](./issues/07-persistence-and-portability.md) | grilling | 03, 05     | open         |
-| 08  | [What a task carries between sessions](./issues/08-tasks-domain-model.md)                  | grilling | 07         | open         |
-| 09  | [How the Tasks column crosses the boundary](./issues/09-crossing-the-context-boundary.md)  | grilling | 06, 08     | open         |
-| 10  | [Loading and URL strategy for the expansion](./issues/10-expansion-loading-and-url.md)     | grilling | 05         | open         |
+| #   | Ticket                                                                                     | Type     | Blocked by | Status         |
+| --- | ------------------------------------------------------------------------------------------ | -------- | ---------- | -------------- |
+| 01  | [GitHub API cost and shape for this table](./issues/01-github-api-cost-and-shape.md)       | research | —          | open           |
+| 02  | [Next.js 16 rendering and data strategy](./issues/02-nextjs-16-data-strategy.md)           | research | —          | **resolved**   |
+| 03  | [Who is "you"?](./issues/03-who-is-you.md)                                                 | grilling | —          | **resolved**   |
+| 04  | [Which expansion mechanic](./issues/04-which-expansion-mechanic.md)                        | grilling | —          | **resolved**   |
+| 05  | [Live read or synced snapshot](./issues/05-live-read-or-snapshot.md)                       | grilling | 01, 02, 03 | **resolved**   |
+| 06  | [What is an aggregate in github-insights](./issues/06-github-insights-domain-model.md)     | grilling | 05         | open           |
+| 07  | [Where state lives, and how it stays portable](./issues/07-persistence-and-portability.md) | grilling | 03, 05     | open           |
+| 08  | [What a task carries between sessions](./issues/08-tasks-domain-model.md)                  | grilling | 07         | open           |
+| 09  | [How the Tasks column crosses the boundary](./issues/09-crossing-the-context-boundary.md)  | grilling | 06, 08     | open           |
+| 10  | [Loading and URL strategy for the expansion](./issues/10-expansion-loading-and-url.md)     | grilling | 05         | defaults built |

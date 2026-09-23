@@ -369,18 +369,40 @@ transaction. The query side reads the snapshot behind the unchanged
 reads. The header shows `Synced 12 min ago` and a Refresh button; a page whose
 rows are over an hour old syncs on its own once it is on screen.
 
-This also brings slices 4 and 5 forward: the pull request panel, the checks
-view and the issues panel all read the same snapshot. Their filter chips and
-per-panel loading states (ticket 10) are still to do.
+This also brought slices 4 and 5 forward: the pull request panel, the checks
+view and the issues panel all read the same snapshot.
 
-### Slice 4 — real pull requests and checks _(needs 01, 10)_
+### Slice 4 — real pull requests and checks _(built)_
 
-The PR panel and the checks view against live data, with the per-panel loading
-and error states ticket 10 settles.
+Every open panel, and every open pull request's checks inside one, renders
+behind its own `<Suspense>` boundary and its own error boundary (`catchError`
+from `next/error`), so several rows open at once load side by side, a panel
+still on its way shows its title and `Loading pull requests…`, and one that
+throws shows `The pull requests could not be loaded.` with **Try again**
+while the rest of the table stands. Failures a query can explain still come
+back as values and render their own message. `cacheComponents` stays off: the
+panels read Postgres per viewer, which `'use cache'` has nothing to add to.
 
-### Slice 5 — real issues _(needs 01)_
+When GitHub refuses a sync because the rate limit ran out, `SyncState`
+records that kind of failure, waits 15 minutes rather than 5 before retrying
+on its own, and the sync stops asking about the repositories it has not
+reached yet. The header says it once — `GitHub's rate limit is used up.
+Showing numbers from 20 min ago.` — and each affected row only says
+`Not refreshed: rate limit used up`.
 
-The issues panel, including the filter chips.
+### Slice 5 — real issues _(built)_
+
+The issues panel's filter chips: **Assigned to me**, **Needs triage** (no
+label yet) and **Oldest first**, pressed independently and kept in the URL as
+a repeatable `issues=owner/name:chip`. Filtering happens in the query's
+projection, over the issues the last sync stored. When the sync stored every
+open issue, the footer counts the rest of the matches; when it stored only the
+most recently updated ones, the footer says so and links to GitHub's own
+search with the same narrowing.
+
+"Show the other N" still leads to GitHub, now to a search that mirrors the
+pressed chips, rather than to an in-app list: the snapshot holds at most 50 of
+each, and replacing GitHub's own lists is out of scope on the map.
 
 ### Slice 6 — the `tasks` context _(needs 07, 08)_
 
