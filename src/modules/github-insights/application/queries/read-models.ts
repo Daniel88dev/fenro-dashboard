@@ -14,10 +14,23 @@ export type RepositoryRow = {
   /** "4 assigned" */
   readonly issueHint: string;
   readonly lastActivityAt: Date | null;
+  /** When the numbers were last copied from GitHub; `null` if never. */
+  readonly syncedAt: Date | null;
+  /** Why the latest sync failed, while the numbers are from an older one. */
+  readonly syncFailure: string | null;
+  /** Whether opening the page should refresh this row from GitHub. */
+  readonly needsSync: boolean;
 };
 
 /** What the insights reader knows about one repository, before it becomes a row. */
-export type RepositoryCounts = Omit<RepositoryRow, "id">;
+export type RepositoryCounts = {
+  readonly repositoryId: string;
+  readonly openPullRequests: number;
+  readonly openIssues: number;
+  readonly pullRequestHint: string;
+  readonly issueHint: string;
+  readonly lastActivityAt: Date | null;
+};
 
 /**
  * Totals for the page header. The task total is not here: it belongs to the
@@ -27,6 +40,12 @@ export type DashboardTotals = {
   readonly watchedRepositories: number;
   readonly openPullRequests: number;
   readonly openIssues: number;
+  /**
+   * The least recent sync among the repositories that have one, because the
+   * page is only as fresh as its stalest row. `null` if none has synced.
+   */
+  readonly syncedAt: Date | null;
+  readonly neverSynced: number;
 };
 
 export type ReviewState =

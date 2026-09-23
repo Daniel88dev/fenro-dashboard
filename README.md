@@ -4,8 +4,9 @@ An advanced GitHub dashboard for the repositories you care about — open pull
 requests and issues at a glance — and, in the same app, an agentic task list
 that carries context from one session to the next.
 
-The repository table runs on sample data for now; sign-in with GitHub and the
-Postgres database behind it are real.
+The repository table is real: watch a repository and the app copies its open
+pull requests, reviews, CI checks and open issues from GitHub into Postgres,
+then serves the page from there. The Tasks column still runs on sample data.
 
 ## Stack
 
@@ -114,6 +115,23 @@ Design and planning documents live in [docs/](./docs). Start with
 [the repository table](./docs/ui/repository-table.md) for the screen being built
 and the [implementation plan](./docs/implementation-plan.md) for how it maps onto
 the contexts above.
+
+## Keeping GitHub data fresh
+
+Pages render from the database, never from GitHub, so a page view costs no
+rate limit and still works while GitHub is down. The copy is refreshed by the
+server, with the signed-in user's token, in two ways:
+
+- **On a visit.** Once the page is on screen, rows last synced over an hour
+  ago (or never) refresh on their own. The numbers stay visible, with a loader,
+  until the new ones land.
+- **Refresh.** The button in the header re-reads every watched repository,
+  unless it was read in the last minute.
+
+A sync is one GraphQL call per repository. Two tabs refreshing together make
+one call, a failed sync keeps the last good numbers and says so on the row,
+and a failure is not retried on its own for five minutes. The rules live in
+`SyncState` in `src/modules/github-insights/domain/`.
 
 ## Configuration
 

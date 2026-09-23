@@ -8,6 +8,13 @@
       "when": 1790105166438,
       "tag": "0000_identity",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1790189178433,
+      "tag": "0001_github_insights",
+      "breakpoints": true
     }
   ]
 }

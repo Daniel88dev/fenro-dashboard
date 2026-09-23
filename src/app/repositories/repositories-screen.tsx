@@ -5,6 +5,7 @@ import { openIssuesQuery } from "@/modules/github-insights/application/queries/o
 import { openPullRequestsQuery } from "@/modules/github-insights/application/queries/open-pull-requests";
 import { pullRequestChecksQuery } from "@/modules/github-insights/application/queries/pull-request-checks";
 import { repositoryRowsQuery } from "@/modules/github-insights/application/queries/repository-rows";
+import type { Watcher } from "@/modules/github-insights/application/ports/viewer";
 import type { RepositoryRow } from "@/modules/github-insights/application/queries/read-models";
 import { DashboardHeader } from "@/modules/github-insights/ui/dashboard-header";
 import { IssuesPanel } from "@/modules/github-insights/ui/issues-panel";
@@ -18,6 +19,7 @@ import {
   type ColumnToggle,
   type RepositoryRowView,
 } from "@/modules/github-insights/ui/repository-table";
+import { SyncProvider } from "@/modules/github-insights/ui/sync-context";
 import { signedInUserQuery } from "@/modules/identity/application/queries/signed-in-user";
 import { SignInPanel } from "@/modules/identity/ui/sign-in-panel";
 import { taskCountsByRepositoryQuery } from "@/modules/tasks/application/queries/task-counts-by-repository";
@@ -27,7 +29,11 @@ import { isErr } from "@/shared/domain";
 import { getContainer } from "@/shared/infrastructure/container";
 
 import { signInWithGitHubAction } from "../sign-in/actions";
-import { unwatchRepositoryAction, watchRepositoryAction } from "./actions";
+import {
+  syncRepositoriesAction,
+  unwatchRepositoryAction,
+  watchRepositoryAction,
+} from "./actions";
 import {
   isOpen,
   isPullRequestOpen,
@@ -87,13 +93,15 @@ export async function RepositoriesScreen({
 
   // "You" is the signed-in GitHub account (ticket 03); without one there is
   // nobody to read GitHub as, so the table waits for sign-in.
-  if (!(await queryBus.ask(signedInUserQuery()))) {
+  const user = await queryBus.ask(signedInUserQuery());
+  if (!user) {
     return <SignInPanel action={signInWithGitHubAction} />;
   }
+  const watcher: Watcher = { id: user.id, login: user.githubLogin };
 
   const [rows, totals, taskCounts] = await Promise.all([
-    queryBus.ask(repositoryRowsQuery()),
-    queryBus.ask(dashboardTotalsQuery()),
+    queryBus.ask(repositoryRowsQuery(watcher)),
+    queryBus.ask(dashboardTotalsQuery(watcher)),
     queryBus.ask(taskCountsByRepositoryQuery()),
   ]);
 
@@ -132,13 +140,13 @@ export async function RepositoriesScreen({
       if (isOpen(state, { ...row, column: "prs" })) {
         panels.push({
           key: "prs",
-          node: await pullRequestsPanel(queryBus, state, row, now),
+          node: await pullRequestsPanel(queryBus, watcher, state, row, now),
         });
       }
       if (isOpen(state, { ...row, column: "issues" })) {
         panels.push({
           key: "issues",
-          node: await issuesPanel(queryBus, row, now),
+          node: await issuesPanel(queryBus, watcher, row, now),
         });
       }
       if (isOpen(state, { ...row, column: "tasks" })) {
@@ -150,6 +158,7 @@ export async function RepositoriesScreen({
         owner: row.owner,
         name: row.name,
         lastActivityAt: row.lastActivityAt,
+        syncFailure: row.syncFailure,
         pullRequests: toggleFor(
           state,
           row,
@@ -179,12 +188,19 @@ export async function RepositoriesScreen({
     }),
   );
 
+  // Every row syncs, filtered out or not: the filter narrows what is shown,
+  // not what is kept fresh.
   return (
-    <>
+    <SyncProvider
+      action={syncRepositoriesAction}
+      repositoryIds={rows.value.map((row) => row.id)}
+      dueIds={rows.value.filter((row) => row.needsSync).map((row) => row.id)}
+    >
       <DashboardHeader
         totals={totals.value}
         openTasks={openTasks}
         filter={state.filter}
+        now={now}
         watchAction={watchRepositoryAction}
       />
       <RepositoryTable
@@ -192,7 +208,7 @@ export async function RepositoriesScreen({
         now={now}
         unwatchAction={unwatchRepositoryAction}
       />
-    </>
+    </SyncProvider>
   );
 }
 
@@ -200,12 +216,15 @@ type Bus = Awaited<ReturnType<typeof getContainer>>["queryBus"];
 
 async function pullRequestsPanel(
   queryBus: Bus,
+  watcher: Watcher,
   state: ExpansionState,
   row: { owner: string; name: string },
   now: Date,
 ): Promise<ReactNode> {
   const id = panelId({ ...row, column: "prs" });
-  const result = await queryBus.ask(openPullRequestsQuery(row.owner, row.name));
+  const result = await queryBus.ask(
+    openPullRequestsQuery(watcher, row.owner, row.name),
+  );
   if (isErr(result)) {
     return (
       <PanelError
@@ -226,7 +245,12 @@ async function pullRequestsPanel(
       );
       const checks = expanded
         ? await queryBus.ask(
-            pullRequestChecksQuery(row.owner, row.name, summary.number),
+            pullRequestChecksQuery(
+              watcher,
+              row.owner,
+              row.name,
+              summary.number,
+            ),
           )
         : null;
 
@@ -260,11 +284,14 @@ async function pullRequestsPanel(
 
 async function issuesPanel(
   queryBus: Bus,
+  watcher: Watcher,
   row: { owner: string; name: string },
   now: Date,
 ): Promise<ReactNode> {
   const id = panelId({ ...row, column: "issues" });
-  const result = await queryBus.ask(openIssuesQuery(row.owner, row.name));
+  const result = await queryBus.ask(
+    openIssuesQuery(watcher, row.owner, row.name),
+  );
   if (isErr(result)) {
     return (
       <PanelError id={id} title="Open issues" message={result.error.message} />

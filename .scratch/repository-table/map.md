@@ -68,6 +68,11 @@ before proposing new structure.
   drawer, the tabbed panel and the dense table are out. Forces a repeatable URL
   parameter and per-panel loading and error states.
 
+- [Live read or synced snapshot](./issues/05-live-read-or-snapshot.md):
+  **a synced snapshot in Postgres**, rendered server-side, refreshed by the
+  server on Refresh or when a visit finds it over an hour old. The browser
+  asks; it never fetches GitHub or posts records.
+
 ## Not yet specified
 
 In scope, but not yet sharp enough to ticket. Each graduates as the frontier
@@ -123,7 +128,7 @@ unclaimed — is where to start.
 | 02  | [Next.js 16 rendering and data strategy](./issues/02-nextjs-16-data-strategy.md)           | research | —          | **resolved** |
 | 03  | [Who is "you"?](./issues/03-who-is-you.md)                                                 | grilling | —          | **resolved** |
 | 04  | [Which expansion mechanic](./issues/04-which-expansion-mechanic.md)                        | grilling | —          | **resolved** |
-| 05  | [Live read or synced snapshot](./issues/05-live-read-or-snapshot.md)                       | grilling | 01, 02, 03 | open         |
+| 05  | [Live read or synced snapshot](./issues/05-live-read-or-snapshot.md)                       | grilling | 01, 02, 03 | **resolved** |
 | 06  | [What is an aggregate in github-insights](./issues/06-github-insights-domain-model.md)     | grilling | 05         | open         |
 | 07  | [Where state lives, and how it stays portable](./issues/07-persistence-and-portability.md) | grilling | 03, 05     | open         |
 | 08  | [What a task carries between sessions](./issues/08-tasks-domain-model.md)                  | grilling | 07         | open         |

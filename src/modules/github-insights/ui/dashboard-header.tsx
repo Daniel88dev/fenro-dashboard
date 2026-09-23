@@ -2,6 +2,7 @@ import Form from "next/form";
 
 import type { DashboardTotals } from "@/modules/github-insights/application/queries/read-models";
 
+import { SyncStatus } from "./sync-status";
 import {
   WatchRepositoryForm,
   type WatchFormState,
@@ -30,11 +31,13 @@ export function DashboardHeader({
   totals,
   openTasks,
   filter,
+  now,
   watchAction,
 }: {
   totals: DashboardTotals;
   openTasks: number;
   filter: string;
+  now: Date;
   watchAction: (
     state: WatchFormState,
     formData: FormData,
@@ -76,6 +79,12 @@ export function DashboardHeader({
       </div>
 
       <div className="flex flex-wrap items-start gap-2">
+        <SyncStatus
+          syncedAt={totals.syncedAt}
+          neverSynced={totals.neverSynced}
+          watched={totals.watchedRepositories}
+          now={now}
+        />
         <Form action="/repositories" className="flex items-center">
           <label htmlFor="repository-filter" className="sr-only">
             Filter repositories

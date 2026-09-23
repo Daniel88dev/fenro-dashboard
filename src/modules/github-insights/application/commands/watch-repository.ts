@@ -8,24 +8,32 @@ import { isErr, unwrap } from "@/shared/domain";
 
 export type WatchRepositoryCommand =
   Command<"github-insights.watch-repository"> & {
+    readonly watcherId: string;
     readonly owner: string;
     readonly name: string;
     readonly watchedAt?: Date;
   };
 
 export function watchRepositoryCommand(
+  watcherId: string,
   owner: string,
   name: string,
   watchedAt?: Date,
 ): WatchRepositoryCommand {
-  return { type: "github-insights.watch-repository", owner, name, watchedAt };
+  return {
+    type: "github-insights.watch-repository",
+    watcherId,
+    owner,
+    name,
+    watchedAt,
+  };
 }
 
 /**
- * Watching is idempotent: one aggregate per set of coordinates, so dispatching
- * this twice leaves one watched repository rather than failing. Invalid
- * coordinates are a bug here — the route validates them before dispatching,
- * because a command bus has no way to hand a failure back.
+ * Watching is idempotent: one aggregate per watcher and set of coordinates, so
+ * dispatching this twice leaves one watched repository rather than failing.
+ * Invalid coordinates are a bug here — the route validates them before
+ * dispatching, because a command bus has no way to hand a failure back.
  */
 export class WatchRepositoryHandler implements CommandHandler<WatchRepositoryCommand> {
   constructor(private readonly repositories: WatchedRepositoryRepository) {}
@@ -40,12 +48,16 @@ export class WatchRepositoryHandler implements CommandHandler<WatchRepositoryCom
     }
 
     const existing = await this.repositories.findByCoordinates(
+      command.watcherId,
       unwrap(coordinates),
     );
     if (existing) return;
 
+    // A conflict means a second request watched it first, which is the
+    // outcome this command wanted anyway.
     await this.repositories.save(
       WatchedRepository.watch(
+        command.watcherId,
         unwrap(coordinates),
         command.watchedAt ?? new Date(),
       ),

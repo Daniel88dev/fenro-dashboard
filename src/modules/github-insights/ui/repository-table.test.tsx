@@ -31,6 +31,7 @@ function row(overrides: Partial<RepositoryRowView> = {}): RepositoryRowView {
     owner: "nordwind",
     name: "billing-core",
     lastActivityAt: new Date("2026-09-20T11:34:00Z"),
+    syncFailure: null,
     pullRequests: toggle({
       count: 12,
       hint: "3 need you",
@@ -145,6 +146,20 @@ describe("RepositoryTable", () => {
     expect(
       screen.getByRole("heading", { name: "Open issues" }),
     ).toBeInTheDocument();
+  });
+
+  it("says when the latest sync failed, beside the numbers it kept", () => {
+    render(
+      <RepositoryTable
+        rows={[row({ syncFailure: "GitHub did not answer." })]}
+        now={now}
+      />,
+    );
+
+    expect(
+      screen.getByText("Last sync failed: GitHub did not answer."),
+    ).toBeInTheDocument();
+    expect(screen.getByText("12")).toBeInTheDocument();
   });
 
   it("says so when nothing is watched", () => {

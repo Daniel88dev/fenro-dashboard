@@ -1,11 +1,16 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { refresh, revalidatePath } from "next/cache";
 
+import { syncWatchedRepositoriesCommand } from "@/modules/github-insights/application/commands/sync-watched-repositories";
 import { unwatchRepositoryCommand } from "@/modules/github-insights/application/commands/unwatch-repository";
 import { watchRepositoryCommand } from "@/modules/github-insights/application/commands/watch-repository";
+import { lookUpRepositoryQuery } from "@/modules/github-insights/application/queries/look-up-repository";
 import { repositoryRowsQuery } from "@/modules/github-insights/application/queries/repository-rows";
-import { RepositoryCoordinates } from "@/modules/github-insights/domain";
+import {
+  RepositoryCoordinates,
+  type SyncTrigger,
+} from "@/modules/github-insights/domain";
 import { signedInUserQuery } from "@/modules/identity/application/queries/signed-in-user";
 import type { WatchFormState } from "@/modules/github-insights/ui/watch-repository-form";
 import { isErr, isOk } from "@/shared/domain";
@@ -31,20 +36,37 @@ export async function watchRepositoryAction(
   const { commandBus, queryBus } = await getContainer();
   // A server action is a public endpoint whether or not the page showed the
   // form, so it checks for itself.
-  if (!(await queryBus.ask(signedInUserQuery()))) {
+  const user = await queryBus.ask(signedInUserQuery());
+  if (!user) {
     return { error: "Sign in with GitHub to watch a repository." };
   }
-  const { owner, name, fullName } = coordinates.value;
+  const watcher = { id: user.id, login: user.githubLogin };
 
-  const rows = await queryBus.ask(repositoryRowsQuery());
+  const rows = await queryBus.ask(repositoryRowsQuery(watcher));
+  const typed = coordinates.value;
   if (
     isOk(rows) &&
-    rows.value.some((row) => row.owner === owner && row.name === name)
+    rows.value.some(
+      (row) =>
+        row.owner.toLowerCase() === typed.owner.toLowerCase() &&
+        row.name.toLowerCase() === typed.name.toLowerCase(),
+    )
   ) {
-    return { error: `You are already watching ${fullName}.` };
+    return { error: `You are already watching ${typed.fullName}.` };
   }
 
-  await commandBus.dispatch(watchRepositoryCommand(owner, name));
+  // Ask GitHub before watching, so a typo fails here rather than on every
+  // sync, and the name is stored as GitHub spells it. If GitHub is down the
+  // watch goes ahead: the first sync will say so on the row.
+  const found = await queryBus.ask(
+    lookUpRepositoryQuery(typed.owner, typed.name),
+  );
+  if (isErr(found) && found.error.code !== "github-unavailable") {
+    return { error: found.error.message };
+  }
+  const { owner, name } = isOk(found) ? found.value : typed;
+
+  await commandBus.dispatch(watchRepositoryCommand(user.id, owner, name));
   revalidatePath("/repositories");
   return { error: null };
 }
@@ -59,10 +81,36 @@ export async function unwatchRepositoryAction(
   if (isErr(coordinates)) return;
 
   const { commandBus, queryBus } = await getContainer();
-  if (!(await queryBus.ask(signedInUserQuery()))) return;
+  const user = await queryBus.ask(signedInUserQuery());
+  if (!user) return;
 
   await commandBus.dispatch(
-    unwatchRepositoryCommand(coordinates.value.owner, coordinates.value.name),
+    unwatchRepositoryCommand(
+      user.id,
+      coordinates.value.owner,
+      coordinates.value.name,
+    ),
   );
   revalidatePath("/repositories");
+}
+
+const TRIGGERS: readonly SyncTrigger[] = ["manual", "automatic"];
+
+/**
+ * Refresh, pressed or started by a stale page. The client only says which;
+ * the watched repositories' sync policy decides what is actually read from
+ * GitHub, with a token that never leaves the server. `refresh()` sends the
+ * page, re-rendered from the database, back in the same response.
+ */
+export async function syncRepositoriesAction(
+  trigger: SyncTrigger,
+): Promise<void> {
+  if (!TRIGGERS.includes(trigger)) return;
+
+  const { commandBus, queryBus } = await getContainer();
+  const user = await queryBus.ask(signedInUserQuery());
+  if (!user) return;
+
+  await commandBus.dispatch(syncWatchedRepositoriesCommand(user.id, trigger));
+  refresh();
 }

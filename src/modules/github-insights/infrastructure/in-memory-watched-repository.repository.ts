@@ -1,52 +1,137 @@
-import type {
+import {
+  concurrentModification,
   RepositoryCoordinates,
+  SyncState,
   WatchedRepository,
-  WatchedRepositoryRepository,
+  type ConcurrentModification,
+  type WatchedRepositoryRepository,
 } from "@/modules/github-insights/domain";
-import type { UniqueId } from "@/shared/domain";
+import { err, ok, UniqueId, unwrap, type Result } from "@/shared/domain";
+
+type Row = {
+  readonly id: string;
+  readonly watcherId: string;
+  readonly owner: string;
+  readonly name: string;
+  readonly watchedAt: Date;
+  readonly lastSyncedAt: Date | null;
+  readonly lastAttemptedAt: Date | null;
+  readonly lastFailure: string | null;
+  readonly startedAt: Date | null;
+  readonly version: number;
+};
 
 /**
- * Holds watched repositories for the life of the process. Real persistence is
- * ticket 07's to choose; until then this keeps the write side honest without
- * committing the app to a store.
+ * The Postgres adapter's twin for tests. It keeps rows rather than the
+ * aggregates themselves, and checks versions on save the same way, so a test
+ * that races two syncs sees what production would.
  */
 export class InMemoryWatchedRepositoryRepository implements WatchedRepositoryRepository {
-  readonly #byId = new Map<string, WatchedRepository>();
+  readonly #rows = new Map<string, Row>();
+  readonly #loadedVersions = new WeakMap<WatchedRepository, number>();
 
   constructor(seed: readonly WatchedRepository[] = []) {
-    for (const repository of seed)
-      this.#byId.set(repository.id.value, repository);
+    for (const repository of seed) {
+      repository.pullDomainEvents();
+      this.#rows.set(repository.id.value, toRow(repository, 1));
+    }
   }
 
   findById(id: UniqueId): Promise<WatchedRepository | undefined> {
-    return Promise.resolve(this.#byId.get(id.value));
+    const row = this.#rows.get(id.value);
+    return Promise.resolve(row ? this.#restore(row) : undefined);
   }
 
   findByCoordinates(
+    watcherId: string,
     coordinates: RepositoryCoordinates,
   ): Promise<WatchedRepository | undefined> {
+    const row = [...this.#rows.values()].find(
+      (one) =>
+        one.watcherId === watcherId &&
+        one.owner.toLowerCase() === coordinates.owner.toLowerCase() &&
+        one.name.toLowerCase() === coordinates.name.toLowerCase(),
+    );
+    return Promise.resolve(row ? this.#restore(row) : undefined);
+  }
+
+  findAllFor(watcherId: string): Promise<WatchedRepository[]> {
     return Promise.resolve(
-      [...this.#byId.values()].find((repository) =>
-        repository.coordinates.equals(coordinates),
-      ),
+      [...this.#rows.values()]
+        .filter((row) => row.watcherId === watcherId)
+        .map((row) => this.#restore(row)),
     );
   }
 
-  findAll(): Promise<WatchedRepository[]> {
-    return Promise.resolve([...this.#byId.values()]);
-  }
+  save(
+    repository: WatchedRepository,
+  ): Promise<Result<void, ConcurrentModification>> {
+    const loaded = this.#loadedVersions.get(repository);
+    const stored = this.#rows.get(repository.id.value);
 
-  save(repository: WatchedRepository): Promise<void> {
-    this.#byId.set(repository.id.value, repository);
-    // The events an aggregate recorded are drained here rather than published:
-    // nothing subscribes yet, and leaving them on the aggregate would leak them
-    // into the next save.
+    if (loaded === undefined) {
+      const duplicate = [...this.#rows.values()].some(
+        (row) =>
+          row.watcherId === repository.watcherId &&
+          row.owner.toLowerCase() ===
+            repository.coordinates.owner.toLowerCase() &&
+          row.name.toLowerCase() === repository.coordinates.name.toLowerCase(),
+      );
+      if (stored || duplicate) {
+        return Promise.resolve(err(concurrentModification("Already watched.")));
+      }
+    } else if (stored?.version !== loaded) {
+      return Promise.resolve(
+        err(concurrentModification("Saved by someone else since loading.")),
+      );
+    }
+
+    const version = (loaded ?? 0) + 1;
+    this.#rows.set(repository.id.value, toRow(repository, version));
+    this.#loadedVersions.set(repository, version);
+    // Drained rather than published: nothing subscribes yet, and leaving them
+    // on the aggregate would leak them into the next save.
     repository.pullDomainEvents();
-    return Promise.resolve();
+    return Promise.resolve(ok(undefined));
   }
 
   remove(id: UniqueId): Promise<void> {
-    this.#byId.delete(id.value);
+    this.#rows.delete(id.value);
     return Promise.resolve();
   }
+
+  #restore(row: Row): WatchedRepository {
+    const repository = WatchedRepository.restore(
+      UniqueId.create(row.id),
+      {
+        watcherId: row.watcherId,
+        coordinates: unwrap(RepositoryCoordinates.create(row.owner, row.name)),
+        watchedAt: row.watchedAt,
+      },
+      SyncState.restore({
+        lastSyncedAt: row.lastSyncedAt,
+        lastAttemptedAt: row.lastAttemptedAt,
+        lastFailure: row.lastFailure,
+        startedAt: row.startedAt,
+      }),
+    );
+    this.#loadedVersions.set(repository, row.version);
+    return repository;
+  }
+}
+
+function toRow(repository: WatchedRepository, version: number): Row {
+  const { sync } = repository;
+  return {
+    id: repository.id.value,
+    watcherId: repository.watcherId,
+    owner: repository.coordinates.owner,
+    name: repository.coordinates.name,
+    watchedAt: repository.watchedAt,
+    lastSyncedAt: sync.lastSyncedAt,
+    lastAttemptedAt: sync.lastAttemptedAt,
+    lastFailure: sync.lastFailure,
+    startedAt: sync.startedAt,
+    version,
+  };
 }
