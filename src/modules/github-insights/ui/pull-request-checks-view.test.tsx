@@ -15,8 +15,6 @@ describe("PullRequestChecksView", () => {
       <PullRequestChecksView
         id="checks"
         checks={checks}
-        number={8}
-        pullRequestUrl="https://github.com/o/r/pull/8"
         newTaskHref="/tasks/new?from=x"
       />,
     );
@@ -27,14 +25,7 @@ describe("PullRequestChecksView", () => {
   });
 
   it("leaves it out when the route offers no tasks", () => {
-    render(
-      <PullRequestChecksView
-        id="checks"
-        checks={checks}
-        number={8}
-        pullRequestUrl="https://github.com/o/r/pull/8"
-      />,
-    );
+    render(<PullRequestChecksView id="checks" checks={checks} />);
 
     expect(
       screen.queryByRole("link", { name: "Make a task from this" }),

@@ -84,7 +84,7 @@ export function TaskList({
         </div>
         <Link
           href={newHref}
-          className="border-ink bg-ink text-ground hover:bg-ink-soft focus-visible:outline-pr inline-flex h-[34px] items-center rounded-[9px] border px-[13px] text-[12.5px] font-medium focus-visible:outline-2 focus-visible:outline-offset-1"
+          className="border-ink bg-ink text-ground hover:bg-ink-soft focus-visible:outline-pr inline-flex h-[34px] items-center rounded-lg border px-[13px] text-[12.5px] font-medium focus-visible:outline-2 focus-visible:outline-offset-1"
         >
           New task
         </Link>
@@ -132,7 +132,7 @@ export function TaskList({
             data-lpignore="true"
             data-bwignore
             data-form-type="other"
-            className="border-hairline bg-surface text-ink placeholder:text-ink-faint focus-visible:outline-pr h-[32px] w-[240px] rounded-[9px] border px-3 text-[13px] focus-visible:outline-2 focus-visible:outline-offset-1"
+            className="border-hairline bg-surface text-ink placeholder:text-ink-faint focus-visible:outline-pr h-[32px] w-[240px] rounded-lg border px-3 text-[13px] focus-visible:outline-2 focus-visible:outline-offset-1"
           />
         </Form>
       </div>

@@ -8,8 +8,10 @@ import {
   type KeyboardEvent,
 } from "react";
 
+import { Plus } from "@phosphor-icons/react/ssr";
+
 import { Chip } from "./chip";
-import { Spinner } from "./sync-status";
+import { Spinner } from "./spinner";
 
 export type AddRepositoriesState = {
   readonly error: string | null;
@@ -136,8 +138,9 @@ export function AddRepositories({
         aria-expanded={open}
         aria-controls={panelId}
         onClick={open ? close : show}
-        className="border-ink bg-ink text-ground hover:bg-ink-soft focus-visible:outline-pr h-[34px] cursor-pointer rounded-[9px] border px-[13px] text-[12.5px] font-medium focus-visible:outline-2 focus-visible:outline-offset-1"
+        className="border-ink bg-ink text-ground hover:bg-ink-soft focus-visible:outline-pr flex h-[34px] cursor-pointer items-center gap-1.5 rounded-lg border px-[13px] text-[12.5px] font-medium focus-visible:outline-2 focus-visible:outline-offset-1"
       >
+        <Plus aria-hidden="true" weight="bold" className="size-[15px]" />
         Add repositories
       </button>
 
@@ -146,7 +149,7 @@ export function AddRepositories({
           id={panelId}
           action={formAction}
           aria-label="Add repositories"
-          className="border-hairline bg-surface absolute top-[40px] right-0 z-20 flex w-[min(520px,calc(100vw-32px))] flex-col gap-3 rounded-[12px] border p-3 shadow-lg"
+          className="border-hairline bg-surface absolute top-[40px] right-0 z-20 flex w-[min(520px,calc(100vw-32px))] flex-col gap-3 rounded-xl border p-3 shadow-lg"
         >
           <label htmlFor={searchId} className="sr-only">
             Search your repositories
@@ -164,7 +167,7 @@ export function AddRepositories({
             data-lpignore="true"
             data-bwignore
             data-form-type="other"
-            className="border-hairline bg-surface text-ink placeholder:text-ink-faint focus-visible:outline-pr h-[34px] rounded-[9px] border px-3 text-[13px] focus-visible:outline-2 focus-visible:outline-offset-1"
+            className="border-hairline bg-surface text-ink placeholder:text-ink-faint focus-visible:outline-pr h-[34px] rounded-lg border px-3 text-[13px] focus-visible:outline-2 focus-visible:outline-offset-1"
           />
 
           {listing.status === "loading" ? (
@@ -181,7 +184,7 @@ export function AddRepositories({
               <button
                 type="button"
                 onClick={load}
-                className="border-hairline text-ink hover:bg-surface-sunken cursor-pointer rounded-[9px] border px-[11px] py-1 text-[12px] font-medium"
+                className="border-hairline text-ink hover:bg-surface-sunken cursor-pointer rounded-lg border px-[11px] py-1 text-[12px] font-medium"
               >
                 Try again
               </button>
@@ -265,7 +268,7 @@ export function AddRepositories({
               <button
                 type="submit"
                 disabled={selected.size === 0 || pending}
-                className="border-ink bg-ink text-ground hover:bg-ink-soft h-[32px] cursor-pointer rounded-[9px] border px-[13px] text-[12.5px] font-medium disabled:cursor-default disabled:opacity-60"
+                className="border-ink bg-ink text-ground hover:bg-ink-soft h-[32px] cursor-pointer rounded-lg border px-[13px] text-[12.5px] font-medium disabled:cursor-default disabled:opacity-60"
               >
                 {selected.size === 1
                   ? "Add 1 repository"

@@ -36,11 +36,11 @@ const NOT_A_LOGIN = {
 } as const;
 
 const FIELD =
-  "border-hairline bg-surface text-ink placeholder:text-ink-faint focus-visible:outline-pr rounded-[9px] border px-3 text-[13px] focus-visible:outline-2 focus-visible:outline-offset-1";
+  "border-hairline bg-surface text-ink placeholder:text-ink-faint focus-visible:outline-pr rounded-lg border px-3 text-[13px] focus-visible:outline-2 focus-visible:outline-offset-1";
 const PRIMARY =
-  "border-ink bg-ink text-ground hover:bg-ink-soft focus-visible:outline-pr h-[32px] cursor-pointer rounded-[9px] border px-[12px] text-[12.5px] font-medium focus-visible:outline-2 focus-visible:outline-offset-1 disabled:cursor-wait disabled:opacity-70";
+  "border-ink bg-ink text-ground hover:bg-ink-soft focus-visible:outline-pr h-[32px] cursor-pointer rounded-lg border px-[12px] text-[12.5px] font-medium focus-visible:outline-2 focus-visible:outline-offset-1 disabled:cursor-wait disabled:opacity-70";
 const QUIET =
-  "border-hairline bg-surface text-ink hover:bg-surface-sunken focus-visible:outline-pr h-[30px] cursor-pointer rounded-[8px] border px-[10px] text-[12px] font-medium focus-visible:outline-2 disabled:cursor-wait disabled:opacity-70";
+  "border-hairline bg-surface text-ink hover:bg-surface-sunken focus-visible:outline-pr h-[30px] cursor-pointer rounded-lg border px-[10px] text-[12px] font-medium focus-visible:outline-2 disabled:cursor-wait disabled:opacity-70";
 
 export const PRIORITY_OPTIONS = [
   ["none", "No priority"],

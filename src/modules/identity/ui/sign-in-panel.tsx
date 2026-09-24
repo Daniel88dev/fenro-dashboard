@@ -70,7 +70,7 @@ export function SignInPanel({
       <form action={action}>
         <button
           type="submit"
-          className="border-ink bg-ink text-ground hover:bg-ink-soft focus-visible:outline-pr inline-flex h-[38px] cursor-pointer items-center gap-2 rounded-[9px] border px-4 text-[13px] font-medium focus-visible:outline-2 focus-visible:outline-offset-2"
+          className="border-ink bg-ink text-ground hover:bg-ink-soft focus-visible:outline-pr inline-flex h-[38px] cursor-pointer items-center gap-2 rounded-lg border px-4 text-[13px] font-medium focus-visible:outline-2 focus-visible:outline-offset-2"
         >
           <GitHubMark />
           Sign in with GitHub

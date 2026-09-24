@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 
 import { DashboardChrome } from "@/modules/github-insights/ui/dashboard-chrome";
+import { Spinner } from "@/modules/github-insights/ui/spinner";
 
 import { SignedInAccount } from "../signed-in-account";
 import { RepositoriesScreen } from "./repositories-screen";
@@ -39,8 +40,9 @@ function TableSkeleton() {
     <div
       role="status"
       aria-live="polite"
-      className="border-hairline bg-surface text-ink-muted rounded-xl border px-[18px] py-10 text-[13px]"
+      className="border-hairline bg-surface text-ink-muted flex items-center gap-2 rounded-xl border px-5 py-10 text-[13px]"
     >
+      <Spinner />
       Loading the repositories you watch…
     </div>
   );

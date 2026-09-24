@@ -1,82 +1,85 @@
-import type { PullRequestChecks } from "@/modules/github-insights/application/queries/read-models";
+import {
+  CheckCircle,
+  CircleDashed,
+  MinusCircle,
+  Plus,
+  XCircle,
+} from "@phosphor-icons/react/ssr";
+import type { Icon } from "@phosphor-icons/react";
 
+import type {
+  CheckConclusion,
+  PullRequestChecks,
+} from "@/modules/github-insights/application/queries/read-models";
+
+import { CHECKS_INDENT } from "./panel";
 import { conclusionClass } from "./tones";
 
-const CONCLUSION_WORDS = {
-  passed: "passed",
-  failed: "failed",
-  running: "running",
-  skipped: "skipped",
-} as const;
+const CONCLUSIONS: Record<CheckConclusion, { word: string; icon: Icon }> = {
+  passed: { word: "passed", icon: CheckCircle },
+  failed: { word: "failed", icon: XCircle },
+  running: { word: "running", icon: CircleDashed },
+  skipped: { word: "skipped", icon: MinusCircle },
+};
 
 /** The checks behind a pull request, and a sentence saying what blocks it. */
 export function PullRequestChecksView({
   id,
   checks,
-  pullRequestUrl,
-  number,
   newTaskHref,
 }: {
   id: string;
   checks: PullRequestChecks;
-  pullRequestUrl: string;
-  number: number;
   /** Where "Make a task from this" goes; the route decides, not this context. */
   newTaskHref?: string;
 }) {
   return (
-    <div id={id} className="flex flex-col gap-0.5 pt-0.5 pr-3 pb-3 pl-[67px]">
-      <div className="flex items-baseline justify-between pt-1.5 pb-1">
-        <h4 className="text-ink text-[12px] font-medium">Checks</h4>
-        <span className="text-ink-faint font-mono text-[11.5px]">
+    <div
+      id={id}
+      className={`bg-surface-raised border-hairline-soft flex flex-col border-t pt-1 ${CHECKS_INDENT}`}
+    >
+      <div className="flex items-baseline justify-between pt-2.5 pb-1">
+        <h4 className="text-ink text-[13px] font-semibold">Checks</h4>
+        <span className="text-ink-faint font-mono text-[12px]">
           {checks.headSha}
         </span>
       </div>
 
-      <ul className="flex flex-col">
-        {checks.checks.map((check) => (
-          <li
-            key={check.name}
-            className="border-surface-sunken flex items-center gap-[11px] border-b py-[7px] last:border-b-0"
-          >
-            <span className="text-ink flex-1 font-mono text-[12px]">
-              {check.name}
-            </span>
-            <span className="text-ink-faint font-mono text-[11.5px]">
-              {check.duration ?? "—"}
-            </span>
-            <span
-              className={`w-[68px] text-right text-[11.5px] ${conclusionClass(check.conclusion)}`}
+      <ul className="m-0 flex list-none flex-col p-0">
+        {checks.checks.map((check) => {
+          const { word, icon: ConclusionIcon } = CONCLUSIONS[check.conclusion];
+          const tone = conclusionClass(check.conclusion);
+          return (
+            <li
+              key={check.name}
+              className="border-hairline-soft grid grid-cols-[18px_minmax(0,1fr)_auto_64px] items-center gap-x-2.5 border-b py-2 text-[12.5px]"
             >
-              {CONCLUSION_WORDS[check.conclusion]}
-            </span>
-          </li>
-        ))}
+              <ConclusionIcon aria-hidden="true" className={`size-4 ${tone}`} />
+              <span className="text-ink truncate font-mono">{check.name}</span>
+              <span className="text-ink-faint text-right font-mono">
+                {check.duration ?? ""}
+              </span>
+              <span className={`text-right ${tone}`}>{word}</span>
+            </li>
+          );
+        })}
       </ul>
 
-      <p className="text-ink-muted pt-2.5 text-[12px]">
+      <p className="text-ink-soft pt-3 text-[12.5px]">
         {checks.blockingReason}
       </p>
 
-      <div className="flex items-center gap-2.5 pt-2.5">
-        {newTaskHref ? (
+      {newTaskHref ? (
+        <div className="flex items-center gap-2.5 pt-3">
           <a
             href={newTaskHref}
-            className="border-ink bg-ink text-ground hover:bg-ink-soft rounded-lg border px-[11px] py-1.5 text-[12px] font-medium"
+            className="border-hairline bg-surface text-ink hover:bg-surface-sunken focus-visible:outline-pr flex h-7 items-center gap-1.5 rounded-lg border px-2.5 text-[12px] font-medium focus-visible:outline-2"
           >
+            <Plus aria-hidden="true" weight="bold" className="size-[13px]" />
             Make a task from this
           </a>
-        ) : null}
-        <a
-          href={pullRequestUrl}
-          rel="noreferrer noopener"
-          target="_blank"
-          className="border-hairline text-ink hover:bg-surface-sunken rounded-lg border px-[11px] py-1.5 text-[12px] font-medium"
-        >
-          Open
-          <span className="sr-only">{` pull request ${number}`}</span> on GitHub
-        </a>
-      </div>
+        </div>
+      ) : null}
     </div>
   );
 }

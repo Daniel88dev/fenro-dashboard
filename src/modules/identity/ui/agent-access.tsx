@@ -115,7 +115,7 @@ export function AgentAccess({
             data-lpignore="true"
             data-bwignore
             data-form-type="other"
-            className="border-hairline bg-surface text-ink placeholder:text-ink-faint focus-visible:outline-pr h-[34px] rounded-[9px] border px-3 text-[13px] focus-visible:outline-2 focus-visible:outline-offset-1"
+            className="border-hairline bg-surface text-ink placeholder:text-ink-faint focus-visible:outline-pr h-[34px] rounded-lg border px-3 text-[13px] focus-visible:outline-2 focus-visible:outline-offset-1"
           />
         </div>
         <div className="flex flex-col gap-1">
@@ -126,7 +126,7 @@ export function AgentAccess({
             id={lifetimeId}
             name="lifetimeDays"
             defaultValue={90}
-            className="border-hairline bg-surface text-ink focus-visible:outline-pr h-[34px] rounded-[9px] border px-2 text-[13px] focus-visible:outline-2 focus-visible:outline-offset-1"
+            className="border-hairline bg-surface text-ink focus-visible:outline-pr h-[34px] rounded-lg border px-2 text-[13px] focus-visible:outline-2 focus-visible:outline-offset-1"
           >
             {LIFETIMES.map(({ days, label }) => (
               <option key={days} value={days}>
@@ -147,7 +147,7 @@ export function AgentAccess({
         <button
           type="submit"
           disabled={pending}
-          className="border-ink bg-ink text-ground hover:bg-ink-soft focus-visible:outline-pr h-[34px] cursor-pointer rounded-[9px] border px-[13px] text-[12.5px] font-medium focus-visible:outline-2 focus-visible:outline-offset-1 disabled:cursor-wait disabled:opacity-70"
+          className="border-ink bg-ink text-ground hover:bg-ink-soft focus-visible:outline-pr h-[34px] cursor-pointer rounded-lg border px-[13px] text-[12.5px] font-medium focus-visible:outline-2 focus-visible:outline-offset-1 disabled:cursor-wait disabled:opacity-70"
         >
           {pending ? "Creating…" : "Create token"}
         </button>
@@ -169,7 +169,7 @@ export function AgentAccess({
       ) : (
         <ul
           aria-label="Agent tokens"
-          className="divide-hairline-soft border-hairline divide-y rounded-[10px] border"
+          className="divide-hairline-soft border-hairline divide-y rounded-xl border"
         >
           {tokens.map((token) => (
             <TokenRow
@@ -197,7 +197,7 @@ function NewSecret({
   return (
     <div
       role="status"
-      className="border-pr-wash bg-pr-wash flex flex-col gap-2 rounded-[10px] border px-4 py-3"
+      className="border-pr-wash bg-pr-wash flex flex-col gap-2 rounded-xl border px-4 py-3"
     >
       <p className="text-pr-strong text-[12.5px] font-medium">
         Token “{name}” created. Copy it now: it will not be shown again.
@@ -229,7 +229,7 @@ function CopyLine({ label, value }: { label: string; value: string }) {
           type="button"
           onClick={copy}
           aria-label={`Copy ${label.toLowerCase()}`}
-          className="border-hairline bg-surface text-ink hover:bg-surface-sunken focus-visible:outline-pr shrink-0 cursor-pointer rounded-[8px] border px-[10px] py-1 text-[12px] font-medium focus-visible:outline-2"
+          className="border-hairline bg-surface text-ink hover:bg-surface-sunken focus-visible:outline-pr shrink-0 cursor-pointer rounded-lg border px-[10px] py-1 text-[12px] font-medium focus-visible:outline-2"
         >
           {copied ? "Copied" : "Copy"}
         </button>
@@ -269,7 +269,7 @@ function TokenRow({
           <button
             type="submit"
             aria-label={`Revoke ${token.name}`}
-            className="border-hairline text-issue-strong hover:bg-issue-wash focus-visible:outline-pr cursor-pointer rounded-[8px] border px-[10px] py-1 text-[12px] font-medium focus-visible:outline-2"
+            className="border-hairline text-issue-strong hover:bg-issue-wash focus-visible:outline-pr cursor-pointer rounded-lg border px-[10px] py-1 text-[12px] font-medium focus-visible:outline-2"
           >
             Revoke
           </button>

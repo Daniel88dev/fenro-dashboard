@@ -181,9 +181,31 @@ describe("RepositoryTable", () => {
     ).toBeInTheDocument();
   });
 
-  it("says so when nothing is watched", () => {
-    render(<RepositoryTable rows={[]} now={now} />);
+  it("explains what watching does when nothing is watched", () => {
+    render(
+      <RepositoryTable
+        rows={[]}
+        now={now}
+        emptyAction={<button type="button">Add repositories</button>}
+      />,
+    );
 
-    expect(screen.getByText(/Nothing watched yet/)).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", {
+        name: "Pick the repositories you want to follow",
+      }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Add repositories" }),
+    ).toBeInTheDocument();
+  });
+
+  it("says the filter hid everything rather than that nothing is watched", () => {
+    render(<RepositoryTable rows={[]} now={now} filteredOut />);
+
+    expect(
+      screen.getByText("No watched repository matches this filter."),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("heading")).not.toBeInTheDocument();
   });
 });
