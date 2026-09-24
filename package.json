@@ -56,7 +56,7 @@
   "packageManager": "pnpm@12.5.0",
   "description": "GitHub insights and an agentic task list for the repositories you care about.",
   "engines": {
-    "node": ">=22.0.0"
+    "node": "24.x"
   },
   "license": "MIT"
 }
