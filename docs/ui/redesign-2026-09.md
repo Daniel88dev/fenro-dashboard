@@ -85,3 +85,10 @@ buttons pass 4.5:1 in both schemes; labels above inputs; skeleton, empty and
 error states drawn; icons from Phosphor, not hand-drawn; dots only for a live
 agent session; motion only on the expanding caret, behind
 `prefers-reduced-motion`.
+
+## Feedback so far
+
+- 2026-09-24, Daniel on the pull request panel: the number itself should link
+  to the pull request on GitHub instead of a separate "Review on GitHub"
+  button. Done on the canvas for pull request and issue numbers; the rest of
+  the row still toggles the checks.
