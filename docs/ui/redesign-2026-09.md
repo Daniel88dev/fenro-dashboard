@@ -99,3 +99,8 @@ agent session; motion only on the expanding caret, behind
 - 2026-09-24, Daniel on the phone count buttons: the grey box with a coloured
   underline looked odd when pressed. The open count is now a flat tint of its
   own colour, no shadow or underline, on phone and desktop.
+- 2026-09-24, Daniel on the task page: keep it, and also open a task and
+  create one in a dialog. A task opens in a dialog over the list with a "Full
+  page" link; the address is the task's, so a reload opens the full page
+  (an intercepting route). New task opens as a dialog with the repository
+  filled in and the less common fields folded away.
