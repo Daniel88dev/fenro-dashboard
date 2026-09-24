@@ -75,6 +75,14 @@ the composition root rather than importing the client.
 `getEnv()`. Never read `process.env` elsewhere, and keep the app free of
 Vercel-only runtime APIs so a move to AWS stays a deployment change.
 
+## Designing screens
+
+A new screen, or a visible change to one, starts as a prototype made with the
+`design-taste-frontend` skill in `.claude/skills/`, and waits for Daniel to
+pick a direction before any implementation. Read
+[docs/ui/design-taste.md](./docs/ui/design-taste.md) first: it says how the
+skill applies to a dashboard and where this project departs from it.
+
 ## Tests
 
 Vitest, jsdom, colocated as `*.test.ts(x)` next to the code. Test domain rules
