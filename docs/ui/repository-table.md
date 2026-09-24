@@ -186,14 +186,16 @@ Two bear directly on this document:
 
 ## What the built screen leaves out
 
-Three things in the description above are deliberately absent, each because
-it belongs to a slice that has not landed:
+Two things in the description above are deliberately absent:
 
-- **`Make a task from this` and `New task here`.** The seam between the two
-  halves of the product, and slice 7's to build.
-- **The task actions** — `Watch`, `Open`, `Resume`. They start and resume agent
-  sessions, which needs the `Task` aggregate (slice 8).
+- **The task actions** — `Watch`, `Open`, `Resume`. A task row opens the task
+  instead: agents start and resume sessions themselves through the MCP server,
+  and the dashboard does not launch agents.
 - **An issue's comment count**, because the sync does not read it yet.
+
+**Make a task from this** and **New task here** both open the new-task form
+on the Tasks screen, pre-filled with the repository and, from a pull request,
+with the pull request as the task's source.
 
 `Show the other 8 pull requests` links out to GitHub's own list rather than
 listing the rest in place: the synced snapshot holds at most 50 of each, and

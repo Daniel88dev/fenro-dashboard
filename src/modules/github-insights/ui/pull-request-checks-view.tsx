@@ -15,11 +15,14 @@ export function PullRequestChecksView({
   checks,
   pullRequestUrl,
   number,
+  newTaskHref,
 }: {
   id: string;
   checks: PullRequestChecks;
   pullRequestUrl: string;
   number: number;
+  /** Where "Make a task from this" goes; the route decides, not this context. */
+  newTaskHref?: string;
 }) {
   return (
     <div id={id} className="flex flex-col gap-0.5 pt-0.5 pr-3 pb-3 pl-[67px]">
@@ -56,11 +59,19 @@ export function PullRequestChecksView({
       </p>
 
       <div className="flex items-center gap-2.5 pt-2.5">
+        {newTaskHref ? (
+          <a
+            href={newTaskHref}
+            className="border-ink bg-ink text-ground hover:bg-ink-soft rounded-lg border px-[11px] py-1.5 text-[12px] font-medium"
+          >
+            Make a task from this
+          </a>
+        ) : null}
         <a
           href={pullRequestUrl}
           rel="noreferrer noopener"
           target="_blank"
-          className="border-ink bg-ink text-ground hover:bg-ink-soft rounded-lg border px-[11px] py-1.5 text-[12px] font-medium"
+          className="border-hairline text-ink hover:bg-surface-sunken rounded-lg border px-[11px] py-1.5 text-[12px] font-medium"
         >
           Open
           <span className="sr-only">{` pull request ${number}`}</span> on GitHub

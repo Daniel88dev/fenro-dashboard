@@ -399,7 +399,7 @@ The MCP server at `/api/mcp` and personal access tokens, made and revoked on
 **Settings**. An agent can list the ready queue, claim a task, record what it
 learns and hand off.
 
-### Slice 8 — the Tasks page and the seam
+### Slice 8 — the Tasks page and the seam _(built)_
 
 The Tasks screen (list, detail with the journal, creating and editing by
 hand), **New task here** and **Make a task from this**: a task created already

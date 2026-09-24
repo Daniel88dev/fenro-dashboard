@@ -1,17 +1,15 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 
-type Screen = "repositories" | "settings";
+type Screen = "repositories" | "tasks" | "settings";
 
 const SCREENS: readonly {
-  screen: Screen | null;
+  screen: Screen;
   label: string;
-  href: string | null;
+  href: string;
 }[] = [
   { screen: "repositories", label: "Repositories", href: "/repositories" },
-  // Named but not linked until its screen exists: a link that 404s is worse
-  // than a label that waits.
-  { screen: null, label: "Tasks", href: null },
+  { screen: "tasks", label: "Tasks", href: "/tasks" },
   { screen: "settings", label: "Settings", href: "/settings" },
 ];
 
@@ -42,7 +40,7 @@ export function DashboardChrome({
             const className = here
               ? "bg-bar-active text-bar-ink rounded-lg px-[11px] py-[7px] text-[13px] font-medium"
               : "text-bar-ink-muted rounded-lg px-[11px] py-[7px] text-[13px]";
-            return href && !here ? (
+            return !here ? (
               <Link
                 key={label}
                 href={href}
