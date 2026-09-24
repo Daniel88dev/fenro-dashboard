@@ -10,6 +10,7 @@ import type {
   IssueFilter,
   RepositoryRow,
 } from "@/modules/github-insights/application/queries/read-models";
+import { AddRepositories } from "@/modules/github-insights/ui/add-repositories";
 import { DashboardHeader } from "@/modules/github-insights/ui/dashboard-header";
 import {
   IssuesPanel,
@@ -207,7 +208,7 @@ export async function RepositoriesScreen({
         node: (
           <StreamedPanel
             id={panelId({ ...repository, column: "tasks" })}
-            title="Tasks on this repository"
+            title="Tasks"
             what="tasks"
           >
             <TasksSection
@@ -276,6 +277,14 @@ export async function RepositoriesScreen({
         rows={views}
         now={now}
         unwatchAction={unwatchRepositoryAction}
+        filteredOut={rows.value.length > 0}
+        emptyAction={
+          <AddRepositories
+            source="/api/github/repositories"
+            action={addRepositoriesAction}
+            accessSettingsUrl={getAuthenticator().gitHubAccessSettingsUrl()}
+          />
+        }
       />
     </SyncProvider>
   );
@@ -408,8 +417,6 @@ async function ChecksSection({
     <PullRequestChecksView
       id={id}
       checks={checks.value}
-      number={number}
-      pullRequestUrl={pullRequestUrl}
       // The seam between the two contexts: the tasks side takes it from here.
       newTaskHref={`/tasks/new?repository=${encodeURIComponent(`${owner}/${name}`)}&from=${encodeURIComponent(pullRequestUrl)}`}
     />

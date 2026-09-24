@@ -6,7 +6,14 @@ import type {
 import { Chip } from "./chip";
 import { FilterChip } from "./filter-chip";
 import { formatAbsolute, formatAge } from "./format";
-import { MoreOnGitHub, Panel } from "./panel";
+import {
+  GitHubNumberLink,
+  MoreOnGitHub,
+  OpenOnGitHub,
+  Panel,
+  PanelList,
+  PanelSummary,
+} from "./panel";
 import { labelTone } from "./tones";
 
 export type IssueChipView = {
@@ -69,10 +76,16 @@ export function IssuesPanel({
     <Panel
       id={id}
       title="Open issues"
-      summary={data.summary}
+      summary={<PanelSummary>{data.summary}</PanelSummary>}
+      action={
+        <OpenOnGitHub
+          href={`https://github.com/${owner}/${name}/issues`}
+          what={`issues in ${owner}/${name}`}
+        />
+      }
       footer={
         partial ? (
-          <span className="text-ink-muted">
+          <span>
             {`Filtered from the ${data.stored} most recently updated of ${data.totalOpen} open issues. `}
             <MoreOnGitHub href={searchUrl}>
               See every match on GitHub
@@ -89,7 +102,7 @@ export function IssuesPanel({
         <div
           role="group"
           aria-label={`Filter the open issues in ${owner}/${name}`}
-          className="flex flex-wrap gap-1.5 pb-1"
+          className="flex flex-wrap gap-1.5"
         >
           {chips.map((chip) => (
             <FilterChip key={chip.label} {...chip} />
@@ -98,41 +111,51 @@ export function IssuesPanel({
       ) : null}
 
       {filtered && data.shown.length === 0 ? (
-        <p className="text-ink-muted px-0.5 py-2 text-[12px]">
+        <p className="text-ink-muted py-1 text-[12.5px]">
           {data.complete
             ? "No open issue matches these filters."
             : `None of the ${data.stored} most recently updated issues matches these filters.`}
         </p>
       ) : null}
 
-      {data.shown.map((issue) => (
-        <div
-          key={issue.number}
-          className="border-hairline bg-surface flex items-center gap-3 rounded-[9px] border px-[13px] py-2.5"
-        >
-          <span className="text-ink-faint w-[54px] shrink-0 font-mono text-[12.5px]">
-            #{issue.number}
-          </span>
-          <span className="text-ink min-w-0 flex-1 truncate text-[13px]">
-            {issue.title}
-          </span>
-          {issue.label ? (
-            <Chip tone={labelTone(issue.label)}>{issue.label}</Chip>
-          ) : null}
-          <span className="text-ink-muted w-[68px] shrink-0 text-right text-[11.5px]">
-            open{" "}
-            <time
-              dateTime={issue.openedAt.toISOString()}
-              title={formatAbsolute(issue.openedAt)}
+      {data.shown.length > 0 ? (
+        <PanelList>
+          {data.shown.map((issue) => (
+            <li
+              key={issue.number}
+              className="grid grid-cols-[64px_minmax(0,1fr)] items-center gap-x-3 gap-y-1 py-2 pr-3.5 pl-2 md:grid-cols-[64px_minmax(0,1fr)_auto_80px_72px]"
             >
-              {formatAge(issue.openedAt, now)}
-            </time>
-          </span>
-          <span className="text-ink-faint w-[72px] shrink-0 text-right text-[11.5px]">
-            {issue.assignee ?? "nobody"}
-          </span>
-        </div>
-      ))}
+              <GitHubNumberLink
+                href={`https://github.com/${owner}/${name}/issues/${issue.number}`}
+                number={issue.number}
+                kind="issue"
+              />
+              <span className="text-ink truncate text-[13.5px]">
+                {issue.title}
+              </span>
+              <span className="col-start-2 flex items-center gap-3 md:contents">
+                {issue.label ? (
+                  <Chip tone={labelTone(issue.label)}>{issue.label}</Chip>
+                ) : (
+                  <span className="hidden md:block" />
+                )}
+                <span className="text-ink-muted text-[12px] md:text-right">
+                  open{" "}
+                  <time
+                    dateTime={issue.openedAt.toISOString()}
+                    title={formatAbsolute(issue.openedAt)}
+                  >
+                    {formatAge(issue.openedAt, now)}
+                  </time>
+                </span>
+                <span className="text-ink-muted font-mono text-[12px] md:text-right">
+                  {issue.assignee ?? "nobody"}
+                </span>
+              </span>
+            </li>
+          ))}
+        </PanelList>
+      ) : null}
     </Panel>
   );
 }

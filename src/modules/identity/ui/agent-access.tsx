@@ -1,6 +1,9 @@
 "use client";
 
+import { Check, Copy, Key, WarningCircle } from "@phosphor-icons/react/ssr";
 import { useActionState, useId, useState } from "react";
+
+import { Chip } from "@/modules/github-insights/ui/chip";
 
 import type { AccessTokenSummary } from "@/modules/identity/application/queries/access-tokens";
 
@@ -23,6 +26,13 @@ const STATE_LABELS: Record<AccessTokenSummary["state"], string> = {
   expired: "Expired",
   revoked: "Revoked",
 };
+
+const FIELD =
+  "border-hairline bg-surface text-ink placeholder:text-ink-faint focus-visible:outline-pr rounded-lg border px-3 text-[13px] focus-visible:outline-2 focus-visible:outline-offset-1";
+const BUTTON =
+  "focus-visible:outline-pr inline-flex h-[34px] cursor-pointer items-center gap-1.5 rounded-lg border px-[13px] text-[12.5px] font-medium whitespace-nowrap focus-visible:outline-2 focus-visible:outline-offset-1 disabled:cursor-wait disabled:opacity-70";
+const PRIMARY = `${BUTTON} border-ink bg-ink text-ground hover:bg-ink-soft`;
+const SECONDARY = `${BUTTON} border-hairline bg-surface text-ink hover:bg-surface-sunken`;
 
 const DATE = new Intl.DateTimeFormat("en", {
   day: "numeric",
@@ -67,7 +77,7 @@ export function AgentAccess({
   return (
     <section
       aria-labelledby="agent-access-heading"
-      className="border-hairline bg-surface flex max-w-[760px] flex-col gap-5 rounded-xl border px-6 py-6"
+      className="flex flex-col gap-3.5"
     >
       <div className="flex flex-col gap-1.5">
         <h2
@@ -76,109 +86,123 @@ export function AgentAccess({
         >
           Agent access
         </h2>
-        <p className="text-ink-muted text-[13px] leading-relaxed">
-          An agent connects to the tasks MCP server at{" "}
-          <code className="text-ink-soft font-mono text-[12px]">
-            {serverUrl}
-          </code>{" "}
-          with a token made here. It works on your tasks as you, so give each
-          agent its own token and revoke it when you stop using it.
+        <p className="text-ink-muted max-w-[72ch] text-[13px] leading-relaxed">
+          Agents connect to the tasks MCP server with a token made here and work
+          on your tasks as you. Give each agent its own token and revoke it when
+          you stop using it.
         </p>
       </div>
 
-      {state.issued ? (
-        <NewSecret
-          name={state.issued.name}
-          secret={state.issued.secret}
-          serverUrl={serverUrl}
-        />
-      ) : null}
+      <CopyLine label="MCP server URL" value={serverUrl} button="Copy URL" />
 
-      <form
-        action={formAction}
-        aria-label="Create an agent token"
-        className="flex flex-wrap items-end gap-3"
-      >
-        <div className="flex min-w-[220px] flex-1 flex-col gap-1">
-          <label htmlFor={nameId} className="text-ink-soft text-[12px]">
-            Name
+      <div className="border-hairline bg-surface flex flex-col gap-4 rounded-xl border p-4 sm:p-[18px]">
+        <h3 className="text-ink text-[14px] font-semibold">Create a token</h3>
+        <form
+          action={formAction}
+          aria-label="Create an agent token"
+          className="flex flex-wrap items-end gap-3"
+        >
+          <div className="flex min-w-[220px] flex-1 flex-col gap-1">
+            <label htmlFor={nameId} className="text-ink-soft text-[12px]">
+              Name
+            </label>
+            {/* Not a login field: the attributes keep password managers off it. */}
+            <input
+              id={nameId}
+              name="name"
+              required
+              maxLength={60}
+              placeholder="Claude Code on my laptop"
+              autoComplete="off"
+              data-1p-ignore
+              data-lpignore="true"
+              data-bwignore
+              data-form-type="other"
+              className={`${FIELD} h-[34px]`}
+            />
+          </div>
+          <div className="flex flex-col gap-1">
+            <label htmlFor={lifetimeId} className="text-ink-soft text-[12px]">
+              Expires after
+            </label>
+            <select
+              id={lifetimeId}
+              name="lifetimeDays"
+              defaultValue={90}
+              className={`${FIELD} h-[34px] px-2`}
+            >
+              {LIFETIMES.map(({ days, label }) => (
+                <option key={days} value={days}>
+                  {label}
+                </option>
+              ))}
+            </select>
+          </div>
+          <label className="text-ink-soft flex h-[34px] items-center gap-2 text-[13px]">
+            <input
+              type="checkbox"
+              name="write"
+              defaultChecked
+              className="accent-pr size-4"
+            />
+            Can change tasks
           </label>
-          {/* Not a login field: the attributes keep password managers off it. */}
-          <input
-            id={nameId}
-            name="name"
-            required
-            maxLength={60}
-            placeholder="Claude Code on my laptop"
-            autoComplete="off"
-            data-1p-ignore
-            data-lpignore="true"
-            data-bwignore
-            data-form-type="other"
-            className="border-hairline bg-surface text-ink placeholder:text-ink-faint focus-visible:outline-pr h-[34px] rounded-[9px] border px-3 text-[13px] focus-visible:outline-2 focus-visible:outline-offset-1"
-          />
-        </div>
-        <div className="flex flex-col gap-1">
-          <label htmlFor={lifetimeId} className="text-ink-soft text-[12px]">
-            Expires after
-          </label>
-          <select
-            id={lifetimeId}
-            name="lifetimeDays"
-            defaultValue={90}
-            className="border-hairline bg-surface text-ink focus-visible:outline-pr h-[34px] rounded-[9px] border px-2 text-[13px] focus-visible:outline-2 focus-visible:outline-offset-1"
+          <button type="submit" disabled={pending} className={PRIMARY}>
+            <Key aria-hidden="true" className="size-[15px]" />
+            {pending ? "Creating…" : "Create token"}
+          </button>
+        </form>
+
+        {state.error ? (
+          <p
+            role="alert"
+            className="bg-issue-wash text-issue-strong flex items-center gap-2 rounded-lg px-3 py-2 text-[12.5px]"
           >
-            {LIFETIMES.map(({ days, label }) => (
-              <option key={days} value={days}>
-                {label}
-              </option>
-            ))}
-          </select>
-        </div>
-        <label className="text-ink-soft flex h-[34px] items-center gap-2 text-[12.5px]">
-          <input
-            type="checkbox"
-            name="write"
-            defaultChecked
-            className="accent-pr"
-          />
-          Can change tasks
-        </label>
-        <button
-          type="submit"
-          disabled={pending}
-          className="border-ink bg-ink text-ground hover:bg-ink-soft focus-visible:outline-pr h-[34px] cursor-pointer rounded-[9px] border px-[13px] text-[12.5px] font-medium focus-visible:outline-2 focus-visible:outline-offset-1 disabled:cursor-wait disabled:opacity-70"
-        >
-          {pending ? "Creating…" : "Create token"}
-        </button>
-      </form>
+            <WarningCircle aria-hidden="true" className="size-4 shrink-0" />
+            {state.error}
+          </p>
+        ) : null}
 
-      {state.error ? (
-        <p
-          role="alert"
-          className="border-issue-wash bg-issue-wash text-issue-strong rounded-lg border px-3 py-2 text-[12px]"
-        >
-          {state.error}
-        </p>
-      ) : null}
+        {state.issued ? (
+          <NewSecret
+            name={state.issued.name}
+            secret={state.issued.secret}
+            serverUrl={serverUrl}
+          />
+        ) : null}
+      </div>
 
       {tokens.length === 0 ? (
-        <p className="text-ink-muted text-[12.5px]">
+        <p className="text-ink-muted text-[13px]">
           No tokens yet. Agents cannot reach your tasks until you make one.
         </p>
       ) : (
-        <ul
-          aria-label="Agent tokens"
-          className="divide-hairline-soft border-hairline divide-y rounded-[10px] border"
-        >
-          {tokens.map((token) => (
-            <TokenRow
-              key={token.id}
-              token={token}
-              revokeAction={revokeAction}
-            />
-          ))}
-        </ul>
+        <div className="border-hairline bg-surface overflow-hidden rounded-xl border">
+          <div
+            aria-hidden="true"
+            className={`${TOKEN_GRID} bg-surface-raised text-ink-muted border-hairline hidden border-b py-2.5 text-[12px] font-medium md:grid`}
+          >
+            <span>Name</span>
+            <span>Access</span>
+            <span>Created</span>
+            <span>Expires</span>
+            <span>Last used</span>
+            <span>State</span>
+            <span />
+          </div>
+          <ul
+            aria-label="Agent tokens"
+            className="divide-hairline-soft divide-y"
+          >
+            {tokens.map((token) => (
+              <TokenRow
+                key={token.id}
+                token={token}
+                revokeAction={revokeAction}
+              />
+            ))}
+          </ul>
+        </div>
       )}
     </section>
   );
@@ -197,18 +221,31 @@ function NewSecret({
   return (
     <div
       role="status"
-      className="border-pr-wash bg-pr-wash flex flex-col gap-2 rounded-[10px] border px-4 py-3"
+      className="bg-pr-wash flex flex-col gap-3 rounded-xl px-3.5 py-3.5"
     >
-      <p className="text-pr-strong text-[12.5px] font-medium">
-        Token “{name}” created. Copy it now: it will not be shown again.
+      <p className="text-pr-strong text-[12.5px] font-semibold">
+        Token “{name}” created. Copy it now. Fenro keeps only a hash, so this is
+        the one time you see it.
       </p>
-      <CopyLine label="Token" value={secret} />
-      <CopyLine label="Connect Claude Code" value={command} />
+      <CopyLine label="Token" value={secret} button="Copy token" />
+      <CopyLine
+        label="Connect Claude Code"
+        value={command}
+        button="Copy command"
+      />
     </div>
   );
 }
 
-function CopyLine({ label, value }: { label: string; value: string }) {
+function CopyLine({
+  label,
+  value,
+  button,
+}: {
+  label: string;
+  value: string;
+  button: string;
+}) {
   const [copied, setCopied] = useState(false);
   const copy = async () => {
     try {
@@ -220,23 +257,35 @@ function CopyLine({ label, value }: { label: string; value: string }) {
   };
   return (
     <div className="flex flex-col gap-1">
-      <span className="text-ink-soft text-[11.5px]">{label}</span>
+      <span className="text-ink-soft text-[12px]">{label}</span>
       <div className="flex items-start gap-2">
-        <code className="bg-surface text-ink flex-1 rounded-md px-2 py-1.5 font-mono text-[12px] break-all select-all">
+        <code className="border-hairline bg-surface text-ink min-h-[34px] flex-1 rounded-lg border px-3 py-[7px] font-mono text-[12px] leading-[18px] break-all select-all sm:flex-none">
           {value}
         </code>
         <button
           type="button"
           onClick={copy}
           aria-label={`Copy ${label.toLowerCase()}`}
-          className="border-hairline bg-surface text-ink hover:bg-surface-sunken focus-visible:outline-pr shrink-0 cursor-pointer rounded-[8px] border px-[10px] py-1 text-[12px] font-medium focus-visible:outline-2"
+          className={`${SECONDARY} shrink-0`}
         >
-          {copied ? "Copied" : "Copy"}
+          {copied ? (
+            <Check aria-hidden="true" className="size-[15px]" />
+          ) : (
+            <Copy aria-hidden="true" className="size-[15px]" />
+          )}
+          <span className="hidden sm:inline">{copied ? "Copied" : button}</span>
         </button>
       </div>
     </div>
   );
 }
+
+/**
+ * One grid for the header and the rows, so the columns line up. Under `md`
+ * a row stacks: name on top, facts below with their own labels.
+ */
+const TOKEN_GRID =
+  "md:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)_minmax(0,0.9fr)_minmax(0,0.9fr)_minmax(0,0.9fr)_80px_80px] items-center gap-x-4 px-4";
 
 function TokenRow({
   token,
@@ -246,35 +295,53 @@ function TokenRow({
   revokeAction: (formData: FormData) => Promise<void>;
 }) {
   const canChange = token.scopes.includes("tasks:write");
+  const facts: readonly [string, string][] = [
+    ["Access", canChange ? "Read and write" : "Read only"],
+    ["Created", formatDate(token.createdAt)],
+    ["Expires", formatDate(token.expiresAt)],
+    ["Last used", token.lastUsedAt ? formatDate(token.lastUsedAt) : "Never"],
+  ];
   return (
-    <li className="flex flex-wrap items-center gap-x-4 gap-y-1 px-4 py-3">
-      <div className="flex min-w-[200px] flex-1 flex-col gap-0.5">
-        <span className="text-ink text-[13px] font-medium">{token.name}</span>
-        <span className="text-ink-muted text-[12px]">
-          <span className="font-mono">…{token.hint}</span> ·{" "}
-          {canChange ? "Reads and changes tasks" : "Reads tasks"} ·{" "}
-          {token.lastUsedAt
-            ? `last used ${formatDate(token.lastUsedAt)}`
-            : "never used"}
+    <li
+      className={`${TOKEN_GRID} grid grid-cols-[minmax(0,1fr)_auto] gap-y-2 py-3 text-[13px]`}
+    >
+      <span className="flex min-w-0 flex-col">
+        <span className="text-ink font-medium break-words">{token.name}</span>
+        <span className="text-ink-muted font-mono text-[11.5px]">
+          …{token.hint}
         </span>
-      </div>
-      <span className="text-ink-muted text-[12px]">
-        {token.state === "active"
-          ? `Expires ${formatDate(token.expiresAt)}`
-          : STATE_LABELS[token.state]}
       </span>
-      {token.state === "active" ? (
-        <form action={revokeAction}>
-          <input type="hidden" name="tokenId" value={token.id} />
-          <button
-            type="submit"
-            aria-label={`Revoke ${token.name}`}
-            className="border-hairline text-issue-strong hover:bg-issue-wash focus-visible:outline-pr cursor-pointer rounded-[8px] border px-[10px] py-1 text-[12px] font-medium focus-visible:outline-2"
-          >
-            Revoke
-          </button>
-        </form>
-      ) : null}
+      <dl className="col-span-2 row-start-2 grid grid-cols-2 gap-x-4 gap-y-1 md:contents">
+        {facts.map(([label, value], i) => (
+          <div key={label} className="flex min-w-0 flex-col md:block">
+            <dt className="text-ink-muted text-[11.5px] md:sr-only">{label}</dt>
+            <dd className={i === 0 ? "text-ink-soft" : "text-ink-muted"}>
+              {value}
+            </dd>
+          </div>
+        ))}
+      </dl>
+      <span className="col-start-2 row-start-1 flex items-center justify-end gap-2 md:contents">
+        <span>
+          <Chip tone={token.state === "active" ? "healthy" : "neutral"}>
+            {STATE_LABELS[token.state]}
+          </Chip>
+        </span>
+        <span className="md:flex md:justify-end">
+          {token.state === "active" ? (
+            <form action={revokeAction}>
+              <input type="hidden" name="tokenId" value={token.id} />
+              <button
+                type="submit"
+                aria-label={`Revoke ${token.name}`}
+                className="text-issue-strong hover:bg-issue-wash focus-visible:outline-pr h-[30px] cursor-pointer rounded-lg px-[10px] text-[12px] font-medium focus-visible:outline-2"
+              >
+                Revoke
+              </button>
+            </form>
+          ) : null}
+        </span>
+      </span>
     </li>
   );
 }

@@ -1,19 +1,17 @@
-import { render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import Home from "@/app/page";
 
-describe("Home", () => {
-  it("names the app and its bounded contexts", () => {
-    render(<Home />);
+const redirect = vi.hoisted(() =>
+  vi.fn((url: string) => {
+    throw new Error(`redirected to ${url}`);
+  }),
+);
+vi.mock("next/navigation", () => ({ redirect }));
 
-    expect(
-      screen.getByRole("heading", { level: 1, name: "Fenro Dashboard" }),
-    ).toBeInTheDocument();
-    expect(screen.getByText("GitHub insights")).toBeInTheDocument();
-    expect(screen.getByText("Tasks")).toBeInTheDocument();
-    expect(
-      screen.getByRole("link", { name: "Open the repositories dashboard" }),
-    ).toHaveAttribute("href", "/repositories");
+describe("Home", () => {
+  it("sends the reader to the repository table", () => {
+    expect(() => Home()).toThrow("redirected to /repositories");
+    expect(redirect).toHaveBeenCalledWith("/repositories");
   });
 });

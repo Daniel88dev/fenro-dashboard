@@ -7,6 +7,7 @@ import type { ListTasksQuery } from "@/modules/tasks/application/queries/list-ta
 import { listTasksQuery } from "@/modules/tasks/application/queries/list-tasks";
 import {
   isTaskView,
+  TASK_VIEWS,
   TaskList,
   type TaskListFilter,
   type TaskView,
@@ -72,13 +73,27 @@ async function TasksScreen({
     );
   }
 
-  const list = await container.queryBus.ask(
-    listTasksQuery(ownerId, {
-      ...VIEW_FILTERS[filter.view],
-      repository: filter.repository || undefined,
-      text: filter.text || undefined,
-      limit: LIST_LIMIT,
-    }),
+  const scope = {
+    repository: filter.repository || undefined,
+    text: filter.text || undefined,
+  };
+  // One small count per tab, asked alongside the list itself.
+  const [list, ...totals] = await Promise.all([
+    container.queryBus.ask(
+      listTasksQuery(ownerId, {
+        ...VIEW_FILTERS[filter.view],
+        ...scope,
+        limit: LIST_LIMIT,
+      }),
+    ),
+    ...TASK_VIEWS.map(({ view }) =>
+      container.queryBus.ask(
+        listTasksQuery(ownerId, { ...VIEW_FILTERS[view], ...scope, limit: 1 }),
+      ),
+    ),
+  ]);
+  const counts = Object.fromEntries(
+    TASK_VIEWS.map(({ view }, index) => [view, totals[index]!.total]),
   );
-  return <TaskList list={list} filter={filter} />;
+  return <TaskList list={list} filter={filter} counts={counts} />;
 }

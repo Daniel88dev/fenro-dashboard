@@ -1,3 +1,4 @@
+import { CaretRight } from "@phosphor-icons/react/ssr";
 import Link from "next/link";
 import { Suspense } from "react";
 
@@ -9,6 +10,7 @@ import { NewTaskForm } from "@/modules/tasks/ui/task-forms";
 import { signInWithGitHubAction } from "../../sign-in/actions";
 import { SignedInAccount } from "../../signed-in-account";
 import { tasksContext } from "../signed-in-owner";
+import { newTaskDefaults } from "./defaults";
 import { TASK_ACTIONS } from "../task-actions";
 
 export const metadata = {
@@ -43,8 +45,6 @@ async function NewTaskScreen({
   searchParams: PageProps<"/tasks/new">["searchParams"];
 }) {
   const params = await searchParams;
-  const one = (value: string | string[] | undefined) =>
-    (Array.isArray(value) ? value[0] : value)?.trim() ?? "";
 
   const { ownerId } = await tasksContext();
   if (!ownerId) {
@@ -56,37 +56,39 @@ async function NewTaskScreen({
     );
   }
 
-  const source = one(params.from);
-  const pullRequest = /\/pull\/(\d+)$/.exec(source);
   return (
-    <div className="flex max-w-[760px] flex-col gap-5">
-      <header className="flex flex-col gap-1.5">
-        <nav aria-label="Breadcrumb" className="text-ink-muted text-[12.5px]">
+    <div className="flex max-w-[1040px] flex-col gap-6">
+      <header className="flex flex-col gap-2">
+        <nav
+          aria-label="Breadcrumb"
+          className="text-ink-muted flex items-center gap-1.5 text-[12.5px]"
+        >
           <Link href="/tasks" className="hover:text-ink">
             Tasks
           </Link>
+          <CaretRight aria-hidden="true" className="size-[11px]" />
+          <span>New task</span>
         </nav>
-        <h1 className="text-ink text-[22px] font-semibold tracking-tight">
+        <h1 className="text-ink text-[24px] leading-tight font-semibold tracking-tight">
           New task
         </h1>
-        <p className="text-ink-muted text-[13px]">
-          Write it for the agent that will pick it up: what to do, how to know
-          it is done, and where it came from.
+        <p className="text-ink-muted text-[13.5px]">
+          What you write here is the brief an agent reads when it picks the task
+          up.
         </p>
       </header>
-      <section className="border-hairline bg-surface rounded-xl border px-6 py-6">
-        <NewTaskForm
-          action={TASK_ACTIONS.create}
-          defaults={{
-            repository: one(params.repository),
-            parent: one(params.parent),
-            source,
-            title:
-              one(params.title) ||
-              (pullRequest ? `Get pull request #${pullRequest[1]} merged` : ""),
-          }}
-        />
-      </section>
+      <NewTaskForm
+        action={TASK_ACTIONS.create}
+        defaults={newTaskDefaults(params)}
+        cancel={
+          <Link
+            href="/tasks"
+            className="text-ink-soft hover:bg-surface-sunken focus-visible:outline-pr flex h-[34px] items-center rounded-lg px-[13px] text-[12.5px] font-medium focus-visible:outline-2"
+          >
+            Cancel
+          </Link>
+        }
+      />
     </div>
   );
 }

@@ -18,13 +18,20 @@ export const metadata: Metadata = {
     "GitHub insights and an agentic task list for the repositories you care about.",
 };
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+/**
+ * `modal` is the slot the task dialogs render into: a task or New task
+ * opened from inside the app shows over the page it was opened from.
+ */
+export default function RootLayout({ children, modal }: LayoutProps<"/">) {
   return (
     <html
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="flex min-h-full flex-col">{children}</body>
+      <body className="flex min-h-full flex-col">
+        {children}
+        {modal}
+      </body>
     </html>
   );
 }

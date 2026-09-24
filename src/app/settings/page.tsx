@@ -3,12 +3,13 @@ import { Suspense } from "react";
 import { DashboardChrome } from "@/modules/github-insights/ui/dashboard-chrome";
 import { accessTokensQuery } from "@/modules/identity/application/queries/access-tokens";
 import { signedInUserQuery } from "@/modules/identity/application/queries/signed-in-user";
+import { AccountSection } from "@/modules/identity/ui/account-section";
 import { AgentAccess } from "@/modules/identity/ui/agent-access";
 import { SignInPanel } from "@/modules/identity/ui/sign-in-panel";
 import { getEnv } from "@/shared/config/env";
 import { getContainer } from "@/shared/infrastructure/container";
 
-import { signInWithGitHubAction } from "../sign-in/actions";
+import { signInWithGitHubAction, signOutAction } from "../sign-in/actions";
 import { SignedInAccount } from "../signed-in-account";
 import { issueAccessTokenAction, revokeAccessTokenAction } from "./actions";
 
@@ -27,17 +28,19 @@ export default function SettingsPage() {
         </Suspense>
       }
     >
-      <h1 className="text-ink text-[20px] font-semibold tracking-tight">
-        Settings
-      </h1>
-      <Suspense fallback={null}>
-        <AgentAccessSection />
-      </Suspense>
+      <div className="flex max-w-[1080px] flex-col gap-7">
+        <h1 className="text-ink text-[22px] font-semibold tracking-tight">
+          Settings
+        </h1>
+        <Suspense fallback={null}>
+          <SettingsSections />
+        </Suspense>
+      </div>
     </DashboardChrome>
   );
 }
 
-async function AgentAccessSection() {
+async function SettingsSections() {
   const { queryBus } = await getContainer();
   const user = await queryBus.ask(signedInUserQuery());
   if (!user) {
@@ -51,11 +54,14 @@ async function AgentAccessSection() {
 
   const tokens = await queryBus.ask(accessTokensQuery(user.id));
   return (
-    <AgentAccess
-      serverUrl={new URL("/api/mcp", getEnv().APP_URL).toString()}
-      tokens={tokens}
-      issueAction={issueAccessTokenAction}
-      revokeAction={revokeAccessTokenAction}
-    />
+    <>
+      <AccountSection user={user} signOutAction={signOutAction} />
+      <AgentAccess
+        serverUrl={new URL("/api/mcp", getEnv().APP_URL).toString()}
+        tokens={tokens}
+        issueAction={issueAccessTokenAction}
+        revokeAction={revokeAccessTokenAction}
+      />
+    </>
   );
 }

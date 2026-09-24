@@ -51,23 +51,6 @@ function Screen({
 }
 
 describe("SyncStatus", () => {
-  it("says once that GitHub's rate limit ran out, and how old the numbers are", () => {
-    render(
-      <SyncStatus
-        syncedAt={new Date("2026-09-23T11:34:00Z")}
-        neverSynced={0}
-        watched={2}
-        rateLimited
-        now={now}
-      />,
-    );
-
-    expect(screen.getByRole("status")).toHaveTextContent(
-      "GitHub's rate limit is used up. Showing numbers from 26 min ago.",
-    );
-    expect(screen.getByRole("button", { name: "Refresh" })).toBeEnabled();
-  });
-
   it("says how fresh the numbers are, and does not sync them when nothing is due", () => {
     const { action } = deferredAction();
 
@@ -85,7 +68,7 @@ describe("SyncStatus", () => {
 
     expect(action).toHaveBeenCalledWith("automatic");
     expect(screen.getByRole("status")).toHaveTextContent(
-      "Updating from GitHub…",
+      "Updating from GitHub",
     );
     expect(screen.getByTestId("sync-progress")).toBeInTheDocument();
     expect(
@@ -121,6 +104,9 @@ describe("SyncStatus", () => {
     fireEvent.click(screen.getByRole("button", { name: "Refresh" }));
 
     expect(action).toHaveBeenCalledWith("manual");
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "Updating 2 repositories from GitHub",
+    );
     expect(
       screen.getByText("Updating nordwind/billing-core from GitHub"),
     ).toBeInTheDocument();

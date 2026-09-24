@@ -68,4 +68,4 @@ disagree:
 | Date       | What                             | Link                                                                                        | Outcome       |
 | ---------- | -------------------------------- | ------------------------------------------------------------------------------------------- | ------------- |
 | 2026-09-20 | Repository table                 | [canvas](https://claude.ai/artifact/CHoCsPDAWY2tvnoL7gHW9t)                                 | Built (PR #3) |
-| 2026-09-24 | Whole-app redesign, 2 directions | [canvas](https://claude.ai/artifact/Uj2hLnvUy6X9dYrzzAdDgr), [notes](./redesign-2026-09.md) | Awaiting pick |
+| 2026-09-24 | Whole-app redesign, 2 directions | [canvas](https://claude.ai/artifact/Uj2hLnvUy6X9dYrzzAdDgr), [notes](./redesign-2026-09.md) | A picked      |

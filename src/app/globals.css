@@ -1,15 +1,11 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
   /* Let form controls, scrollbars and the caret follow the scheme too. */
   color-scheme: light dark;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
@@ -49,6 +45,8 @@
   --color-pr-wash: #e4efeb;
   --color-issue-wash: #f6e9e1;
   --color-neutral-wash: #efede7;
+  /* Text on a solid teal fill: the brand mark, a ticked checkbox. */
+  --color-on-pr: #ffffff;
 }
 
 /*
@@ -77,9 +75,6 @@
  */
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-
     --color-ground: #121210;
     --color-surface: #1b1b18;
     --color-surface-raised: #222220;
@@ -102,11 +97,21 @@
     --color-pr-wash: #1e3b34;
     --color-issue-wash: #3a2418;
     --color-neutral-wash: #2b2b27;
+    --color-on-pr: #10231f;
   }
 }
 
+/*
+ * Radii follow one rule: containers 12px (rounded-xl), controls 8px
+ * (rounded-lg), chips 6px (rounded-md), filter pills full.
+ */
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--color-ground);
+  color: var(--color-ink);
+  font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
+}
+
+/* The page behind an open dialog stays where it is. */
+html:has(dialog[open]) {
+  overflow: hidden;
 }

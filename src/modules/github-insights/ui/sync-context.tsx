@@ -21,12 +21,15 @@ type SyncContextValue = {
   readonly syncing: boolean;
   /** The rows this sync is expected to touch, for their own indicator. */
   readonly isSyncing: (repositoryId: string) => boolean;
+  /** How many rows the running sync is expected to touch. */
+  readonly updating: number;
   readonly refresh: () => void;
 };
 
 const SyncContext = createContext<SyncContextValue>({
   syncing: false,
   isSyncing: () => false,
+  updating: 0,
   refresh: () => {},
 });
 
@@ -86,6 +89,7 @@ export function SyncProvider({
     () => ({
       syncing: pending,
       isSyncing: (id) => pending && target.has(id),
+      updating: pending ? target.size : 0,
       refresh: () => run("manual", repositoryIds),
     }),
     [pending, target, run, repositoryIds],

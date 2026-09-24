@@ -1,10 +1,10 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
 import { AccountMenu } from "./account-menu";
 
 describe("AccountMenu", () => {
-  it("shows who is signed in and a way out", () => {
+  it("shows who is signed in, and opens to settings and a way out", () => {
     render(
       <AccountMenu
         user={{
@@ -17,7 +17,15 @@ describe("AccountMenu", () => {
       />,
     );
 
-    expect(screen.getByText("Daniel88dev")).toBeInTheDocument();
+    const toggle = screen.getByLabelText("Account menu for Daniel88dev");
+    expect(toggle).toHaveTextContent("Daniel88dev");
+
+    fireEvent.click(toggle);
+
+    expect(screen.getByRole("link", { name: "Settings" })).toHaveAttribute(
+      "href",
+      "/settings",
+    );
     expect(
       screen.getByRole("button", { name: "Sign out" }),
     ).toBeInTheDocument();

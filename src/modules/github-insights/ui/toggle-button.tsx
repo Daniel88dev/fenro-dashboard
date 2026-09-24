@@ -41,7 +41,7 @@ export function ToggleButton({
           router.push(href, { scroll: false });
         });
       }}
-      className={`focus-visible:outline-pr cursor-pointer rounded-lg transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 data-[pending]:opacity-60 ${className ?? ""}`}
+      className={`focus-visible:outline-pr cursor-pointer transition-colors focus-visible:outline-2 data-[pending]:opacity-60 ${className ?? ""}`}
     >
       {children}
     </button>

@@ -1,37 +1,28 @@
 "use client";
 
-import { formatAbsolute, formatRelativeTime } from "./format";
-import { useSync } from "./sync-context";
+import { ArrowsClockwise } from "@phosphor-icons/react/ssr";
 
-export function Spinner() {
-  return (
-    <span
-      aria-hidden
-      className="border-hairline border-t-pr inline-block size-3 shrink-0 rounded-full border-2 motion-safe:animate-spin"
-    />
-  );
-}
+import { formatAbsolute, formatRelativeTime } from "./format";
+import { Spinner } from "./spinner";
+import { useSync } from "./sync-context";
 
 /**
  * The header's freshness line and its Refresh button. While a sync runs it
- * says so, and the numbers around it stay as they were until it lands. When
- * GitHub has refused a sync for the rate limit, it says that once here rather
- * than on every row, and still says how old the numbers are.
+ * says so, and the numbers around it stay as they were until it lands. The
+ * rate limit is not said here: the banner under the header says it once.
  */
 export function SyncStatus({
   syncedAt,
   neverSynced,
   watched,
-  rateLimited = false,
   now,
 }: {
   syncedAt: Date | null;
   neverSynced: number;
   watched: number;
-  rateLimited?: boolean;
   now: Date;
 }) {
-  const { syncing, refresh } = useSync();
+  const { syncing, refresh, updating } = useSync();
 
   return (
     <div className="flex items-center gap-2">
@@ -43,26 +34,10 @@ export function SyncStatus({
         {syncing ? (
           <>
             <Spinner />
-            Updating from GitHub…
+            {updating > 1
+              ? `Updating ${updating} repositories from GitHub`
+              : "Updating from GitHub"}
           </>
-        ) : rateLimited ? (
-          <span className="text-issue-strong">
-            GitHub&apos;s rate limit is used up.{" "}
-            {syncedAt === null ? (
-              "Nothing synced yet."
-            ) : (
-              <>
-                Showing numbers from{" "}
-                <time
-                  dateTime={syncedAt.toISOString()}
-                  title={formatAbsolute(syncedAt)}
-                >
-                  {formatRelativeTime(syncedAt, now)}
-                </time>
-                .
-              </>
-            )}
-          </span>
         ) : syncedAt === null ? (
           watched === 0 ? null : (
             "Not synced yet"
@@ -73,6 +48,7 @@ export function SyncStatus({
             <time
               dateTime={syncedAt.toISOString()}
               title={formatAbsolute(syncedAt)}
+              className="text-ink-soft"
             >
               {formatRelativeTime(syncedAt, now)}
             </time>
@@ -85,8 +61,9 @@ export function SyncStatus({
           type="button"
           onClick={refresh}
           disabled={syncing}
-          className="border-hairline bg-surface text-ink hover:bg-surface-sunken focus-visible:outline-pr h-[34px] cursor-pointer rounded-[9px] border px-[13px] text-[12.5px] font-medium focus-visible:outline-2 focus-visible:outline-offset-1 disabled:cursor-default disabled:opacity-60"
+          className="border-hairline bg-surface text-ink hover:bg-surface-sunken focus-visible:outline-pr flex h-[34px] cursor-pointer items-center gap-1.5 rounded-lg border px-[13px] text-[12.5px] font-medium focus-visible:outline-2 focus-visible:outline-offset-1 disabled:cursor-default disabled:opacity-60"
         >
+          <ArrowsClockwise aria-hidden="true" className="size-[15px]" />
           Refresh
         </button>
       ) : null}
@@ -102,7 +79,7 @@ export function SyncProgressBar() {
     <div
       aria-hidden
       data-testid="sync-progress"
-      className="bg-pr-wash absolute inset-x-0 top-0 h-0.5 overflow-hidden"
+      className="bg-pr-wash absolute inset-x-0 top-0 z-10 h-0.5 overflow-hidden rounded-t-xl"
     >
       <div className="bg-pr motion-safe:animate-sync-bar h-full w-2/5" />
     </div>
@@ -121,7 +98,7 @@ export function RowSyncIndicator({
   if (!isSyncing(repositoryId)) return null;
   return (
     <span className="flex items-center" title={`Updating ${fullName}`}>
-      <Spinner />
+      <Spinner className="size-[13px]" />
       <span className="sr-only">{`Updating ${fullName} from GitHub`}</span>
     </span>
   );
