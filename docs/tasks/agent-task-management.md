@@ -101,7 +101,10 @@ contends on the same row.
 ### Rules the aggregate enforces (all return `Result`, never throw)
 
 - Only a ready task can be claimed; claiming an already-claimed task fails
-  with who holds it and until when.
+  with who holds it and until when. A task in the `backlog`, on hold, blocked,
+  or still `todo` with open sub-tasks is refused with what to do instead. A
+  paused task (`in_progress`, no live session) and one sent back from
+  `in_review` can be resumed by key.
 - A task can't be marked `done` while it has open sub-tasks or unchecked
   acceptance criteria; the error lists what is open.
 - Finishing a session requires a handoff summary (it becomes a `handoff`

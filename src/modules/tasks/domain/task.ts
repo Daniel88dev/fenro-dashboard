@@ -118,8 +118,9 @@ export type StatusTarget = Exclude<TaskStatus, "in_progress">;
  * - **Finishing honestly.** A task is not done while a sub-task is open or an
  *   acceptance criterion is unmet, and a session does not end without a
  *   handoff summary.
- * - **Ready means ready.** A session cannot start while the task is on hold or
- *   blocked by an open task.
+ * - **Ready means ready.** A session cannot start while the task is in the
+ *   backlog, on hold, blocked by an open task, or — before work on it has
+ *   begun — waiting on its open sub-tasks.
  * - **An append-only journal.** Entries are added, never changed.
  *
  * Rules that span tasks — no cycle through `blocked-by` or through parents —
@@ -409,6 +410,24 @@ export class Task extends AggregateRoot<Props> {
         taskError(
           "task-blocked",
           `${this.key} is blocked by ${surroundings.openBlockers.join(", ")}, still open. Pick a ready task instead.`,
+        ),
+      );
+    }
+    if (status === "backlog") {
+      return err(
+        taskError(
+          "task-not-ready",
+          `${this.key} is in the backlog. Move it to todo first, or pick a ready task instead.`,
+        ),
+      );
+    }
+    // Only a todo task waits on its sub-tasks. One already in progress stays
+    // resumable, so an agent that split its own work can come back to it.
+    if (status === "todo" && surroundings.openSubtasks.length > 0) {
+      return err(
+        taskError(
+          "open-subtasks",
+          `${this.key} waits on its open sub-tasks: ${surroundings.openSubtasks.join(", ")}. Start one of those instead.`,
         ),
       );
     }

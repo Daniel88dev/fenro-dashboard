@@ -176,6 +176,49 @@ describe("Task", () => {
       expect(isErr(result) && result.error.code).toBe("task-on-hold");
     });
 
+    it("will not start a task in the backlog", () => {
+      const result = aTask({ status: "backlog" }).startSession(
+        claude,
+        clear,
+        t0,
+      );
+
+      expect(isErr(result) && result.error.code).toBe("task-not-ready");
+      expect(isErr(result) && result.error.message).toContain("backlog");
+    });
+
+    it("will not start a todo task waiting on open sub-tasks", () => {
+      const result = aTask().startSession(
+        claude,
+        { openBlockers: [], openSubtasks: ["T-8"] },
+        t0,
+      );
+
+      expect(isErr(result) && result.error.code).toBe("open-subtasks");
+      expect(isErr(result) && result.error.message).toContain("T-8");
+    });
+
+    it("resumes an in-progress task that has gained sub-tasks", () => {
+      const task = aTask();
+      const first = unwrap(task.startSession(claude, clear, t0));
+      unwrap(
+        task.finishSession(
+          claude,
+          { outcome: "paused", summary: "Split into sub-tasks" },
+          clear,
+          later(10),
+        ),
+      );
+
+      const again = task.startSession(
+        cursor,
+        { openBlockers: [], openSubtasks: ["T-8"] },
+        later(20),
+      );
+
+      expect(again.ok && again.value.number).toBe(first.number + 1);
+    });
+
     it("will not start a finished task", () => {
       const task = aTask();
       unwrap(task.changeStatus("cancelled", daniel, clear, t0));
