@@ -28,6 +28,24 @@ describe("getEnv", () => {
     expect(env.GITHUB_CLIENT_ID).toBeUndefined();
   });
 
+  it("falls back to the Vercel branch URL when APP_URL is unset", () => {
+    const env = getEnv({
+      VERCEL_BRANCH_URL: "fenro-git-branch.vercel.app",
+      VERCEL_URL: "fenro-abc123.vercel.app",
+    });
+
+    expect(env.APP_URL).toBe("https://fenro-git-branch.vercel.app");
+  });
+
+  it("prefers an explicit APP_URL over the platform's", () => {
+    const env = getEnv({
+      APP_URL: "https://fenro.example",
+      VERCEL_BRANCH_URL: "fenro-git-main.vercel.app",
+    });
+
+    expect(env.APP_URL).toBe("https://fenro.example");
+  });
+
   it("rejects an auth secret too short to be one", () => {
     expect(() => getEnv({ BETTER_AUTH_SECRET: "short" })).toThrow(
       /BETTER_AUTH_SECRET/,

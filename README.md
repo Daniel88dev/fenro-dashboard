@@ -195,8 +195,16 @@ Settings → Environment Variables, with `APP_URL` set to the production origin.
   (unpooled) string, `DATABASE_URL=<direct string> pnpm db:migrate`, before
   deploying a change that adds one. The build does not run them.
 - **GitHub OAuth app.** A second app for production, with the callback URL
-  `https://<your-domain>/api/auth/callback/github`. Preview deployments have
-  their own URLs and so cannot sign in through it.
+  `https://<your-domain>/api/auth/callback/github`.
+- **Sign-in on previews.** Previews get new URLs, which the OAuth app cannot
+  list, so they sign in through production. Set `OAUTH_PROXY_URL` (the
+  production origin) and one shared `OAUTH_PROXY_SECRET` on both Production
+  and Preview. Give Preview its own `BETTER_AUTH_SECRET`, the same GitHub
+  client id and secret, and no `APP_URL`: the app then uses the preview's
+  branch URL, so open previews through that link. Give previews their own
+  database branch (Neon's preview branching does this), or a preview sign-in
+  would overwrite production's stored GitHub token with one production cannot
+  decrypt.
 
 ### Moving to AWS later
 
