@@ -1,10 +1,12 @@
 // @vitest-environment node
+import { betterAuth } from "better-auth";
+import { memoryAdapter } from "better-auth/adapters/memory";
 import { drizzle } from "drizzle-orm/node-postgres";
 import { describe, expect, it } from "vitest";
 
-import { authOptions, GITHUB_SCOPES } from "./better-auth";
+import { authOptions, type AuthSettings, GITHUB_SCOPES } from "./better-auth";
 
-const settings = {
+const settings: AuthSettings = {
   baseUrl: "http://localhost:3000",
   secret: "a-secret-that-is-at-least-32-characters",
   github: { clientId: "client-id", clientSecret: "client-secret" },
@@ -42,5 +44,59 @@ describe("authOptions", () => {
 
   it("does not store GitHub tokens in plain text", () => {
     expect(options().account.encryptOAuthTokens).toBe(true);
+  });
+});
+
+describe("signing in from a preview", () => {
+  const PRODUCTION = "https://fenro.example";
+  const PREVIEW = "https://fenro-git-branch.example";
+
+  async function gitHubAuthorizationUrl(overrides: Partial<AuthSettings>) {
+    const auth = betterAuth({
+      ...authOptions({ ...settings, ...overrides }, drizzle.mock()),
+      database: memoryAdapter({
+        user: [],
+        session: [],
+        account: [],
+        verification: [],
+      }),
+    });
+    const { url } = await auth.api.signInSocial({
+      body: { provider: "github", callbackURL: "/repositories" },
+    });
+    return new URL(url!);
+  }
+
+  it("sends GitHub back to the production origin, which owns the callback", async () => {
+    const url = await gitHubAuthorizationUrl({
+      baseUrl: PREVIEW,
+      oauthProxy: {
+        url: PRODUCTION,
+        secret: "a-proxy-secret-that-is-32-characters",
+      },
+    });
+
+    expect(url.searchParams.get("redirect_uri")).toBe(
+      `${PRODUCTION}/api/auth/callback/github`,
+    );
+  });
+
+  it("leaves production's own sign-in alone", async () => {
+    const url = await gitHubAuthorizationUrl({
+      baseUrl: PRODUCTION,
+      oauthProxy: { url: PRODUCTION },
+    });
+
+    expect(url.searchParams.get("redirect_uri")).toBe(
+      `${PRODUCTION}/api/auth/callback/github`,
+    );
+  });
+
+  it("uses its own callback when no proxy is configured", async () => {
+    const url = await gitHubAuthorizationUrl({ baseUrl: PREVIEW });
+
+    expect(url.searchParams.get("redirect_uri")).toBe(
+      `${PREVIEW}/api/auth/callback/github`,
+    );
   });
 });

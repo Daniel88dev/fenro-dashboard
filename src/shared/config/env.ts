@@ -46,6 +46,21 @@ const envSchema = z.object({
   /** The GitHub OAuth app that "Sign in with GitHub" goes through. */
   GITHUB_CLIENT_ID: optional(z.string()),
   GITHUB_CLIENT_SECRET: optional(z.string()),
+  /**
+   * The origin that owns the GitHub OAuth app's callback URL, normally
+   * production. Deployments on any other origin (previews) send the GitHub
+   * round trip through it, so one OAuth app serves them all. Set it on
+   * production too, which has to finish the round trip for them.
+   */
+  OAUTH_PROXY_URL: optional(z.string().url()),
+  /**
+   * Encrypts what production hands back to a preview after sign-in. Every
+   * deployment taking part must share it; unset, BETTER_AUTH_SECRET is used,
+   * which would mean sharing that instead.
+   */
+  OAUTH_PROXY_SECRET: optional(
+    z.string().min(32, "must be at least 32 characters"),
+  ),
 });
 
 export type Env = z.infer<typeof envSchema>;
@@ -54,10 +69,22 @@ let cached: Env | undefined;
 
 type EnvSource = Record<string, string | undefined>;
 
+/**
+ * A preview deployment's URL is only known once it is built, so no fixed
+ * APP_URL fits previews. On Vercel, fall back to the branch URL it gives each
+ * preview (stable across pushes to one branch), then the deployment URL.
+ * Anywhere else, set APP_URL.
+ */
+function withPlatformDefaults(env: EnvSource): EnvSource {
+  if (env.APP_URL) return env;
+  const host = env.VERCEL_BRANCH_URL || env.VERCEL_URL;
+  return host ? { ...env, APP_URL: `https://${host}` } : env;
+}
+
 export function getEnv(env: EnvSource = process.env): Env {
   if (cached && env === process.env) return cached;
 
-  const parsed = envSchema.safeParse(env);
+  const parsed = envSchema.safeParse(withPlatformDefaults(env));
   if (!parsed.success) {
     const details = parsed.error.issues
       .map((issue) => `  ${issue.path.join(".") || "(root)"}: ${issue.message}`)
