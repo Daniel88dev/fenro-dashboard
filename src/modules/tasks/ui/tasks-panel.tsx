@@ -37,6 +37,7 @@ export function TasksPanel({
       action={
         <Link
           href={`/tasks/new?repository=${scoped}`}
+          scroll={false}
           className="border-hairline bg-surface text-ink hover:bg-surface-raised focus-visible:outline-pr flex h-7 items-center gap-1.5 rounded-lg border px-2.5 text-[12px] font-medium focus-visible:outline-2"
         >
           <Plus aria-hidden="true" weight="bold" className="size-[13px]" />
@@ -60,6 +61,7 @@ export function TasksPanel({
             <li key={task.id}>
               <Link
                 href={taskHref(task.id)}
+                scroll={false}
                 className="hover:bg-surface-raised focus-visible:outline-pr grid grid-cols-[52px_minmax(0,1fr)_auto] items-center gap-x-3 px-3.5 py-2.5 focus-visible:outline-2 focus-visible:-outline-offset-2"
               >
                 <span className="text-ink-faint font-mono text-[12.5px]">

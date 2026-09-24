@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
+import { redirect, RedirectType } from "next/navigation";
 
 import type { ChangeStatusCommand } from "@/modules/tasks/application/commands/change-status";
 import type { CheckCriterionCommand } from "@/modules/tasks/application/commands/check-criterion";
@@ -122,7 +122,12 @@ export async function createTaskAction(
     taskBriefQuery(ownerId, taskId, 0),
   );
   revalidatePath("/tasks");
-  redirect(brief.ok ? `/tasks/${brief.value.key}` : "/tasks");
+  // From the dialog, the new task replaces the form in history, so closing
+  // it goes back to the page the dialog was opened over.
+  redirect(
+    brief.ok ? `/tasks/${brief.value.key}` : "/tasks",
+    text(formData, "from") === "dialog" ? RedirectType.replace : undefined,
+  );
 }
 
 export async function updateTaskAction(

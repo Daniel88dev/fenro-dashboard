@@ -2,7 +2,7 @@ import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 vi.mock("next/navigation", () => ({
-  useRouter: () => ({ push: vi.fn(), prefetch: vi.fn() }),
+  useRouter: () => ({ push: vi.fn(), prefetch: vi.fn(), back: vi.fn() }),
 }));
 
 import type {
@@ -12,7 +12,8 @@ import type {
 } from "@/modules/tasks/application/queries/read-models";
 
 import { TaskDetail } from "./task-detail";
-import type { TaskActions } from "./task-forms";
+import { TaskDialogContent } from "./task-dialog";
+import { NewTaskForm, type TaskActions } from "./task-forms";
 import { TaskList } from "./task-list";
 import { TasksPanel } from "./tasks-panel";
 
@@ -117,7 +118,7 @@ describe("TaskList", () => {
     expect(row).toHaveAttribute("href", "/tasks/T-2");
     expect(row).toHaveTextContent("sub-task of T-1");
     expect(row).toHaveTextContent("blocked by T-4");
-    expect(row).toHaveTextContent("1/2 criteria met");
+    expect(row).toHaveTextContent("1 of 2 criteria met");
   });
 
   it("keeps the repository when switching views, and starts new tasks there", () => {
@@ -132,17 +133,38 @@ describe("TaskList", () => {
       />,
     );
 
-    expect(screen.getByRole("link", { name: "Blocked" })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: /^Blocked/ })).toHaveAttribute(
       "href",
       "/tasks?view=blocked&repository=Daniel88dev%2Ffenro-dashboard",
     );
-    expect(screen.getByRole("link", { name: "Open" })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: /^Open/ })).toHaveAttribute(
       "aria-current",
       "page",
     );
     expect(screen.getByRole("link", { name: "New task" })).toHaveAttribute(
       "href",
       "/tasks/new?repository=Daniel88dev%2Ffenro-dashboard",
+    );
+  });
+
+  it("groups the rows by what is happening to them, and counts each view", () => {
+    render(
+      <TaskList
+        list={{
+          total: 2,
+          tasks: [item, { ...item, key: "T-3", state: "running" }],
+        }}
+        filter={{ view: "open", repository: "", text: "" }}
+        counts={{ open: 2, blocked: 1 }}
+      />,
+    );
+
+    const groups = screen
+      .getAllByRole("region")
+      .map((group) => group.getAttribute("aria-label"));
+    expect(groups).toEqual(["In progress", "Blocked"]);
+    expect(screen.getByRole("link", { name: /^Blocked/ })).toHaveTextContent(
+      "Blocked1",
     );
   });
 
@@ -221,6 +243,50 @@ describe("TaskDetail", () => {
     const sent = changeStatus.mock.calls[0] as unknown as [unknown, FormData];
     expect(sent[1].get("task")).toBe("T-2");
     expect(sent[1].get("status")).toBe("done");
+  });
+});
+
+describe("TaskDialogContent", () => {
+  it("opens the full page with a plain link, so the dialog is not reopened", () => {
+    render(<TaskDialogContent task={brief} actions={actions()} />);
+
+    const full = screen.getByRole("link", { name: "Full page" });
+    expect(full).toHaveAttribute("href", "/tasks/T-2");
+    expect(
+      screen.getByRole("heading", { name: /Fix the lint job/ }),
+    ).toHaveAttribute("id", "task-dialog-title");
+    expect(screen.getByRole("button", { name: "Mark done" })).toBeVisible();
+  });
+});
+
+describe("NewTaskForm", () => {
+  const defaults = { repository: "o/r", parent: "", source: "", title: "" };
+
+  it("tells the server it was sent from the dialog, so history is replaced", async () => {
+    const create = vi.fn(async () => ({ error: null, saved: 1 }));
+    render(
+      <NewTaskForm action={create} defaults={defaults} variant="dialog" />,
+    );
+
+    fireEvent.change(screen.getByLabelText("Title"), {
+      target: { value: "Retry webhooks" },
+    });
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Create task" }));
+    });
+
+    const sent = create.mock.calls[0] as unknown as [unknown, FormData];
+    expect(sent[1].get("from")).toBe("dialog");
+    expect(sent[1].get("repository")).toBe("o/r");
+    expect(sent[1].get("priority")).toBe("none");
+  });
+
+  it("leaves the dialog marker off on the page", () => {
+    const { container } = render(
+      <NewTaskForm action={actions().create} defaults={defaults} />,
+    );
+
+    expect(container.querySelector('input[name="from"]')).toBeNull();
   });
 });
 

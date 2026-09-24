@@ -12,6 +12,7 @@ export function Menu({
   trigger,
   triggerClassName,
   panelClassName,
+  opensUp = false,
   children,
 }: {
   /** The accessible name of the button that opens it. */
@@ -19,6 +20,8 @@ export function Menu({
   trigger: ReactNode;
   triggerClassName: string;
   panelClassName?: string;
+  /** Open above the trigger, for a menu at the bottom of a dialog. */
+  opensUp?: boolean;
   children: ReactNode;
 }) {
   const ref = useRef<HTMLDetailsElement>(null);
@@ -54,7 +57,7 @@ export function Menu({
         {trigger}
       </summary>
       <div
-        className={`border-hairline bg-surface text-ink absolute right-0 z-20 mt-1.5 flex w-56 flex-col rounded-xl border p-1.5 shadow-[0_8px_24px_-12px_rgba(20,18,10,0.35)] ${panelClassName ?? ""}`}
+        className={`border-hairline bg-surface text-ink absolute right-0 z-20 flex w-56 ${opensUp ? "bottom-full mb-1.5" : "mt-1.5"} flex-col rounded-xl border p-1.5 shadow-[0_8px_24px_-12px_rgba(20,18,10,0.35)] ${panelClassName ?? ""}`}
       >
         {children}
       </div>

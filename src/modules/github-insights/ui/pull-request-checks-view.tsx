@@ -6,6 +6,7 @@ import {
   XCircle,
 } from "@phosphor-icons/react/ssr";
 import type { Icon } from "@phosphor-icons/react";
+import Link from "next/link";
 
 import type {
   CheckConclusion,
@@ -71,13 +72,14 @@ export function PullRequestChecksView({
 
       {newTaskHref ? (
         <div className="flex items-center gap-2.5 pt-3">
-          <a
+          <Link
             href={newTaskHref}
+            scroll={false}
             className="border-hairline bg-surface text-ink hover:bg-surface-sunken focus-visible:outline-pr flex h-7 items-center gap-1.5 rounded-lg border px-2.5 text-[12px] font-medium focus-visible:outline-2"
           >
             <Plus aria-hidden="true" weight="bold" className="size-[13px]" />
             Make a task from this
-          </a>
+          </Link>
         </div>
       ) : null}
     </div>
