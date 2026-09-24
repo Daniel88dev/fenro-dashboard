@@ -94,3 +94,5 @@ agent session; motion only on the expanding caret, behind
   current data stays on screen and a loader only says an update is running.
   The board now shows the table as it was, a bar along the table, "Updating 2
   of 4 from GitHub" in the header and a turning icon on each row in flight.
+- 2026-09-24, Daniel on New task: a field whose text is too long grows to a
+  second line instead of clipping. Source now wraps.
