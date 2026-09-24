@@ -58,8 +58,77 @@ import {
 } from "@/modules/identity/application/queries/signed-in-user";
 import { getAuth } from "@/modules/identity/infrastructure/better-auth";
 import { BetterAuthAuthenticator } from "@/modules/identity/infrastructure/better-auth.authenticator";
-import type { TaskReader } from "@/modules/tasks/application/ports/task-reader";
-import type { TaskCountsByRepository } from "@/modules/tasks/application/queries/read-models";
+import {
+  IssueAccessTokenHandler,
+  type IssueAccessTokenCommand,
+} from "@/modules/identity/application/commands/issue-access-token";
+import {
+  RecordAccessTokenUseHandler,
+  type RecordAccessTokenUseCommand,
+} from "@/modules/identity/application/commands/record-access-token-use";
+import {
+  RevokeAccessTokenHandler,
+  type RevokeAccessTokenCommand,
+} from "@/modules/identity/application/commands/revoke-access-token";
+import {
+  AccessTokensHandler,
+  type AccessTokensQuery,
+  type AccessTokenSummary,
+} from "@/modules/identity/application/queries/access-tokens";
+import {
+  AuthenticateAgentHandler,
+  type AuthenticateAgentQuery,
+  type AuthenticateAgentResult,
+} from "@/modules/identity/application/queries/authenticate-agent";
+import type { AccessTokenRepository } from "@/modules/identity/domain";
+import { DrizzleAccessTokenRepository } from "@/modules/identity/infrastructure/drizzle-access-token.repository";
+import {
+  ChangeStatusHandler,
+  type ChangeStatusCommand,
+} from "@/modules/tasks/application/commands/change-status";
+import {
+  CheckCriterionHandler,
+  type CheckCriterionCommand,
+} from "@/modules/tasks/application/commands/check-criterion";
+import {
+  CreateTaskHandler,
+  type CreateTaskCommand,
+} from "@/modules/tasks/application/commands/create-task";
+import {
+  FinishSessionHandler,
+  type FinishSessionCommand,
+} from "@/modules/tasks/application/commands/finish-session";
+import {
+  LinkTasksHandler,
+  type LinkTasksCommand,
+} from "@/modules/tasks/application/commands/link-tasks";
+import {
+  RecordNoteHandler,
+  type RecordNoteCommand,
+} from "@/modules/tasks/application/commands/record-note";
+import {
+  StartTaskHandler,
+  type StartTaskCommand,
+} from "@/modules/tasks/application/commands/start-task";
+import {
+  UpdateTaskHandler,
+  type UpdateTaskCommand,
+} from "@/modules/tasks/application/commands/update-task";
+import type { TaskReadStore } from "@/modules/tasks/application/ports/task-read-store";
+import {
+  ListTasksHandler,
+  type ListTasksQuery,
+} from "@/modules/tasks/application/queries/list-tasks";
+import type {
+  RepositoryTasks,
+  TaskCountsByRepository,
+  TaskList,
+} from "@/modules/tasks/application/queries/read-models";
+import {
+  TaskBriefHandler,
+  type TaskBriefQuery,
+  type TaskBriefResult,
+} from "@/modules/tasks/application/queries/task-brief";
 import {
   TaskCountsByRepositoryHandler,
   type TaskCountsByRepositoryQuery,
@@ -68,8 +137,9 @@ import {
   TasksForRepositoryHandler,
   type TasksForRepositoryQuery,
 } from "@/modules/tasks/application/queries/tasks-for-repository";
-import type { RepositoryTasks } from "@/modules/tasks/application/queries/read-models";
-import { InMemoryTaskReader } from "@/modules/tasks/infrastructure/in-memory-task.reader";
+import type { TaskRepository } from "@/modules/tasks/domain";
+import { DrizzleTaskReadStore } from "@/modules/tasks/infrastructure/drizzle-task.read-store";
+import { DrizzleTaskRepository } from "@/modules/tasks/infrastructure/drizzle-task.repository";
 import { CommandBus, QueryBus } from "@/shared/application";
 import { getDatabase } from "@/shared/infrastructure/database/client";
 
@@ -93,7 +163,9 @@ export type ContainerParts = {
   readonly snapshots: RepositorySnapshotStore;
   /** Already bound to the viewer's token, or to none when signed out. */
   readonly gitHub: GitHubGateway;
-  readonly tasks: TaskReader;
+  readonly tasks: TaskRepository;
+  readonly taskReads: TaskReadStore;
+  readonly accessTokens: AccessTokenRepository;
   readonly authenticator: Authenticator;
   readonly clock: () => Date;
 };
@@ -150,20 +222,94 @@ export function buildContainer(parts: ContainerParts): Container {
     "identity.signed-in-user",
     new SignedInUserHandler(parts.authenticator),
   );
-  queryBus.register<TaskCountsByRepositoryQuery, TaskCountsByRepository>(
-    "tasks.task-counts-by-repository",
-    new TaskCountsByRepositoryHandler(parts.tasks),
-  );
-  queryBus.register<TasksForRepositoryQuery, RepositoryTasks>(
-    "tasks.tasks-for-repository",
-    new TasksForRepositoryHandler(parts.tasks),
-  );
+  registerTasks(commandBus, queryBus, parts);
+  registerAccessTokens(commandBus, queryBus, parts);
 
   return { commandBus, queryBus };
 }
 
-/** Tasks are still a fake: the tasks context gets its own store in slice 6. */
-const tasks = new InMemoryTaskReader();
+function registerTasks(
+  commandBus: CommandBus,
+  queryBus: QueryBus,
+  { tasks, taskReads, clock }: ContainerParts,
+): void {
+  commandBus.register<CreateTaskCommand>(
+    "tasks.create-task",
+    new CreateTaskHandler(tasks, clock),
+  );
+  commandBus.register<UpdateTaskCommand>(
+    "tasks.update-task",
+    new UpdateTaskHandler(tasks, clock),
+  );
+  commandBus.register<StartTaskCommand>(
+    "tasks.start-task",
+    new StartTaskHandler(tasks, clock),
+  );
+  commandBus.register<FinishSessionCommand>(
+    "tasks.finish-session",
+    new FinishSessionHandler(tasks, clock),
+  );
+  commandBus.register<RecordNoteCommand>(
+    "tasks.record-note",
+    new RecordNoteHandler(tasks, clock),
+  );
+  commandBus.register<CheckCriterionCommand>(
+    "tasks.check-criterion",
+    new CheckCriterionHandler(tasks, clock),
+  );
+  commandBus.register<LinkTasksCommand>(
+    "tasks.link-tasks",
+    new LinkTasksHandler(tasks, clock),
+  );
+  commandBus.register<ChangeStatusCommand>(
+    "tasks.change-status",
+    new ChangeStatusHandler(tasks, clock),
+  );
+
+  queryBus.register<ListTasksQuery, TaskList>(
+    "tasks.list-tasks",
+    new ListTasksHandler(taskReads, clock),
+  );
+  queryBus.register<TaskBriefQuery, TaskBriefResult>(
+    "tasks.task-brief",
+    new TaskBriefHandler(taskReads, clock),
+  );
+  queryBus.register<TaskCountsByRepositoryQuery, TaskCountsByRepository>(
+    "tasks.task-counts-by-repository",
+    new TaskCountsByRepositoryHandler(taskReads, clock),
+  );
+  queryBus.register<TasksForRepositoryQuery, RepositoryTasks>(
+    "tasks.tasks-for-repository",
+    new TasksForRepositoryHandler(taskReads, clock),
+  );
+}
+
+function registerAccessTokens(
+  commandBus: CommandBus,
+  queryBus: QueryBus,
+  { accessTokens, clock }: ContainerParts,
+): void {
+  commandBus.register<IssueAccessTokenCommand>(
+    "identity.issue-access-token",
+    new IssueAccessTokenHandler(accessTokens, clock),
+  );
+  commandBus.register<RevokeAccessTokenCommand>(
+    "identity.revoke-access-token",
+    new RevokeAccessTokenHandler(accessTokens, clock),
+  );
+  commandBus.register<RecordAccessTokenUseCommand>(
+    "identity.record-access-token-use",
+    new RecordAccessTokenUseHandler(accessTokens, clock),
+  );
+  queryBus.register<AccessTokensQuery, AccessTokenSummary[]>(
+    "identity.access-tokens",
+    new AccessTokensHandler(accessTokens, clock),
+  );
+  queryBus.register<AuthenticateAgentQuery, AuthenticateAgentResult>(
+    "identity.authenticate-agent",
+    new AuthenticateAgentHandler(accessTokens, clock),
+  );
+}
 
 /**
  * Sign-in is Better Auth over Postgres. Both are created on first use, so a
@@ -190,14 +336,35 @@ export async function getContainer(now?: Date): Promise<Container> {
   // Who is asking comes first: it reads the request, which is also what keeps
   // `next build` from reaching the database below.
   const viewer = await viewerProvider.current();
+  return containerFor(
+    viewer?.accessToken ?? null,
+    now ? () => now : () => new Date(),
+  );
+}
+
+/**
+ * For the MCP server. An agent proves who it is with an access token rather
+ * than a session cookie, so nothing here reads the request, and nothing reads
+ * GitHub on its behalf.
+ */
+export function getAgentContainer(): Container {
+  return containerFor(null, () => new Date());
+}
+
+function containerFor(
+  gitHubToken: string | null,
+  clock: () => Date,
+): Container {
   const db = getDatabase();
   return buildContainer({
     watchedRepositories: new DrizzleWatchedRepositoryRepository(db),
     snapshots: new DrizzleRepositorySnapshotStore(db),
-    gitHub: new GitHubGraphqlGateway(viewer?.accessToken ?? null),
-    tasks,
+    gitHub: new GitHubGraphqlGateway(gitHubToken),
+    tasks: new DrizzleTaskRepository(db),
+    taskReads: new DrizzleTaskReadStore(db),
+    accessTokens: new DrizzleAccessTokenRepository(db),
     authenticator,
-    clock: now ? () => now : () => new Date(),
+    clock,
   });
 }
 

@@ -130,7 +130,7 @@ unclaimed — is where to start.
 | 04  | [Which expansion mechanic](./issues/04-which-expansion-mechanic.md)                        | grilling | —          | **resolved**   |
 | 05  | [Live read or synced snapshot](./issues/05-live-read-or-snapshot.md)                       | grilling | 01, 02, 03 | **resolved**   |
 | 06  | [What is an aggregate in github-insights](./issues/06-github-insights-domain-model.md)     | grilling | 05         | open           |
-| 07  | [Where state lives, and how it stays portable](./issues/07-persistence-and-portability.md) | grilling | 03, 05     | open           |
-| 08  | [What a task carries between sessions](./issues/08-tasks-domain-model.md)                  | grilling | 07         | open           |
-| 09  | [How the Tasks column crosses the boundary](./issues/09-crossing-the-context-boundary.md)  | grilling | 06, 08     | open           |
+| 07  | [Where state lives, and how it stays portable](./issues/07-persistence-and-portability.md) | grilling | 03, 05     | **resolved**   |
+| 08  | [What a task carries between sessions](./issues/08-tasks-domain-model.md)                  | grilling | 07         | **resolved**   |
+| 09  | [How the Tasks column crosses the boundary](./issues/09-crossing-the-context-boundary.md)  | grilling | 06, 08     | **resolved**   |
 | 10  | [Loading and URL strategy for the expansion](./issues/10-expansion-loading-and-url.md)     | grilling | 05         | defaults built |

@@ -1,7 +1,7 @@
 # Where does state live, and how does it stay portable?
 
 Type: grilling
-Status: open
+Status: resolved
 Blocked by: 03, 05
 Part of: [map](../map.md)
 
@@ -52,3 +52,13 @@ a container next to RDS.
 Still open: what else persists (watched repositories per user or global, tasks,
 and mirrored GitHub data if ticket 05 picks a snapshot), and the in-memory
 adapters stay until those land.
+
+## Answer — 2026-09-23
+
+Postgres through Drizzle, reached by a plain `DATABASE_URL` (decided with
+sign-in, ticket 03). Tasks keep their own tables in
+`src/modules/tasks/infrastructure/persistence/schema.ts`: `task`, `task_link`,
+`task_external_reference`, `task_session` and `task_journal_entry`. A task
+carries a `version` column for optimistic concurrency. Agent access tokens live
+in `identity` as `agent_access_token`. See
+[the tasks design](../../../docs/tasks/agent-task-management.md#3-what-persists-ticket-07).

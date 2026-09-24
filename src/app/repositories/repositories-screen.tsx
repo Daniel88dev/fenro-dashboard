@@ -124,7 +124,7 @@ export async function RepositoriesScreen({
   const [rows, totals, taskCounts] = await Promise.all([
     queryBus.ask(repositoryRowsQuery(watcher)),
     queryBus.ask(dashboardTotalsQuery(watcher)),
-    queryBus.ask(taskCountsByRepositoryQuery()),
+    queryBus.ask(taskCountsByRepositoryQuery(user.id)),
   ]);
 
   if (isErr(rows) || isErr(totals)) {
@@ -150,7 +150,7 @@ export async function RepositoriesScreen({
 
   const views: RepositoryRowView[] = visible.map((row) => {
     const fullName = `${row.owner}/${row.name}`;
-    const taskCount = taskCounts[fullName] ?? {
+    const taskCount = taskCounts[fullName.toLowerCase()] ?? {
       total: 0,
       running: 0,
       hint: "no tasks",
@@ -210,7 +210,11 @@ export async function RepositoriesScreen({
             title="Tasks on this repository"
             what="tasks"
           >
-            <TasksSection queryBus={queryBus} repository={repository} />
+            <TasksSection
+              queryBus={queryBus}
+              ownerId={user.id}
+              repository={repository}
+            />
           </StreamedPanel>
         ),
       });
@@ -476,13 +480,17 @@ async function IssuesSection({
 
 async function TasksSection({
   queryBus,
+  ownerId,
   repository,
 }: {
   queryBus: Bus;
+  ownerId: string;
   repository: Repository;
 }) {
   const { owner, name } = repository;
   const id = panelId({ owner, name, column: "tasks" });
-  const data = await queryBus.ask(tasksForRepositoryQuery(owner, name));
+  const data = await queryBus.ask(
+    tasksForRepositoryQuery(ownerId, owner, name),
+  );
   return <TasksPanel id={id} data={data} />;
 }

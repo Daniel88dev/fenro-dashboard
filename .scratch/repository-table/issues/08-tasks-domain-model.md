@@ -1,7 +1,7 @@
 # What does a task carry between sessions?
 
 Type: grilling
-Status: open
+Status: resolved
 Blocked by: 07
 Part of: [map](../map.md)
 
@@ -33,3 +33,14 @@ count is the product's whole premise made visible.
 
 Call `domain-modeling` alongside `grilling`. This is the ticket most likely to
 spawn several more.
+
+## Answer — 2026-09-23
+
+Daniel chose **every task and sub-task is its own `Task` aggregate**. Sessions
+are entities inside `Task` (one live session per task, a two-hour lease), the
+journal is append-only and replaces "context items", and the handoff brief is
+derived on every read. Status (`backlog` … `cancelled`) and the derived state a
+list shows (`ready`, `waiting`, `blocked`, `running`, `paused`, …) are two
+different things. Rules spanning tasks (no cycles through blocking or
+parenting) live in the `TaskGraph` domain service. Full reasoning in
+[the tasks design](../../../docs/tasks/agent-task-management.md#2-the-domain-model-ticket-08).

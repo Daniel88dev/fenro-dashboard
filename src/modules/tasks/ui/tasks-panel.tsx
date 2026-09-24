@@ -1,19 +1,26 @@
-import type { RepositoryTasks } from "@/modules/tasks/application/queries/read-models";
+import type {
+  RepositoryTasks,
+  TaskState,
+} from "@/modules/tasks/application/queries/read-models";
 import { Chip, type Tone } from "@/modules/github-insights/ui/chip";
 import { Panel } from "@/modules/github-insights/ui/panel";
 
-const STATE_TONES: Record<string, Tone> = {
+const STATE_TONES: Record<TaskState, Tone> = {
   running: "healthy",
-  ready: "healthy",
+  "in-review": "healthy",
   blocked: "attention",
   paused: "neutral",
-  queued: "neutral",
+  ready: "neutral",
+  waiting: "neutral",
+  backlog: "neutral",
+  done: "neutral",
+  cancelled: "neutral",
 };
 
 /**
  * The column that makes this a dashboard for your work rather than a second
- * GitHub. Its actions — starting and resuming a session — arrive with the
- * `Task` aggregate in a later slice.
+ * GitHub. Agents work these tasks through the MCP server; creating and
+ * opening them from here arrives with the Tasks page.
  */
 export function TasksPanel({
   id,
@@ -51,7 +58,7 @@ export function TasksPanel({
               {task.lastActivity}
             </span>
           </span>
-          <Chip tone={STATE_TONES[task.state] ?? "neutral"}>{task.state}</Chip>
+          <Chip tone={STATE_TONES[task.state]}>{task.state}</Chip>
           <span className="text-ink-faint w-[96px] shrink-0 text-right text-[11.5px]">
             {task.contextItems === 1
               ? "1 context item"

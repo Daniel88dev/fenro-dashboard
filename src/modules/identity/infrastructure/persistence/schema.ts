@@ -106,3 +106,28 @@ export const verification = pgTable(
 );
 
 export const identitySchema = { user, session, account, verification };
+
+/**
+ * Personal access tokens agents present to the MCP server. Not Better Auth's:
+ * the `AccessToken` aggregate owns these rows, which is why this table stays
+ * out of `identitySchema`, the set handed to Better Auth's adapter.
+ */
+export const agentAccessToken = pgTable(
+  "agent_access_token",
+  {
+    id: text("id").primaryKey(),
+    ownerId: text("owner_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    /** SHA-256 of the secret, hex. The secret is never stored. */
+    secretHash: text("secret_hash").notNull().unique(),
+    hint: text("hint").notNull(),
+    scopes: text("scopes").array().notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    lastUsedAt: timestamp("last_used_at", { withTimezone: true }),
+    revokedAt: timestamp("revoked_at", { withTimezone: true }),
+  },
+  (table) => [index("agent_access_token_owner_idx").on(table.ownerId)],
+);

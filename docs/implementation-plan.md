@@ -180,46 +180,29 @@ they belong, and never leak into a query handler.
 
 ## `tasks`
 
-This is the context with real invariants, and the one whose model is least
-settled — ticket 08 owns it. _(Everything here is proposed.)_
+_(Built — ticket 08, decided by Daniel.)_ The full model, the research behind
+it and the MCP tool list are in
+[docs/tasks/agent-task-management.md](./tasks/agent-task-management.md). In
+short:
 
-### Domain
+- **`Task`** — the aggregate, one per task and per sub-task. A sub-task is a
+  task with a parent; "A blocks B" is stored on B. It owns its acceptance
+  criteria, external references (GitHub, Jira, Linear, any URL), links,
+  sessions and journal.
+- **`Session`** — an entity inside `Task`: one live session per task, held on a
+  two-hour lease any write from its holder renews.
+- **Journal entries** — appended, never edited. They replace the "context
+  items" of the prototype, and the handoff brief is derived from them on every
+  read.
+- **`TaskGraph`** — the domain service for the rules no single task can see:
+  no task may end up waiting on itself through blocking or parenting.
 
-- **`Task`** — the aggregate. Title, state, an optional repository reference, its
-  context items and its sessions.
-- **`Session`** — an entity inside `Task`. The rule that makes it an entity
-  rather than an aggregate of its own: _only one session may be running on a task
-  at a time_, which is an invariant `Task` can enforce and nothing else can.
-- **`ContextItem`** — a value object, appended and never mutated. If a later
-  session can rewrite what an earlier one recorded, the handoff stops being
-  trustworthy.
-- **`TaskState`** — `not-started` / `running` / `paused` / `blocked` / `ready` /
-  `done`. Ticket 08 notes that `blocked` and `ready` describe the world while
-  `running` and `paused` describe a session, which may mean these are two axes
-  and not one enum.
-- **`RepositoryReference`** — owner, name, and optionally the pull request number
-  a task was made from. See [Crossing the boundary](#crossing-the-boundary).
-
-### Commands and queries
-
-| Command                                     | Raised by                            |
-| ------------------------------------------- | ------------------------------------ |
-| `tasks.create-task`                         | **New task here** in the tasks panel |
-| `tasks.create-task-from-pull-request`       | **Make a task from this**            |
-| `tasks.start-session` / `tasks.end-session` | Session lifecycle                    |
-| `tasks.record-context-item`                 | Whatever a session learns            |
-| `tasks.set-task-state`                      | Blocking, unblocking, completing     |
-
-| Query                             | Result                   | Feeds                       |
-| --------------------------------- | ------------------------ | --------------------------- |
-| `tasks.task-counts-by-repository` | `Map<string, TaskCount>` | The Tasks **column**        |
-| `tasks.tasks-for-repository`      | `TaskSummary[]`          | The tasks **panel**         |
-| `tasks.handoff-brief`             | `HandoffBrief`           | What the next session reads |
-
-One port beyond the repository: `SessionRunner` in `application/ports/`, the
-thing that actually starts an agent session. Stubbed at first — whether the app
-launches sessions or only records them is fog on the map, not a decision this
-plan can make.
+Commands (`tasks.create-task`, `update-task`, `start-task`, `finish-session`,
+`record-note`, `check-criterion`, `link-tasks`, `change-status`) may be refused,
+and return `Result` so an agent reads why. Queries are `list-tasks`,
+`task-brief`, `task-counts-by-repository` and `tasks-for-repository`. Agents
+reach all of them through the MCP server at `/api/mcp`, authenticated by a
+personal access token from `identity`.
 
 ## Crossing the boundary
 
@@ -404,39 +387,39 @@ search with the same narrowing.
 pressed chips, rather than to an in-app list: the snapshot holds at most 50 of
 each, and replacing GitHub's own lists is out of scope on the map.
 
-### Slice 6 — the `tasks` context _(needs 07, 08)_
+### Slice 6 — the `tasks` context _(built)_
 
-`Task`, its state machine, the store adapter, and `task-counts-by-repository`.
-The Tasks column stops being a fake, and the join from
-[Crossing the boundary](#crossing-the-boundary) becomes real _(needs 09)_.
+`Task`, sub-tasks, blocking, sessions, the journal and external references, in
+Postgres. The Tasks column and panel read real tasks, joined in the route on
+`owner/name` (ticket 09).
 
-### Slice 7 — the seam _(needs 08)_
+### Slice 7 — agents _(built)_
 
-**Make a task from this** and **New task here**: a task created already carrying
-the pull request it came from.
+The MCP server at `/api/mcp` and personal access tokens, made and revoked on
+**Settings**. An agent can list the ready queue, claim a task, record what it
+learns and hand off.
 
-### Slice 8 — sessions and context _(needs 08)_
+### Slice 8 — the Tasks page and the seam
 
-Sessions, context items, and the handoff brief — the product's actual premise,
-and the largest slice. Expect ticket 08 to have split into several by the time
-this is reachable.
+The Tasks screen (list, detail with the journal, creating and editing by
+hand), **New task here** and **Make a task from this**: a task created already
+carrying the pull request it came from.
 
 ## What this plan is guessing
 
 Stated plainly, so nobody mistakes a proposal for a decision:
 
-| Guess                                                          | Ticket                                                                        |
-| -------------------------------------------------------------- | ----------------------------------------------------------------------------- |
-| A snapshot with a sync, rather than a live read                | [05](../.scratch/repository-table/issues/05-live-read-or-snapshot.md)         |
-| `WatchedRepository` is the only aggregate in `github-insights` | [06](../.scratch/repository-table/issues/06-github-insights-domain-model.md)  |
-| `Session` is an entity inside `Task`                           | [08](../.scratch/repository-table/issues/08-tasks-domain-model.md)            |
-| The two contexts are joined in the route                       | [09](../.scratch/repository-table/issues/09-crossing-the-context-boundary.md) |
-| Expansion detail is fetched on demand                          | [10](../.scratch/repository-table/issues/10-expansion-loading-and-url.md)     |
+| Guess                                                          | Ticket                                                                       |
+| -------------------------------------------------------------- | ---------------------------------------------------------------------------- |
+| A snapshot with a sync, rather than a live read                | [05](../.scratch/repository-table/issues/05-live-read-or-snapshot.md)        |
+| `WatchedRepository` is the only aggregate in `github-insights` | [06](../.scratch/repository-table/issues/06-github-insights-domain-model.md) |
+| Expansion detail is fetched on demand                          | [10](../.scratch/repository-table/issues/10-expansion-loading-and-url.md)    |
 
 Two of the original guesses are no longer guesses. Daniel settled the expansion
 mechanic ([04](../.scratch/repository-table/issues/04-which-expansion-mechanic.md):
 inline under the row, several rows open at once) and the identity
 ([03](../.scratch/repository-table/issues/03-who-is-you.md): sign in with
-GitHub, a token per user rather than one in the environment). The rest are cheap
-to change while slices 0–2 are the only thing built, which is why those three
-come first.
+GitHub, a token per user rather than one in the environment). Tickets 07, 08
+and 09 were settled with the tasks context: Daniel chose one aggregate per task
+and sub-task, and the rest follows
+[the tasks design](./tasks/agent-task-management.md).

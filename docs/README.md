@@ -5,6 +5,9 @@
   design the prototypes settled on, plus the states they do not cover.
 - **[Implementation plan](./implementation-plan.md)** — how that screen lands on
   the `github-insights` and `tasks` contexts, and the order to build it in.
+- **[Task management for AI agents](./tasks/agent-task-management.md)** — what
+  task trackers and agent-first tools do, the `Task` model built from it, the
+  MCP server's tools and how agents authenticate.
 - **[Issue tracker](./agents/issue-tracker.md)** — where issues and wayfinder
   maps live for this repo, and what the engineering skills read.
 

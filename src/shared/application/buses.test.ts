@@ -1,5 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
+import { err } from "@/shared/domain";
+
 import { CommandBus } from "./command-bus";
 import type { Command, Query } from "./messages";
 import { QueryBus } from "./query-bus";
@@ -42,7 +44,25 @@ describe("CommandBus", () => {
       bus.dispatch<CreateTask>({ type: "tasks.create", title: "Ship it" }),
     ).rejects.toThrow(/No handler registered/);
   });
+
+  it("hands back a refusal from a command that may be refused", async () => {
+    const bus = new CommandBus();
+    bus.register<ClaimTask>("tasks.claim", {
+      handle: () => err({ code: "claimed" as const }),
+    });
+
+    const outcome = await bus.dispatch<ClaimTask>({
+      type: "tasks.claim",
+      taskId: "T-1",
+    });
+
+    expect(outcome).toEqual(err({ code: "claimed" }));
+  });
 });
+
+interface ClaimTask extends Command<"tasks.claim", { code: "claimed" }> {
+  readonly taskId: string;
+}
 
 describe("QueryBus", () => {
   it("returns the handler's result", async () => {
