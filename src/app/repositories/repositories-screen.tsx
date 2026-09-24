@@ -386,6 +386,7 @@ async function ChecksSection({
   id: string;
 }) {
   const { owner, name } = repository;
+  const pullRequestUrl = `https://github.com/${owner}/${name}/pull/${number}`;
   const checks = await queryBus.ask(
     pullRequestChecksQuery(watcher, owner, name, number),
   );
@@ -408,7 +409,9 @@ async function ChecksSection({
       id={id}
       checks={checks.value}
       number={number}
-      pullRequestUrl={`https://github.com/${owner}/${name}/pull/${number}`}
+      pullRequestUrl={pullRequestUrl}
+      // The seam between the two contexts: the tasks side takes it from here.
+      newTaskHref={`/tasks/new?repository=${encodeURIComponent(`${owner}/${name}`)}&from=${encodeURIComponent(pullRequestUrl)}`}
     />
   );
 }
@@ -492,5 +495,5 @@ async function TasksSection({
   const data = await queryBus.ask(
     tasksForRepositoryQuery(ownerId, owner, name),
   );
-  return <TasksPanel id={id} data={data} />;
+  return <TasksPanel id={id} data={data} repository={`${owner}/${name}`} />;
 }
