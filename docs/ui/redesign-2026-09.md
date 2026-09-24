@@ -46,8 +46,6 @@ Retire:
   containers 12, controls 8, chips 6, filter pills full.
 - **Phone width.** The top bar overflows and the table's fixed columns do not
   collapse.
-- **Loading.** A spinner beside the header text; the skill asks for skeletons
-  shaped like the result.
 - **Five status buttons** on a task (Move to todo, backlog, review, done,
   cancel) at equal weight. One primary action, one secondary, the rest in a
   menu.
@@ -62,7 +60,7 @@ Retire:
 Same top bar and page layouts, cleaned up across every screen: labelled stats
 instead of the dotted totals line, a rate-limit banner instead of red text
 squeezed into the header, one-level panels with a 2 px underline marking the
-open count, a row menu for Unwatch, skeleton loading, an empty state that
+open count, a row menu for Unwatch, updates that keep the current numbers on screen, an empty state that
 explains itself, tasks grouped by state, a task page led by the latest
 handoff with properties in a side list, a settings page with an Account
 section, and phone layouts where the nav becomes a three-button row.
@@ -81,7 +79,7 @@ answering an agent is one step. Everything else would follow A.
 Checked against the skill's section 14, minus the marketing-page rows. No
 em-dashes or en-dashes in visible copy; one theme per page following the OS;
 semantic colours only, no decorative accent; one radius rule; primary
-buttons pass 4.5:1 in both schemes; labels above inputs; skeleton, empty and
+buttons pass 4.5:1 in both schemes; labels above inputs; updating, empty and
 error states drawn; icons from Phosphor, not hand-drawn; dots only for a live
 agent session; motion only on the expanding caret, behind
 `prefers-reduced-motion`.
@@ -92,3 +90,7 @@ agent session; motion only on the expanding caret, behind
   to the pull request on GitHub instead of a separate "Review on GitHub"
   button. Done on the canvas for pull request and issue numbers; the rest of
   the row still toggles the checks.
+- 2026-09-24, Daniel on loading: no skeleton loaders. While data updates, the
+  current data stays on screen and a loader only says an update is running.
+  The board now shows the table as it was, a bar along the table, "Updating 2
+  of 4 from GitHub" in the header and a turning icon on each row in flight.

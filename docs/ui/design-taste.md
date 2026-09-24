@@ -57,6 +57,9 @@ disagree:
 - **Inputs.** Text inputs that are not credentials carry the attributes that
   keep password managers off them (`autoComplete="off"`, `data-1p-ignore`,
   `data-lpignore`, `data-bwignore`, `data-form-type="other"`).
+- **No skeleton loaders.** The skill's 4.5 asks for skeletons. Daniel does
+  not want them: while data updates, the current data stays on screen and a
+  quiet indicator says an update is in progress.
 - **Copy.** No em-dashes or en-dashes in anything a reader sees (the skill's
   9.G). The middle dot is rationed to one per line.
 
