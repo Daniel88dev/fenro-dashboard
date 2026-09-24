@@ -1,8 +1,8 @@
 # Redesign, September 2026
 
 The first design pass run through the `design-taste-frontend` skill
-(see [design-taste.md](./design-taste.md)). Prototypes only: nothing here is
-implemented until Daniel picks a direction.
+(see [design-taste.md](./design-taste.md)). Daniel picked **Direction A** on
+2026-09-24; it is being built screen by screen.
 
 Prototypes: [Fenro redesign prototypes](https://claude.ai/artifact/Uj2hLnvUy6X9dYrzzAdDgr),
 two pages on one canvas. All data on them is invented.

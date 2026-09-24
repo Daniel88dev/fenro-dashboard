@@ -66,6 +66,7 @@ const READABLE_PAIRS: readonly [string, string, string][] = [
   ["bar", "bar-ink", "the product name in the top bar"],
   ["bar", "bar-ink-muted", "a nav item that is not the current page"],
   ["ink", "ground", "the label on the primary button"],
+  ["pr", "on-pr", "the letter in the brand mark"],
 ];
 
 /**
