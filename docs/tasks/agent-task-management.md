@@ -136,7 +136,7 @@ key to identity tables, same as github-insights.
   container). Serves both the 2026-07-28 spec and older clients.
 - The route is thin: verify the token, then each tool dispatches a command or
   asks a query on the buses. Tool definitions live in
-  `src/modules/tasks/mcp/`, a second driving adapter beside `ui/`.
+  `src/modules/tasks/ui/mcp/`, a second driving adapter beside the screens.
 - Tools (compact output by default, full detail only in `get_task`):
 
 | Tool              | What it does                                                                                                        |
@@ -152,7 +152,10 @@ key to identity tables, same as github-insights.
 | `set_status`      | Move to backlog, todo or done, cancel, reopen, set or clear a hold                                                  |
 
 Plus one prompt, `work_on_next_task`, that tells an agent the loop:
-`list_tasks ready` → `start_task` → notes → `finish_session`.
+`list_tasks ready` → `start_task` → notes → `finish_session`. It takes an
+optional `repository` (`owner/name`) that narrows the ready queue to that
+repository's tasks, and is offered only to tokens that can write, since it
+claims a task. In Claude Code it shows up as `/mcp__<server>__work_on_next_task`.
 
 ## 5. Agent access (auth)
 
