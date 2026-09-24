@@ -59,8 +59,8 @@ Retire:
 
 Same top bar and page layouts, cleaned up across every screen: labelled stats
 instead of the dotted totals line, a rate-limit banner instead of red text
-squeezed into the header, one-level panels with a 2 px underline marking the
-open count, a row menu for Unwatch, updates that keep the current numbers on screen, an empty state that
+squeezed into the header, one-level panels with the open count tinted in its own
+colour, a row menu for Unwatch, updates that keep the current numbers on screen, an empty state that
 explains itself, tasks grouped by state, a task page led by the latest
 handoff with properties in a side list, a settings page with an Account
 section, and phone layouts where the nav becomes a three-button row.
@@ -96,3 +96,6 @@ agent session; motion only on the expanding caret, behind
   of 4 from GitHub" in the header and a turning icon on each row in flight.
 - 2026-09-24, Daniel on New task: a field whose text is too long grows to a
   second line instead of clipping. Source now wraps.
+- 2026-09-24, Daniel on the phone count buttons: the grey box with a coloured
+  underline looked odd when pressed. The open count is now a flat tint of its
+  own colour, no shadow or underline, on phone and desktop.
