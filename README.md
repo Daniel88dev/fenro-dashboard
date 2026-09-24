@@ -174,15 +174,20 @@ list; copy it to `.env.local` for development.
 
 ### Vercel (today)
 
-Import the repository in Vercel. The defaults work: pnpm is detected from the
-lockfile, `pnpm build` is the build command, and the App Router runs on the
-Node.js runtime. Set the variables from `.env.example` under Settings →
-Environment Variables, with `APP_URL` set to the production origin.
+Import the repository in Vercel. `pnpm build` is the build command, the App
+Router runs on the Node.js runtime, and Vercel takes the Node version from
+`engines` in `package.json`. Set the variables from `.env.example` under
+Settings → Environment Variables, with `APP_URL` set to the production origin.
 
+- **pnpm.** Add `ENABLE_EXPERIMENTAL_COREPACK=1` as an environment variable.
+  Without it Vercel picks its own pnpm from the lockfile version rather than
+  the one pinned in `packageManager`.
 - **Database.** Any hosted Postgres works (Neon, Supabase, RDS, …); use its
-  pooled connection string as `DATABASE_URL`. Apply migrations with
-  `DATABASE_URL=… pnpm db:migrate` before deploying a change that adds one. The
-  build does not run them.
+  pooled connection string as `DATABASE_URL`. Vercel's Neon integration sets
+  that for you, alongside `DATABASE_URL_UNPOOLED`; the app ignores the other
+  keys it adds. Apply migrations from your machine against the direct
+  (unpooled) string, `DATABASE_URL=<direct string> pnpm db:migrate`, before
+  deploying a change that adds one. The build does not run them.
 - **GitHub OAuth app.** A second app for production, with the callback URL
   `https://<your-domain>/api/auth/callback/github`. Preview deployments have
   their own URLs and so cannot sign in through it.
