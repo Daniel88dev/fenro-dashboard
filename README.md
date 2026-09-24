@@ -164,6 +164,12 @@ name, and untick **Can change tasks** for one that should only read. Only a
 hash of the secret is stored. The model and the tools are described in
 [docs/tasks/agent-task-management.md](./docs/tasks/agent-task-management.md).
 
+People work the same tasks on the **Tasks** screen: the list by view (ready, in
+progress, blocked, closed), each task's brief and journal, and forms for
+everything an agent can change. **New task here** on a repository and **Make a
+task from this** on a pull request start a task already carrying where it came
+from.
+
 ## Configuration
 
 Everything the app reads comes from plain environment variables, validated once

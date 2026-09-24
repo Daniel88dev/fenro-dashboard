@@ -13,6 +13,7 @@ import {
 } from "./commands/create-task";
 import { StartTaskHandler } from "./commands/start-task";
 import { changeTask } from "./commands/task-commands";
+import { ListTasksHandler, listTasksQuery } from "./queries/list-tasks";
 import {
   TaskCountsByRepositoryHandler,
   taskCountsByRepositoryQuery,
@@ -172,5 +173,29 @@ describe("the repository table's view of tasks", () => {
       state: "running",
       lastActivity: "Session 1 running, 6 min in",
     });
+  });
+});
+
+describe("listing tasks by state", () => {
+  it("finds what is in progress and what is blocked, as a person sorts them", async () => {
+    await create({ title: "Taken" });
+    await create({ title: "Waiting", blockedBy: ["T-1"] });
+    await create({ title: "Free" });
+    await new StartTaskHandler(store, clock).handle({
+      type: "tasks.start-task",
+      ownerId: OWNER,
+      actor: AGENT,
+      task: "T-1",
+    });
+    const list = new ListTasksHandler(store, clock);
+
+    const active = await list.handle(
+      listTasksQuery(OWNER, { states: ["running", "paused", "in-review"] }),
+    );
+    const blocked = await list.handle(
+      listTasksQuery(OWNER, { states: ["blocked", "waiting"] }),
+    );
+    expect(active.tasks.map((task) => task.key)).toEqual(["T-1"]);
+    expect(blocked.tasks.map((task) => task.key)).toEqual(["T-2"]);
   });
 });

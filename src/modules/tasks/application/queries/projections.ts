@@ -27,6 +27,8 @@ import type {
 export type TaskFilter = {
   /** Only tasks an agent could pick up now, best first. */
   readonly ready?: boolean;
+  /** Only tasks in one of these derived states. */
+  readonly states?: readonly TaskState[];
   readonly statuses?: readonly TaskStatus[];
   /** Include done and cancelled tasks when no status is asked for. */
   readonly includeClosed?: boolean;
@@ -218,6 +220,9 @@ export function listTasks(index: TaskIndex, filter: TaskFilter): TaskList {
     })
     .map((record) => index.item(record))
     .filter((item) => !filter.ready || READY_STATES.includes(item.state))
+    .filter(
+      (item) => !filter.states?.length || filter.states.includes(item.state),
+    )
     .sort(filter.ready ? readyOrder : listOrder);
 
   const limit = Math.min(Math.max(filter.limit ?? DEFAULT_LIMIT, 1), MAX_LIMIT);
