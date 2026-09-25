@@ -147,12 +147,14 @@ by, and create, both in the app and over MCP.
 
 ### Filtering the list by repository _(2026-09-25)_
 
-`/tasks` has a row of repository pills above the label pills, one per
-repository the owner's tasks name (`tasks.list-task-repositories`, one entry
-per name whatever its case). One repository at a time, kept in the URL as
+`/tasks` has a "Repository" button beside the search box that opens a
+searchable list of the repositories the owner's tasks name
+(`tasks.list-task-repositories`, one entry per name whatever its case),
+busiest first with open-task counts. It is one button however many
+repositories there are, which is why it is not a row of pills like the
+labels. One repository at a time, kept in the URL as
 `?repository=owner/name`, the same parameter "New task here" and the
-repository table already link with; pressing the picked pill again shows
-every repository. It combines with the view, the labels and the search.
+repository table already link with; "All repositories" clears it. It combines with the view, the labels and the search.
 
 ## 3. What persists (ticket 07)
 

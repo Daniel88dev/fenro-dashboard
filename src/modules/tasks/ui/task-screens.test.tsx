@@ -201,7 +201,7 @@ describe("TaskList", () => {
     ).toHaveTextContent("bug");
   });
 
-  it("filters by one repository in the URL, keeping the rest of the filter", () => {
+  it("picks one repository from a searchable list, keeping the rest of the filter", () => {
     render(
       <TaskList
         list={list}
@@ -212,31 +212,47 @@ describe("TaskList", () => {
           labels: ["bug"],
         }}
         repositories={[
-          { name: "Daniel88dev/fenro-dashboard" },
-          { name: "Daniel88dev/other" },
+          { name: "Daniel88dev/other", openTasks: 1 },
+          { name: "Daniel88dev/fenro-dashboard", openTasks: 4 },
+          { name: "nordwind/docs", openTasks: 1 },
         ]}
       />,
     );
 
-    const filters = screen.getByRole("navigation", {
-      name: "Filter by repository",
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: "Repository: Daniel88dev/fenro-dashboard",
+      }),
+    );
+    const menu = screen.getByRole("dialog", { name: "Filter by repository" });
+    const names = within(menu)
+      .getAllByRole("link")
+      .map((link) => link.textContent);
+    expect(names).toEqual([
+      "All repositories",
+      "Daniel88dev/fenro-dashboard4",
+      "Daniel88dev/other1",
+      "nordwind/docs1",
+    ]);
+    expect(
+      within(menu).getByRole("link", { name: /fenro-dashboard/ }),
+    ).toHaveAttribute("aria-current", "true");
+    expect(
+      within(menu).getByRole("link", { name: "All repositories" }),
+    ).toHaveAttribute("href", "/tasks?view=blocked&labels=bug");
+
+    fireEvent.change(screen.getByLabelText("Find a repository"), {
+      target: { value: "NORD" },
     });
-    const here = within(filters).getByRole("link", {
-      name: "Daniel88dev/fenro-dashboard",
-    });
-    const other = within(filters).getByRole("link", {
-      name: "Daniel88dev/other",
-    });
-    expect(here).toHaveAttribute("aria-pressed", "true");
-    expect(here).toHaveAttribute("href", "/tasks?view=blocked&labels=bug");
-    expect(other).toHaveAttribute("aria-pressed", "false");
-    expect(other).toHaveAttribute(
+    const found = within(menu).getAllByRole("link");
+    expect(found).toHaveLength(1);
+    expect(found[0]).toHaveAttribute(
       "href",
-      "/tasks?view=blocked&repository=Daniel88dev%2Fother&labels=bug",
+      "/tasks?view=blocked&repository=nordwind%2Fdocs&labels=bug",
     );
   });
 
-  it("offers a repository from the URL that no task names, so it can be unpressed", () => {
+  it("offers a repository from the URL that no task names, so it shows as picked", () => {
     render(
       <TaskList
         list={{ total: 0, tasks: [] }}
@@ -249,12 +265,10 @@ describe("TaskList", () => {
       />,
     );
 
-    const filters = screen.getByRole("navigation", {
-      name: "Filter by repository",
-    });
+    fireEvent.click(screen.getByRole("button", { name: /^Repository:/ }));
     expect(
-      within(filters).getByRole("link", { name: "Daniel88dev/new-one" }),
-    ).toHaveAttribute("href", "/tasks");
+      screen.getByRole("link", { name: /Daniel88dev\/new-one/ }),
+    ).toHaveAttribute("aria-current", "true");
   });
 
   it("explains an empty view", () => {

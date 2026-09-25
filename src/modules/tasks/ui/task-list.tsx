@@ -11,6 +11,7 @@ import type {
 } from "@/modules/tasks/application/queries/read-models";
 
 import { colourOf, LabelDot, type LabelOption } from "./labels";
+import { RepositoryFilter } from "./repository-filter";
 import { STATE_TONES, taskHref } from "./task-state";
 
 export const TASK_VIEWS = [
@@ -99,7 +100,7 @@ export function TaskList({
   /** The owner's labels, offered as filters. */
   labels?: readonly LabelOption[];
   /** The repositories the owner's tasks name, offered as filters. */
-  repositories?: readonly Pick<TaskRepositoryItem, "name">[];
+  repositories?: readonly Pick<TaskRepositoryItem, "name" | "openTasks">[];
   /** How many tasks each view holds, for the tabs. */
   counts?: Partial<Record<TaskView, number>>;
 }) {
@@ -173,49 +174,59 @@ export function TaskList({
             );
           })}
         </nav>
-        <Form
-          action="/tasks"
-          role="search"
-          className="border-hairline bg-surface focus-within:outline-pr flex h-[34px] items-center gap-2 rounded-lg border px-[11px] focus-within:outline-2 focus-within:outline-offset-1 md:mb-2 md:w-[260px]"
-        >
-          {filter.view !== "open" ? (
-            <input type="hidden" name="view" value={filter.view} />
-          ) : null}
-          {filter.repository ? (
-            <input type="hidden" name="repository" value={filter.repository} />
-          ) : null}
-          {filter.labels.length > 0 ? (
-            <input
-              type="hidden"
-              name="labels"
-              value={filter.labels.join(",")}
+        <div className="flex flex-wrap items-center gap-2 md:mb-2 md:flex-nowrap">
+          <RepositoryFilter
+            options={repositoryOptions(filter, repositories)}
+            picked={filter.repository}
+            allHref={hrefFor({ ...filter, repository: "" })}
+          />
+          <Form
+            action="/tasks"
+            role="search"
+            className="border-hairline bg-surface focus-within:outline-pr flex h-[34px] items-center gap-2 rounded-lg border px-[11px] focus-within:outline-2 focus-within:outline-offset-1 max-md:flex-1 md:w-[260px]"
+          >
+            {filter.view !== "open" ? (
+              <input type="hidden" name="view" value={filter.view} />
+            ) : null}
+            {filter.repository ? (
+              <input
+                type="hidden"
+                name="repository"
+                value={filter.repository}
+              />
+            ) : null}
+            {filter.labels.length > 0 ? (
+              <input
+                type="hidden"
+                name="labels"
+                value={filter.labels.join(",")}
+              />
+            ) : null}
+            <MagnifyingGlass
+              aria-hidden="true"
+              className="text-ink-faint size-[15px] shrink-0"
             />
-          ) : null}
-          <MagnifyingGlass
-            aria-hidden="true"
-            className="text-ink-faint size-[15px] shrink-0"
-          />
-          <label htmlFor="task-search" className="sr-only">
-            Search tasks
-          </label>
-          {/* Not a login field: the attributes keep password managers off it. */}
-          <input
-            id="task-search"
-            name="q"
-            type="search"
-            defaultValue={filter.text}
-            placeholder="Search by title or key"
-            autoComplete="off"
-            data-1p-ignore
-            data-lpignore="true"
-            data-bwignore
-            data-form-type="other"
-            className="text-ink placeholder:text-ink-faint min-w-0 flex-1 bg-transparent text-[13px] outline-none"
-          />
-        </Form>
+            <label htmlFor="task-search" className="sr-only">
+              Search tasks
+            </label>
+            {/* Not a login field: the attributes keep password managers off it. */}
+            <input
+              id="task-search"
+              name="q"
+              type="search"
+              defaultValue={filter.text}
+              placeholder="Search by title or key"
+              autoComplete="off"
+              data-1p-ignore
+              data-lpignore="true"
+              data-bwignore
+              data-form-type="other"
+              className="text-ink placeholder:text-ink-faint min-w-0 flex-1 bg-transparent text-[13px] outline-none"
+            />
+          </Form>
+        </div>
       </div>
 
-      <RepositoryFilter filter={filter} repositories={repositories} />
       <LabelFilter filter={filter} labels={labels} />
 
       {list.tasks.length === 0 ? (
@@ -261,6 +272,32 @@ function emptyMessage(filter: TaskListFilter): string {
   if (filter.text) return "No task matches that search.";
   if (filter.labels.length > 0) return "No task matches those labels.";
   return EMPTY[filter.view];
+}
+
+/**
+ * The repositories to offer, busiest first. One in the URL that no task
+ * names yet is still offered, so the list can show it picked.
+ */
+function repositoryOptions(
+  filter: TaskListFilter,
+  repositories: readonly Pick<TaskRepositoryItem, "name" | "openTasks">[],
+) {
+  const picked = filter.repository.toLowerCase();
+  const all =
+    picked && !repositories.some(({ name }) => name.toLowerCase() === picked)
+      ? [...repositories, { name: filter.repository, openTasks: 0 }]
+      : repositories;
+  return [...all]
+    .sort(
+      (a, b) =>
+        b.openTasks - a.openTasks ||
+        a.name.toLowerCase().localeCompare(b.name.toLowerCase()),
+    )
+    .map(({ name, openTasks }) => ({
+      name,
+      openTasks,
+      href: hrefFor({ ...filter, repository: name }),
+    }));
 }
 
 const PRIORITY_WORDS: Record<TaskListItem["priority"], string | null> = {
@@ -331,52 +368,6 @@ function LabelFilter({
           Clear
         </Link>
       ) : null}
-    </nav>
-  );
-}
-
-/**
- * One pill per repository the tasks name; pressing one shows only its tasks,
- * pressing it again shows them all. One at a time, as "New task here" and the
- * repository table link here with one.
- */
-function RepositoryFilter({
-  filter,
-  repositories,
-}: {
-  filter: TaskListFilter;
-  repositories: readonly Pick<TaskRepositoryItem, "name">[];
-}) {
-  const picked = filter.repository.toLowerCase();
-  // A repository in the URL that no task names yet can still be unpressed.
-  const shown =
-    picked && !repositories.some(({ name }) => name.toLowerCase() === picked)
-      ? [...repositories, { name: filter.repository }]
-      : repositories;
-  if (shown.length === 0) return null;
-
-  return (
-    <nav
-      aria-label="Filter by repository"
-      className="-mt-1 flex [scrollbar-width:none] items-center gap-1.5 overflow-x-auto md:flex-wrap"
-    >
-      <span className="text-ink-muted shrink-0 pr-1 text-[12px]">
-        Repositories
-      </span>
-      {shown.map(({ name }) => {
-        const on = name.toLowerCase() === picked;
-        return (
-          <Link
-            key={name}
-            href={hrefFor({ ...filter, repository: on ? "" : name })}
-            aria-pressed={on}
-            scroll={false}
-            className={`${PILL} font-mono ${on ? PILL_ON : PILL_OFF}`}
-          >
-            {name}
-          </Link>
-        );
-      })}
     </nav>
   );
 }
