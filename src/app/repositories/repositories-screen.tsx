@@ -51,6 +51,7 @@ import {
 import { signInWithGitHubAction } from "../sign-in/actions";
 import {
   addRepositoriesAction,
+  pinRepositoryAction,
   syncRepositoriesAction,
   unwatchRepositoryAction,
 } from "./actions";
@@ -225,6 +226,7 @@ export async function RepositoriesScreen({
       id: row.id,
       owner: row.owner,
       name: row.name,
+      pinned: row.pinned,
       lastActivityAt: row.lastActivityAt,
       syncFailure: row.syncFailure,
       rateLimited: row.rateLimited,
@@ -276,6 +278,7 @@ export async function RepositoriesScreen({
       <RepositoryTable
         rows={views}
         now={now}
+        pinAction={pinRepositoryAction}
         unwatchAction={unwatchRepositoryAction}
         filteredOut={rows.value.length > 0}
         emptyAction={

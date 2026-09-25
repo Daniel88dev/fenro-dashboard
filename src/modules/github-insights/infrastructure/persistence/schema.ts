@@ -35,6 +35,8 @@ export const watchedRepository = pgTable(
     owner: text("owner").notNull(),
     name: text("name").notNull(),
     watchedAt: instant("watched_at").notNull(),
+    /** When its watcher pinned it to the top of their table; null if not. */
+    pinnedAt: instant("pinned_at"),
     lastSyncedAt: instant("last_synced_at"),
     lastSyncAttemptedAt: instant("last_sync_attempted_at"),
     lastSyncFailure: text("last_sync_failure"),

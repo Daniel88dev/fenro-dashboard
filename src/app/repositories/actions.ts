@@ -2,6 +2,10 @@
 
 import { refresh, revalidatePath } from "next/cache";
 
+import {
+  pinRepositoryCommand,
+  unpinRepositoryCommand,
+} from "@/modules/github-insights/application/commands/pin-repository";
 import { syncWatchedRepositoriesCommand } from "@/modules/github-insights/application/commands/sync-watched-repositories";
 import { unwatchRepositoryCommand } from "@/modules/github-insights/application/commands/unwatch-repository";
 import { watchRepositoryCommand } from "@/modules/github-insights/application/commands/watch-repository";
@@ -87,6 +91,28 @@ export async function unwatchRepositoryAction(
       coordinates.value.owner,
       coordinates.value.name,
     ),
+  );
+  revalidatePath("/repositories");
+}
+
+/** The pin toggle: `pinned` says which way it should end up. */
+export async function pinRepositoryAction(formData: FormData): Promise<void> {
+  const owner = String(formData.get("owner") ?? "");
+  const name = String(formData.get("name") ?? "");
+  const pinned = formData.get("pinned") === "true";
+
+  const coordinates = RepositoryCoordinates.create(owner, name);
+  if (isErr(coordinates)) return;
+
+  const { commandBus, queryBus } = await getContainer();
+  const user = await queryBus.ask(signedInUserQuery());
+  if (!user) return;
+
+  const repository = coordinates.value;
+  await commandBus.dispatch(
+    pinned
+      ? pinRepositoryCommand(user.id, repository.owner, repository.name)
+      : unpinRepositoryCommand(user.id, repository.owner, repository.name),
   );
   revalidatePath("/repositories");
 }

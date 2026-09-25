@@ -1,4 +1,10 @@
-import { ArrowUpRight, DotsThree, EyeSlash } from "@phosphor-icons/react/ssr";
+import {
+  ArrowUpRight,
+  DotsThree,
+  EyeSlash,
+  PushPin,
+  PushPinSlash,
+} from "@phosphor-icons/react/ssr";
 
 import { Menu } from "./menu";
 import { MENU_ITEM } from "./menu-item";
@@ -7,10 +13,14 @@ import { MENU_ITEM } from "./menu-item";
 export function RowMenu({
   owner,
   name,
+  pinned = false,
+  pinAction,
   unwatchAction,
 }: {
   owner: string;
   name: string;
+  pinned?: boolean;
+  pinAction?: (formData: FormData) => Promise<void>;
   unwatchAction?: (formData: FormData) => Promise<void>;
 }) {
   return (
@@ -30,6 +40,22 @@ export function RowMenu({
         <ArrowUpRight aria-hidden="true" className="size-4" />
         Open on GitHub
       </a>
+      {pinAction ? (
+        <form action={pinAction}>
+          <input type="hidden" name="owner" value={owner} />
+          <input type="hidden" name="name" value={name} />
+          <input type="hidden" name="pinned" value={String(!pinned)} />
+          <button type="submit" className={MENU_ITEM}>
+            {pinned ? (
+              <PushPinSlash aria-hidden="true" className="size-4" />
+            ) : (
+              <PushPin aria-hidden="true" className="size-4" />
+            )}
+            {pinned ? "Unpin" : "Pin to top"}
+            <span className="sr-only">{` ${owner}/${name}`}</span>
+          </button>
+        </form>
+      ) : null}
       {unwatchAction ? (
         <form action={unwatchAction}>
           <input type="hidden" name="owner" value={owner} />

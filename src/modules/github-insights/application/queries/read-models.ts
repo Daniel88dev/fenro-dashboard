@@ -7,6 +7,8 @@ export type RepositoryRow = {
   readonly id: string;
   readonly owner: string;
   readonly name: string;
+  /** Its watcher pinned it, so it sits above every unpinned row. */
+  readonly pinned: boolean;
   readonly openPullRequests: number;
   readonly openIssues: number;
   /** "3 need you" — the reason to click the count. */

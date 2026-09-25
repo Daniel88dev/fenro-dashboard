@@ -71,22 +71,41 @@ export class SyncWatchedRepositoriesHandler implements CommandHandler<SyncWatche
     if (isErr(repository.startSync(trigger, this.clock()))) return;
     if (isErr(await this.repositories.save(repository))) return;
 
+    const claimedAt = repository.sync.startedAt;
     const snapshot = await this.gitHub.fetchSnapshot(repository.coordinates);
+    let finish: (one: WatchedRepository) => void;
     if (isErr(snapshot)) {
       const rateLimited = snapshot.error.code === "github-rate-limited";
       if (rateLimited) run.rateLimited = true;
-      repository.failSync(
-        snapshot.error.message,
-        this.clock(),
-        rateLimited ? "rate-limited" : "failed",
-      );
+      const failedAt = this.clock();
+      finish = (one) =>
+        one.failSync(
+          snapshot.error.message,
+          failedAt,
+          rateLimited ? "rate-limited" : "failed",
+        );
     } else {
       await this.snapshots.replace(repository.id.value, snapshot.value);
-      repository.completeSync(this.clock());
+      const syncedAt = this.clock();
+      finish = (one) => one.completeSync(syncedAt);
     }
-    // A conflict here means the repository was unwatched mid-sync, and there
-    // is nothing left to record the outcome on.
-    await this.repositories.save(repository);
+
+    finish(repository);
+    if (!isErr(await this.repositories.save(repository))) return;
+
+    // Someone saved the repository while GitHub was being read: its watcher
+    // pinned it, say. While this sync's claim is still on the stored copy, the
+    // outcome is recorded on that. Nothing found means it was unwatched
+    // mid-sync, and there is nothing left to record the outcome on.
+    const current = await this.repositories.findById(repository.id);
+    if (
+      !current ||
+      current.sync.startedAt?.getTime() !== claimedAt?.getTime()
+    ) {
+      return;
+    }
+    finish(current);
+    await this.repositories.save(current);
   }
 }
 

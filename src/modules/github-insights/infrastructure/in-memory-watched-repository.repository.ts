@@ -15,6 +15,7 @@ type Row = {
   readonly owner: string;
   readonly name: string;
   readonly watchedAt: Date;
+  readonly pinnedAt: Date | null;
   readonly lastSyncedAt: Date | null;
   readonly lastAttemptedAt: Date | null;
   readonly lastFailure: string | null;
@@ -117,6 +118,8 @@ export class InMemoryWatchedRepositoryRepository implements WatchedRepositoryRep
         lastFailureKind: row.lastFailureKind,
         startedAt: row.startedAt,
       }),
+
+      row.pinnedAt,
     );
     this.#loadedVersions.set(repository, row.version);
     return repository;
@@ -131,6 +134,7 @@ function toRow(repository: WatchedRepository, version: number): Row {
     owner: repository.coordinates.owner,
     name: repository.coordinates.name,
     watchedAt: repository.watchedAt,
+    pinnedAt: repository.pinnedAt,
     lastSyncedAt: sync.lastSyncedAt,
     lastAttemptedAt: sync.lastAttemptedAt,
     lastFailure: sync.lastFailure,

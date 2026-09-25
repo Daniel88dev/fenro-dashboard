@@ -99,6 +99,35 @@ describe("WatchedRepository", () => {
     expect(() => repository.completeSync(t0)).toThrow(/No sync is running/);
   });
 
+  it("pins once, keeping the time it was first pinned", () => {
+    const repository = WatchedRepository.watch("user-1", coordinates(), t0);
+    repository.pullDomainEvents();
+    const later = new Date("2026-09-23T11:00:00Z");
+
+    repository.pin(t0);
+    repository.pin(later);
+
+    expect(repository.isPinned).toBe(true);
+    expect(repository.pinnedAt).toEqual(t0);
+    expect(repository.pullDomainEvents().map((event) => event.name)).toEqual([
+      "github-insights.repository-pinned",
+    ]);
+  });
+
+  it("unpins, and unpinning an unpinned repository records nothing", () => {
+    const repository = WatchedRepository.watch("user-1", coordinates(), t0);
+    repository.unpin(t0);
+    repository.pin(t0);
+    repository.pullDomainEvents();
+
+    repository.unpin(t0);
+
+    expect(repository.isPinned).toBe(false);
+    expect(repository.pullDomainEvents().map((event) => event.name)).toEqual([
+      "github-insights.repository-unpinned",
+    ]);
+  });
+
   it("restores without recording anything", () => {
     const restored = WatchedRepository.restore(
       WatchedRepository.watch("user-1", coordinates(), t0).id,

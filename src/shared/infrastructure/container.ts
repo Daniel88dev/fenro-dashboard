@@ -1,4 +1,10 @@
 import {
+  PinRepositoryHandler,
+  UnpinRepositoryHandler,
+  type PinRepositoryCommand,
+  type UnpinRepositoryCommand,
+} from "@/modules/github-insights/application/commands/pin-repository";
+import {
   SyncWatchedRepositoriesHandler,
   type SyncWatchedRepositoriesCommand,
 } from "@/modules/github-insights/application/commands/sync-watched-repositories";
@@ -198,6 +204,14 @@ export function buildContainer(parts: ContainerParts): Container {
   commandBus.register<UnwatchRepositoryCommand>(
     "github-insights.unwatch-repository",
     new UnwatchRepositoryHandler(watchedRepositories),
+  );
+  commandBus.register<PinRepositoryCommand>(
+    "github-insights.pin-repository",
+    new PinRepositoryHandler(watchedRepositories),
+  );
+  commandBus.register<UnpinRepositoryCommand>(
+    "github-insights.unpin-repository",
+    new UnpinRepositoryHandler(watchedRepositories),
   );
   commandBus.register<SyncWatchedRepositoriesCommand>(
     "github-insights.sync-watched-repositories",

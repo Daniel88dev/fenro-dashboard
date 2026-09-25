@@ -23,8 +23,8 @@ export function repositoryRowsQuery(watcher: Watcher): RepositoryRowsQuery {
 }
 
 /**
- * The write side owns which repositories are watched and how fresh their copy
- * is; the reader owns what is happening inside them. A repository nobody has
+ * The write side owns which repositories are watched, which are pinned, and
+ * how fresh their copy is; the reader owns what is happening inside them. A repository nobody has
  * synced yet still gets a row, with zeroes, so watching one is visible
  * immediately.
  */
@@ -55,6 +55,7 @@ export async function loadRepositoryRows(
           id: repository.id.value,
           owner,
           name,
+          pinned: repository.isPinned,
           openPullRequests: count?.openPullRequests ?? 0,
           openIssues: count?.openIssues ?? 0,
           pullRequestHint:
@@ -70,10 +71,13 @@ export async function loadRepositoryRows(
           needsSync: sync.isDueAutomatically(now),
         };
       })
-      .sort((one, other) =>
-        `${one.owner}/${one.name}`.localeCompare(
-          `${other.owner}/${other.name}`,
-        ),
+      // Pinned rows first; within each group the order stays alphabetical.
+      .sort(
+        (one, other) =>
+          Number(other.pinned) - Number(one.pinned) ||
+          `${one.owner}/${one.name}`.localeCompare(
+            `${other.owner}/${other.name}`,
+          ),
       ),
   );
 }

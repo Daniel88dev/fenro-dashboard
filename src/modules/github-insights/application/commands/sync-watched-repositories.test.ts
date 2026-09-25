@@ -10,6 +10,7 @@ import { InMemoryRepositorySnapshotStore } from "@/modules/github-insights/infra
 import { InMemoryWatchedRepositoryRepository } from "@/modules/github-insights/infrastructure/in-memory-watched-repository.repository";
 import { SYNC_POLICY } from "@/modules/github-insights/domain";
 
+import { PinRepositoryHandler, pinRepositoryCommand } from "./pin-repository";
 import {
   SYNC_CONCURRENCY,
   SyncWatchedRepositoriesHandler,
@@ -189,5 +190,25 @@ describe("sync-watched-repositories", () => {
     await handler.handle(syncWatchedRepositoriesCommand("user-2", "manual"));
 
     expect(gitHub.calls).toEqual([]);
+  });
+
+  it("keeps a pin made while GitHub is being read, and still records the sync", async () => {
+    const { handler, gitHub, repositories, stored } = await setUp(
+      "nordwind/billing-core",
+    );
+    const fetch = gitHub.fetchSnapshot.bind(gitHub);
+    gitHub.fetchSnapshot = async (coordinates) => {
+      await new PinRepositoryHandler(repositories).handle(
+        pinRepositoryCommand("user-1", "nordwind", "billing-core", t0),
+      );
+      return fetch(coordinates);
+    };
+
+    await handler.handle(syncWatchedRepositoriesCommand("user-1", "manual"));
+
+    const billing = await stored("nordwind/billing-core");
+    expect(billing.repository.isPinned).toBe(true);
+    expect(billing.repository.sync.lastSyncedAt).toEqual(t0);
+    expect(billing.repository.sync.isInProgress(t0)).toBe(false);
   });
 });
