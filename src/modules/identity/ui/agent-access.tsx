@@ -255,11 +255,14 @@ function CopyLine({
       // Clipboard access can be refused; the text stays selectable.
     }
   };
+  // The value box hugs a short value from `sm` up but may still shrink, so a
+  // long one (the connect command) wraps inside the card instead of pushing
+  // the button past its edge.
   return (
-    <div className="flex flex-col gap-1">
+    <div className="flex min-w-0 flex-col gap-1">
       <span className="text-ink-soft text-[12px]">{label}</span>
       <div className="flex items-start gap-2">
-        <code className="border-hairline bg-surface text-ink min-h-[34px] flex-1 rounded-lg border px-3 py-[7px] font-mono text-[12px] leading-[18px] break-all select-all sm:flex-none">
+        <code className="border-hairline bg-surface text-ink min-h-[34px] min-w-0 flex-1 rounded-lg border px-3 py-[7px] font-mono text-[12px] leading-[18px] break-all select-all sm:flex-initial">
           {value}
         </code>
         <button
