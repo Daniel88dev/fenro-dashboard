@@ -3,6 +3,8 @@ import type { Icon } from "@phosphor-icons/react";
 import Link from "next/link";
 import type { ReactNode } from "react";
 
+import { SavedThemeToggle } from "./saved-theme-toggle";
+
 type Screen = "repositories" | "tasks" | "settings";
 
 const SCREENS: readonly {
@@ -25,7 +27,8 @@ const SCREENS: readonly {
  * The near-black bar from the design.
  *
  * At phone width the nav drops below the bar as a row of three buttons, so the
- * bar itself only has to fit the brand and the account menu.
+ * bar itself only has to fit the brand, the colour scheme toggle and the
+ * account menu.
  *
  * `account` is a slot rather than something this component fetches: who is
  * signed in belongs to the identity context, and the route composes the two.
@@ -77,9 +80,10 @@ export function DashboardChrome({
             );
           })}
         </nav>
-        {account ? (
-          <div className="ml-auto flex h-14 items-center">{account}</div>
-        ) : null}
+        <div className="ml-auto flex h-14 items-center gap-2">
+          <SavedThemeToggle />
+          {account}
+        </div>
       </header>
 
       <main className="flex min-h-0 flex-1 flex-col gap-[18px] px-4 py-5 sm:px-8 sm:py-[26px]">

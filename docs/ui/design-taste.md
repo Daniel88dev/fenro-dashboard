@@ -33,8 +33,9 @@ disagree:
 
 - **Tokens, not `dark:`.** The skill offers the `dark:` variant as the
   Tailwind default. Fenro uses CSS-variable tokens under `@theme` and
-  redefines them under `prefers-color-scheme: dark`. No component uses a
-  `dark:` class. `src/app/palette.test.ts` holds every readable pair to
+  redefines them under `prefers-color-scheme: dark`, or under
+  `data-theme="dark"` on the html element when the reader picks Dark with the
+  top bar toggle. No component uses a `dark:` class. `src/app/palette.test.ts` holds every readable pair to
   4.5:1 in both schemes.
 - **Semantic colours are not accents.** The one-accent rule (4.2) applies to
   decoration. Teal means pull requests and healthy, rust means issues and

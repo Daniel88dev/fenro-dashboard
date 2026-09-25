@@ -14,6 +14,7 @@ import { describe, expect, it } from "vitest";
 const css = readFileSync(join(process.cwd(), "src/app/globals.css"), "utf8");
 
 const DARK_AT = css.indexOf("@media (prefers-color-scheme: dark)");
+const PICKED_DARK_AT = css.indexOf(':root[data-theme="dark"] {\n  --color');
 
 function tokens(source: string): Record<string, string> {
   const found: Record<string, string> = {};
@@ -26,7 +27,8 @@ function tokens(source: string): Record<string, string> {
 }
 
 const light = tokens(css.slice(0, DARK_AT));
-const dark = { ...light, ...tokens(css.slice(DARK_AT)) };
+const dark = { ...light, ...tokens(css.slice(DARK_AT, PICKED_DARK_AT)) };
+const pickedDark = { ...light, ...tokens(css.slice(PICKED_DARK_AT)) };
 
 function luminance(hex: string): number {
   const channels = [1, 3, 5].map(
@@ -110,6 +112,11 @@ describe.each([
 describe("the two schemes", () => {
   it("names the same tokens, so no component knows which one it is in", () => {
     expect(Object.keys(dark).sort()).toEqual(Object.keys(light).sort());
+  });
+
+  it("renders Dark picked in the top bar exactly as a dark OS setting", () => {
+    expect(PICKED_DARK_AT).toBeGreaterThan(DARK_AT);
+    expect(pickedDark).toEqual(dark);
   });
 
   it("puts the paper on the dark side of the ink, and the other way round", () => {
