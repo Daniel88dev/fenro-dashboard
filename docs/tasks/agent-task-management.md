@@ -120,6 +120,31 @@ and why it is blocked, open sub-tasks, blockers, links, the latest handoff, all
 decisions, and the most recent notes (capped). The ticket raised hand-picked
 briefs; that can be added later as pinning without changing the journal.
 
+### Labels: a catalogue per person _(2026-09-25)_
+
+Daniel asked for labels a person can pick several of, filter the task list
+by, and create, both in the app and over MCP.
+
+- **`Label` is its own aggregate**, one catalogue per owner: a name, unique
+  per owner, and a colour from a fixed set of nine tokens (`--color-label-*`
+  in `globals.css`, each checked at 3:1 in both schemes). Names are
+  lower-case; spaces become `-`.
+- **Tasks keep carrying names, not label ids.** The name is what agents,
+  URLs (`/tasks?labels=bug,docs`) and the filter use, and it keeps the task
+  aggregate free of a reference it would have to resolve. The cost: renaming
+  a label would have to rewrite the tasks carrying it, and nothing renames
+  yet.
+- **Saving a task with an unknown name adds it to the catalogue** first, in
+  the colour the owner's other labels use least, so an agent labels in one
+  call. The two aggregates are saved separately; a failed task save can at
+  worst leave a label nothing carries yet.
+- `tasks.list-labels` reads the catalogue and counts tasks per label. A name
+  a task carries but the catalogue lacks (labels written before it existed)
+  is still listed, in the colour its name hashes to.
+- In the app a label shows as its name on the neutral chip with a coloured
+  dot; the accents keep their meaning. The task page, the task dialog and
+  the New task form have one picker; on a task it saves on each tick.
+
 ## 3. What persists (ticket 07)
 
 Postgres via Drizzle, like the rest: `task`, `task_dependency` (blocked task,
@@ -139,17 +164,19 @@ key to identity tables, same as github-insights.
   `src/modules/tasks/ui/mcp/`, a second driving adapter beside the screens.
 - Tools (compact output by default, full detail only in `get_task`):
 
-| Tool              | What it does                                                                                                        |
-| ----------------- | ------------------------------------------------------------------------------------------------------------------- |
-| `list_tasks`      | Filter by status, repository, label, parent, text; `ready: true` gives the ready queue ordered by priority then age |
-| `get_task`        | The full handoff brief for one task                                                                                 |
-| `save_task`       | Create or update: title, description, priority, labels, repository, parent, criteria, links, `discoveredFrom`       |
-| `start_task`      | Claim a ready task and open a session; returns the brief                                                            |
-| `add_note`        | Append a journal entry (note, decision, discovery, question)                                                        |
-| `check_criterion` | Tick or untick an acceptance criterion, with evidence                                                               |
-| `link_tasks`      | Add or remove `blocks`, `relates-to`                                                                                |
-| `finish_session`  | End the session with a handoff summary and an outcome: `done`, `paused`, `blocked` (with a reason), `in_review`     |
-| `set_status`      | Move to backlog, todo or done, cancel, reopen, set or clear a hold                                                  |
+| Tool              | What it does                                                                                                                                    |
+| ----------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| `list_tasks`      | Filter by status, repository, labels (any of), parent, text; `ready: true` gives the ready queue ordered by priority then age                   |
+| `list_labels`     | The owner's labels with colour and open-task counts                                                                                             |
+| `create_label`    | Add a label ahead of use, optionally in a chosen colour                                                                                         |
+| `get_task`        | The full handoff brief for one task                                                                                                             |
+| `save_task`       | Create or update: title, description, priority, labels (or `add_labels`/`remove_labels`), repository, parent, criteria, links, `discoveredFrom` |
+| `start_task`      | Claim a ready task and open a session; returns the brief                                                                                        |
+| `add_note`        | Append a journal entry (note, decision, discovery, question)                                                                                    |
+| `check_criterion` | Tick or untick an acceptance criterion, with evidence                                                                                           |
+| `link_tasks`      | Add or remove `blocks`, `relates-to`                                                                                                            |
+| `finish_session`  | End the session with a handoff summary and an outcome: `done`, `paused`, `blocked` (with a reason), `in_review`                                 |
+| `set_status`      | Move to backlog, todo or done, cancel, reopen, set or clear a hold                                                                              |
 
 Plus one prompt, `work_on_next_task`, that tells an agent the loop:
 `list_tasks ready` → `start_task` → notes → `finish_session`. It takes an

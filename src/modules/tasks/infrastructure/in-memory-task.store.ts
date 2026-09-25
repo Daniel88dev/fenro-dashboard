@@ -121,10 +121,8 @@ export class InMemoryTaskStore
 
   // --- LabelRepository ---------------------------------------------------------
 
-  async named(ownerId: string, names: readonly string[]): Promise<Label[]> {
-    return this.#labels.filter(
-      (label) => label.ownerId === ownerId && names.includes(label.name),
-    );
+  async all(ownerId: string): Promise<Label[]> {
+    return this.#labels.filter((label) => label.ownerId === ownerId);
   }
 
   async save(label: Label): Promise<Result<void, TaskError>>;

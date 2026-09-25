@@ -3,6 +3,8 @@ import { join } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
+import { LABEL_COLOURS } from "@/modules/tasks/domain";
+
 /**
  * The design doc asks for 4.5:1 on every pair a reader has to read, and its own
  * note says `#9A9AA0` does not clear it. These are the pairs the screen
@@ -77,6 +79,17 @@ const READABLE_PAIRS: readonly [string, string, string][] = [
 ];
 
 /**
+ * A label's colour is a dot beside its name, so it is a graphic: WCAG asks
+ * 3:1 against what it sits on, a chip or a row.
+ */
+const GRAPHIC_PAIRS: readonly [string, string][] = LABEL_COLOURS.flatMap(
+  (colour) => [
+    ["neutral-wash", `label-${colour}`] as [string, string],
+    ["surface", `label-${colour}`] as [string, string],
+  ],
+);
+
+/**
  * Surfaces that must not collapse into one another. The step is deliberately
  * faint — the panel tint the prototype drew is barely off white — so this only
  * catches a token that has become another token, not a design opinion.
@@ -107,6 +120,13 @@ describe.each([
       ).toBeGreaterThanOrEqual(4.5);
     },
   );
+
+  it.each(GRAPHIC_PAIRS)("shows %s/%s at 3:1 or better", (background, dot) => {
+    expect(palette[dot], `--color-${dot}`).toMatch(/^#[0-9a-f]{6}$/);
+    expect(
+      contrast(palette[background]!, palette[dot]!),
+    ).toBeGreaterThanOrEqual(3);
+  });
 
   it.each(DISTINCT_PAIRS)("keeps %s and %s distinguishable", (one, other) => {
     expect(palette[one]).not.toBe(palette[other]);

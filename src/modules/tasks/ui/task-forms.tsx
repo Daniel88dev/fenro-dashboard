@@ -10,6 +10,8 @@ import {
 
 import { CaretRight, Check, PencilSimple } from "@phosphor-icons/react/ssr";
 
+import { LabelPicker } from "./label-picker";
+import type { LabelOption } from "./labels";
 import { EMPTY_FORM_STATE, type TaskFormState } from "./task-form-state";
 
 export type TaskAction = (
@@ -21,6 +23,7 @@ export type TaskAction = (
 export type TaskActions = {
   readonly create: TaskAction;
   readonly update: TaskAction;
+  readonly labels: TaskAction;
   readonly edit: TaskAction;
   readonly note: TaskAction;
   readonly checkCriterion: TaskAction;
@@ -206,11 +209,14 @@ function SourceField({
 export function NewTaskForm({
   action,
   defaults,
+  labels = [],
   variant = "page",
   cancel,
 }: {
   action: TaskAction;
   defaults: NewTaskDefaults;
+  /** The owner's labels, to pick from. */
+  labels?: readonly LabelOption[];
   variant?: "page" | "dialog";
   /** The way out: a link on the page, a close button in the dialog. */
   cancel?: ReactNode;
@@ -280,6 +286,14 @@ export function NewTaskForm({
       )}
     </Field>
   );
+  const labelField = (
+    <fieldset className="m-0 min-w-0 border-0 p-0">
+      <legend className="text-ink mb-1.5 p-0 text-[12.5px] font-medium">
+        Labels
+      </legend>
+      <LabelPicker catalogue={labels} />
+    </fieldset>
+  );
   const rest = (
     <>
       <Field label="Sub-task of" hint="Task key">
@@ -300,16 +314,6 @@ export function NewTaskForm({
             id={id}
             name="blockedBy"
             className={`${FIELD} h-[34px] font-mono text-[12.5px]`}
-            {...NOT_A_LOGIN}
-          />
-        )}
-      </Field>
-      <Field label="Labels" hint="Comma separated">
-        {(id) => (
-          <input
-            id={id}
-            name="labels"
-            className={`${FIELD} h-[34px]`}
             {...NOT_A_LOGIN}
           />
         )}
@@ -343,6 +347,7 @@ export function NewTaskForm({
                 {repository}
                 <PrioritySegments />
               </div>
+              {labelField}
               <details
                 className="group"
                 open={Boolean(defaults.parent || defaults.source)}
@@ -352,7 +357,7 @@ export function NewTaskForm({
                     aria-hidden="true"
                     className="size-3 transition-transform group-open:rotate-90 motion-reduce:transition-none"
                   />
-                  Sub-task of, blocked by, labels, source
+                  Sub-task of, blocked by, source
                 </summary>
                 <div className="grid gap-4 pt-4 sm:grid-cols-2">{rest}</div>
               </details>
@@ -367,6 +372,7 @@ export function NewTaskForm({
               <div className="flex flex-col gap-[18px]">
                 {repository}
                 <PrioritySegments />
+                {labelField}
                 {rest}
               </div>
             </div>
@@ -405,7 +411,6 @@ export type TaskDetails = {
   readonly title: string;
   readonly description: string;
   readonly priority: string;
-  readonly labels: readonly string[];
   readonly repository: string | null;
 };
 
@@ -456,7 +461,7 @@ export function EditTaskForm({
                 />
               )}
             </Field>
-            <div className="grid gap-3 sm:grid-cols-3">
+            <div className="grid gap-3 sm:grid-cols-2">
               <Field label="Priority">
                 {(id) => (
                   <select
@@ -471,17 +476,6 @@ export function EditTaskForm({
                       </option>
                     ))}
                   </select>
-                )}
-              </Field>
-              <Field label="Labels">
-                {(id) => (
-                  <input
-                    id={id}
-                    name="labels"
-                    defaultValue={task.labels.join(", ")}
-                    className={`${FIELD} h-[34px]`}
-                    {...NOT_A_LOGIN}
-                  />
                 )}
               </Field>
               <Field label="Repository">
@@ -507,6 +501,42 @@ export function EditTaskForm({
     </details>
   );
 }
+
+/**
+ * A task's labels, saved as soon as one is ticked or unticked: labels are
+ * quick to change and there is nothing else in this form to wait for.
+ */
+export function TaskLabelsForm({
+  action,
+  task,
+  labels,
+  catalogue,
+}: {
+  action: TaskAction;
+  task: string;
+  labels: readonly string[];
+  catalogue: readonly LabelOption[];
+}) {
+  return (
+    <ActionForm
+      action={action}
+      label="Labels"
+      task={task}
+      resetOnSave={false}
+      className="flex flex-col gap-1.5"
+    >
+      {() => (
+        <LabelPicker
+          catalogue={catalogue}
+          defaultValue={labels}
+          onPick={submit}
+        />
+      )}
+    </ActionForm>
+  );
+}
+
+const submit = (form: HTMLFormElement | null) => form?.requestSubmit();
 
 const NOTE_OPTIONS = [
   ["note", "Note"],

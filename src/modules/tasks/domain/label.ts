@@ -63,6 +63,26 @@ export function defaultLabelColour(name: string): LabelColour {
   return LABEL_COLOURS[hash % LABEL_COLOURS.length]!;
 }
 
+/**
+ * The colour for a label made without one: of the colours the owner's other
+ * labels use least, the one the name picks. Labels made one after another
+ * then look different from each other, rather than as the hash happens to
+ * fall.
+ */
+export function pickLabelColour(
+  name: string,
+  taken: readonly LabelColour[],
+): LabelColour {
+  const uses = (colour: LabelColour) =>
+    taken.filter((other) => other === colour).length;
+  const fewest = Math.min(...LABEL_COLOURS.map(uses));
+  const free = LABEL_COLOURS.filter((colour) => uses(colour) === fewest);
+  const preferred = defaultLabelColour(name);
+  return free.includes(preferred)
+    ? preferred
+    : free[LABEL_COLOURS.indexOf(preferred) % free.length]!;
+}
+
 type Props = {
   readonly ownerId: string;
   readonly name: string;

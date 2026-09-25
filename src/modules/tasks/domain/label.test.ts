@@ -7,6 +7,7 @@ import {
   Label,
   LABEL_COLOURS,
   parseLabelName,
+  pickLabelColour,
 } from "./label";
 
 const now = new Date("2026-09-25T10:00:00Z");
@@ -50,5 +51,13 @@ describe("a label", () => {
     const names = Array.from({ length: 60 }, (_, index) => `label-${index}`);
     const used = new Set(names.map(defaultLabelColour));
     expect(used.size).toBe(LABEL_COLOURS.length);
+  });
+
+  it("picks a colour the owner's other labels use least", () => {
+    const colours = [...LABEL_COLOURS];
+    const taken = colours.filter((colour) => colour !== "green");
+    expect(pickLabelColour("anything", taken)).toBe("green");
+    expect(pickLabelColour("docs", [])).toBe(defaultLabelColour("docs"));
+    expect(pickLabelColour("docs", colours)).toBe(defaultLabelColour("docs"));
   });
 });

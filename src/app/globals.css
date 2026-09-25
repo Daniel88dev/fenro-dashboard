@@ -56,6 +56,16 @@
   --color-neutral-wash: #efede7;
   /* Text on a solid teal fill: the brand mark, a ticked checkbox. */
   --color-on-pr: #ffffff;
+  /* Label dots. Graphics, not text: each clears 3:1 on a chip and a row. */
+  --color-label-gray: #7a7a80;
+  --color-label-red: #d1453b;
+  --color-label-orange: #c45f0e;
+  --color-label-yellow: #9c7a00;
+  --color-label-green: #3f8f3a;
+  --color-label-teal: #1f8a8a;
+  --color-label-blue: #3a6fd8;
+  --color-label-purple: #8a55d0;
+  --color-label-pink: #cc4a8c;
 }
 
 /*
@@ -110,6 +120,15 @@
     --color-issue-wash: #3a2418;
     --color-neutral-wash: #2b2b27;
     --color-on-pr: #10231f;
+    --color-label-gray: #9d9ca3;
+    --color-label-red: #f07068;
+    --color-label-orange: #f0934a;
+    --color-label-yellow: #e2bd4a;
+    --color-label-green: #6cc267;
+    --color-label-teal: #4fc4c0;
+    --color-label-blue: #6f9cf2;
+    --color-label-purple: #b28cf2;
+    --color-label-pink: #ef7fb4;
   }
 }
 
@@ -142,6 +161,15 @@
   --color-issue-wash: #3a2418;
   --color-neutral-wash: #2b2b27;
   --color-on-pr: #10231f;
+  --color-label-gray: #9d9ca3;
+  --color-label-red: #f07068;
+  --color-label-orange: #f0934a;
+  --color-label-yellow: #e2bd4a;
+  --color-label-green: #6cc267;
+  --color-label-teal: #4fc4c0;
+  --color-label-blue: #6f9cf2;
+  --color-label-purple: #b28cf2;
+  --color-label-pink: #ef7fb4;
 }
 
 /*

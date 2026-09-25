@@ -94,6 +94,7 @@ function actions(overrides: Partial<TaskActions> = {}): TaskActions {
   return {
     create: saved,
     update: saved,
+    labels: saved,
     edit: saved,
     note: saved,
     checkCriterion: saved,
@@ -110,7 +111,7 @@ describe("TaskList", () => {
     render(
       <TaskList
         list={list}
-        filter={{ view: "open", repository: "", text: "" }}
+        filter={{ view: "open", repository: "", text: "", labels: [] }}
       />,
     );
 
@@ -129,6 +130,7 @@ describe("TaskList", () => {
           view: "open",
           repository: "Daniel88dev/fenro-dashboard",
           text: "",
+          labels: [],
         }}
       />,
     );
@@ -154,7 +156,7 @@ describe("TaskList", () => {
           total: 2,
           tasks: [item, { ...item, key: "T-3", state: "running" }],
         }}
-        filter={{ view: "open", repository: "", text: "" }}
+        filter={{ view: "open", repository: "", text: "", labels: [] }}
         counts={{ open: 2, blocked: 1 }}
       />,
     );
@@ -168,11 +170,42 @@ describe("TaskList", () => {
     );
   });
 
+  it("filters by labels in the URL, keeping the rest of the filter", () => {
+    render(
+      <TaskList
+        list={{ total: 1, tasks: [{ ...item, labels: ["bug"] }] }}
+        filter={{
+          view: "blocked",
+          repository: "",
+          text: "",
+          labels: ["bug"],
+        }}
+        labels={[
+          { name: "bug", colour: "red" },
+          { name: "docs", colour: "blue" },
+        ]}
+      />,
+    );
+
+    const filters = screen.getByRole("navigation", { name: "Filter by label" });
+    const bug = within(filters).getByRole("link", { name: "bug" });
+    const docs = within(filters).getByRole("link", { name: "docs" });
+    expect(bug).toHaveAttribute("aria-pressed", "true");
+    expect(bug).toHaveAttribute("href", "/tasks?view=blocked");
+    expect(docs).toHaveAttribute(
+      "href",
+      "/tasks?view=blocked&labels=bug%2Cdocs",
+    );
+    expect(
+      screen.getByRole("link", { name: /Fix the lint job/ }),
+    ).toHaveTextContent("bug");
+  });
+
   it("explains an empty view", () => {
     render(
       <TaskList
         list={{ total: 0, tasks: [] }}
-        filter={{ view: "ready", repository: "", text: "" }}
+        filter={{ view: "ready", repository: "", text: "", labels: [] }}
       />,
     );
 
@@ -246,6 +279,45 @@ describe("TaskDetail", () => {
   });
 });
 
+describe("labels on a task", () => {
+  it("saves as soon as a label is ticked, and makes new ones from what is typed", async () => {
+    const labels = vi.fn(async () => ({ error: null, saved: 1 }));
+    render(
+      <TaskDetail
+        task={{ ...brief, labels: ["bug"] }}
+        actions={actions({ labels })}
+        labels={[
+          { name: "bug", colour: "red" },
+          { name: "docs", colour: "blue" },
+        ]}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Edit labels" }));
+    await act(async () => {
+      fireEvent.click(screen.getByRole("checkbox", { name: "docs" }));
+    });
+    let sent = labels.mock.calls.at(-1) as unknown as [unknown, FormData];
+    expect(sent[1].getAll("labels")).toEqual(["bug", "docs"]);
+    expect(sent[1].get("task")).toBe("T-2");
+
+    fireEvent.change(screen.getByLabelText("Find or create a label"), {
+      target: { value: "Needs Review" },
+    });
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /Create/ }));
+    });
+    sent = labels.mock.calls.at(-1) as unknown as [unknown, FormData];
+    expect(sent[1].getAll("labels")).toEqual(["bug", "docs", "needs-review"]);
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("checkbox", { name: "bug" }));
+    });
+    sent = labels.mock.calls.at(-1) as unknown as [unknown, FormData];
+    expect(sent[1].getAll("labels")).toEqual(["docs", "needs-review"]);
+  });
+});
+
 describe("TaskDialogContent", () => {
   it("opens the full page with a plain link, so the dialog is not reopened", () => {
     render(<TaskDialogContent task={brief} actions={actions()} />);
@@ -279,6 +351,33 @@ describe("NewTaskForm", () => {
     expect(sent[1].get("from")).toBe("dialog");
     expect(sent[1].get("repository")).toBe("o/r");
     expect(sent[1].get("priority")).toBe("none");
+  });
+
+  it("sends the labels picked, without submitting on Enter in the filter", async () => {
+    const create = vi.fn(async () => ({ error: null, saved: 1 }));
+    render(
+      <NewTaskForm
+        action={create}
+        defaults={defaults}
+        labels={[{ name: "docs", colour: "blue" }]}
+      />,
+    );
+
+    fireEvent.change(screen.getByLabelText("Title"), {
+      target: { value: "Retry webhooks" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Add labels" }));
+    fireEvent.click(screen.getByRole("checkbox", { name: "docs" }));
+    const find = screen.getByLabelText("Find or create a label");
+    fireEvent.change(find, { target: { value: "backend" } });
+    fireEvent.keyDown(find, { key: "Enter" });
+    expect(create).not.toHaveBeenCalled();
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Create task" }));
+    });
+    const sent = create.mock.calls[0] as unknown as [unknown, FormData];
+    expect(sent[1].getAll("labels")).toEqual(["docs", "backend"]);
   });
 
   it("leaves the dialog marker off on the page", () => {

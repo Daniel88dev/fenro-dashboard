@@ -4,6 +4,7 @@ import { Suspense } from "react";
 import { DashboardChrome } from "@/modules/github-insights/ui/dashboard-chrome";
 import { TaskLoading } from "@/modules/tasks/ui/task-loading";
 import { SignInPanel } from "@/modules/identity/ui/sign-in-panel";
+import { listLabelsQuery } from "@/modules/tasks/application/queries/list-labels";
 import { taskBriefQuery } from "@/modules/tasks/application/queries/task-brief";
 import { TaskDetail } from "@/modules/tasks/ui/task-detail";
 
@@ -52,9 +53,14 @@ async function TaskScreen({
     );
   }
 
-  const task = await container.queryBus.ask(
-    taskBriefQuery(ownerId, decodeURIComponent(key), JOURNAL_LIMIT),
-  );
+  const [task, labels] = await Promise.all([
+    container.queryBus.ask(
+      taskBriefQuery(ownerId, decodeURIComponent(key), JOURNAL_LIMIT),
+    ),
+    container.queryBus.ask(listLabelsQuery(ownerId)),
+  ]);
   if (!task.ok) notFound();
-  return <TaskDetail task={task.value} actions={TASK_ACTIONS} />;
+  return (
+    <TaskDetail task={task.value} actions={TASK_ACTIONS} labels={labels} />
+  );
 }

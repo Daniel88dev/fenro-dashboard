@@ -223,24 +223,21 @@ describe("labels", () => {
       ...fields,
     });
 
-  it("adds a name no label has yet to the owner's labels, in a stable colour", async () => {
+  it("adds a name no label has yet to the owner's labels, each in its own colour", async () => {
     await create({ title: "Sign-in", labels: ["Bug", "needs review"] });
     await create({ title: "Theirs", labels: ["bug"] }, "user-2");
+    await create({ title: "More", labels: ["ci", "ui", "docs"] });
 
-    expect(await labels()).toEqual([
-      {
-        name: "bug",
-        colour: defaultLabelColour("bug"),
-        openTasks: 1,
-        tasks: 1,
-      },
-      {
-        name: "needs-review",
-        colour: defaultLabelColour("needs-review"),
-        openTasks: 1,
-        tasks: 1,
-      },
+    const made = await labels();
+    expect(made.map((label) => [label.name, label.openTasks])).toEqual([
+      ["bug", 1],
+      ["ci", 1],
+      ["docs", 1],
+      ["needs-review", 1],
+      ["ui", 1],
     ]);
+    expect(new Set(made.map((label) => label.colour)).size).toBe(5);
+    expect(made[0]!.colour).toBe(defaultLabelColour("bug"));
   });
 
   it("keeps a label made ahead of use, and refuses a second of the same name", async () => {

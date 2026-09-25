@@ -5,8 +5,8 @@ import type { Label } from "./label";
 
 /** Where a person's labels are kept. Every lookup is scoped to its owner. */
 export interface LabelRepository {
-  /** The owner's labels with these (already normalised) names. */
-  named(ownerId: string, names: readonly string[]): Promise<Label[]>;
+  /** Every one of the owner's labels: a catalogue is short. */
+  all(ownerId: string): Promise<Label[]>;
 
   /** Fails with `label-exists` when the owner has a label of that name. */
   save(label: Label): Promise<Result<void, TaskError>>;

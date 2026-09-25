@@ -462,9 +462,10 @@ describe.skipIf(!url)("Postgres tasks adapters", () => {
       const twice = await labels.save(aLabel("bug"));
       expect(isErr(twice) && twice.error.code).toBe("label-exists");
 
-      const found = await labels.named("user-1", ["bug", "missing"]);
+      const found = await labels.all("user-1");
       expect(found.map((label) => [label.name, label.colour])).toEqual([
         ["bug", "teal"],
+        ["docs", "teal"],
       ]);
       expect(await new DrizzleTaskReadStore(db).labels("user-1")).toEqual([
         { name: "bug", colour: "teal" },

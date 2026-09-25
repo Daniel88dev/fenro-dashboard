@@ -1,4 +1,4 @@
-import { and, eq, inArray } from "drizzle-orm";
+import { asc, eq } from "drizzle-orm";
 
 import {
   isLabelColour,
@@ -20,17 +20,12 @@ import { taskLabel } from "./persistence/schema";
 export class DrizzleLabelRepository implements LabelRepository {
   constructor(private readonly db: Database) {}
 
-  async named(ownerId: string, names: readonly string[]): Promise<Label[]> {
-    if (names.length === 0) return [];
+  async all(ownerId: string): Promise<Label[]> {
     const rows = await this.db
       .select()
       .from(taskLabel)
-      .where(
-        and(
-          eq(taskLabel.ownerId, ownerId),
-          inArray(taskLabel.name, [...names]),
-        ),
-      );
+      .where(eq(taskLabel.ownerId, ownerId))
+      .orderBy(asc(taskLabel.name));
     return rows.map((row) =>
       Label.restore(UniqueId.create(row.id), {
         ownerId: row.ownerId,

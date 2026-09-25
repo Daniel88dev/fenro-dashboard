@@ -12,6 +12,7 @@ import {
   TaskChips,
   TaskProperties,
 } from "./task-detail";
+import type { LabelOption } from "./labels";
 import type { TaskActions } from "./task-forms";
 import { CloseDialogButton } from "./route-dialog";
 import { taskHref } from "./task-state";
@@ -24,9 +25,12 @@ import { taskHref } from "./task-state";
 export function TaskDialogContent({
   task,
   actions,
+  labels = [],
 }: {
   task: TaskBrief;
   actions: TaskActions;
+  /** The owner's labels. */
+  labels?: readonly LabelOption[];
 }) {
   const fullPage = taskHref(task.key);
   return (
@@ -42,7 +46,7 @@ export function TaskDialogContent({
             </span>
             {task.title}
           </h2>
-          <TaskChips task={task} />
+          <TaskChips task={task} labels={labels} actions={actions} />
           <AgentLine task={task} />
         </div>
         <div className="flex shrink-0 items-center gap-1">

@@ -1,5 +1,6 @@
 import {
   Label,
+  pickLabelColour,
   type LabelColour,
   type LabelRepository,
   type TaskError,
@@ -42,9 +43,9 @@ export class CreateLabelHandler implements CommandHandler<CreateLabelCommand> {
 
 /**
  * Make sure every name a task is about to carry is in the owner's catalogue,
- * adding the missing ones in their default colour. It runs before the task
- * is saved: the label and the task are separate aggregates, so the worst a
- * failed task save leaves behind is a label nothing carries yet.
+ * adding the missing ones in the colours the others use least. It runs before
+ * the task is saved: the label and the task are separate aggregates, so the
+ * worst a failed task save leaves behind is a label nothing carries yet.
  */
 export async function ensureLabels(
   labels: LabelRepository,
@@ -53,18 +54,20 @@ export async function ensureLabels(
   now: Date,
 ): Promise<Result<void, TaskError>> {
   if (names.length === 0) return ok(undefined);
-  const known = new Set(
-    (await labels.named(ownerId, names)).map((label) => label.name),
-  );
+  const catalogue = await labels.all(ownerId);
+  const known = new Set(catalogue.map((label) => label.name));
+  const colours = catalogue.map((label) => label.colour);
   for (const name of names) {
     if (known.has(name)) continue;
     const label = Label.create({
       id: crypto.randomUUID(),
       ownerId,
       name,
+      colour: pickLabelColour(name, colours),
       now,
     });
     if (!label.ok) return label;
+    colours.push(label.value.colour);
     const saved = await labels.save(label.value);
     // Another request added it in between: it is there, which is the point.
     if (!saved.ok && saved.error.code !== "label-exists") return saved;
