@@ -5,6 +5,15 @@
   color-scheme: light dark;
 }
 
+/* A scheme picked with the toggle in the top bar outranks the OS setting. */
+:root[data-theme="light"] {
+  color-scheme: light;
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+}
+
 @theme inline {
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
@@ -72,9 +81,12 @@
  * near-black, the paper surfaces step up from it rather than down, and each
  * accent is lifted until it carries the same meaning at the same strength.
  * The tokens keep their names, so no component knows which scheme it is in.
+ *
+ * The OS decides unless the reader picked Light or Dark in the top bar, which
+ * sets `data-theme` on the html element.
  */
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme="light"]) {
     --color-ground: #121210;
     --color-surface: #1b1b18;
     --color-surface-raised: #222220;
@@ -99,6 +111,37 @@
     --color-neutral-wash: #2b2b27;
     --color-on-pr: #10231f;
   }
+}
+
+/*
+ * The same dark tokens again for a reader who picked Dark whatever their OS
+ * says. CSS cannot share one block between a media query and a selector, so
+ * palette.test.ts checks the two copies stay identical.
+ */
+:root[data-theme="dark"] {
+  --color-ground: #121210;
+  --color-surface: #1b1b18;
+  --color-surface-raised: #222220;
+  --color-surface-sunken: #2a2a27;
+  --color-hairline: #34342f;
+  --color-hairline-soft: #2a2a26;
+  --color-ink: #edece6;
+  --color-ink-soft: #c7c5bd;
+  --color-ink-muted: #a5a29a;
+  --color-ink-faint: #8a8880;
+  --color-bar: #0c0d0b;
+  --color-bar-ink: #e7e5dd;
+  --color-bar-ink-muted: #9c9a91;
+  --color-bar-active: #2f3129;
+  --color-pr: #62b8a5;
+  --color-pr-strong: #8ed4c2;
+  --color-issue: #de8f5f;
+  --color-issue-strong: #efaf86;
+  --color-running: #d7a94e;
+  --color-pr-wash: #1e3b34;
+  --color-issue-wash: #3a2418;
+  --color-neutral-wash: #2b2b27;
+  --color-on-pr: #10231f;
 }
 
 /*

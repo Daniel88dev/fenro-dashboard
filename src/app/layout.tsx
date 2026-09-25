@@ -1,5 +1,13 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { cookies } from "next/headers";
+
+import {
+  parseTheme,
+  THEME_COOKIE,
+  themeAttribute,
+} from "@/modules/github-insights/ui/theme";
+
 import "./globals.css";
 
 const geistSans = Geist({
@@ -21,11 +29,20 @@ export const metadata: Metadata = {
 /**
  * `modal` is the slot the task dialogs render into: a task or New task
  * opened from inside the app shows over the page it was opened from.
+ *
+ * The saved colour scheme is set on the html element here, on the server, so
+ * the first paint is already in the scheme the reader picked.
  */
-export default function RootLayout({ children, modal }: LayoutProps<"/">) {
+export default async function RootLayout({
+  children,
+  modal,
+}: LayoutProps<"/">) {
+  const theme = parseTheme((await cookies()).get(THEME_COOKIE)?.value);
+
   return (
     <html
       lang="en"
+      data-theme={themeAttribute(theme)}
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="flex min-h-full flex-col">
