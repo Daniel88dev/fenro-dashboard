@@ -90,6 +90,32 @@ describe("repository-rows", () => {
     });
   });
 
+  it("puts pinned repositories first, alphabetical within each group", async () => {
+    const { repositories, insights } = setUp();
+    for (const fullName of ["nordwind/docs-site", "nordwind/billing-core"]) {
+      const repository = await repositories.findByCoordinates(
+        daniel.id,
+        unwrap(RepositoryCoordinates.parse(fullName)),
+      );
+      repository!.pin(now);
+      unwrap(await repositories.save(repository!));
+    }
+
+    const rows = unwrap(
+      await new RepositoryRowsHandler(repositories, insights, () => now).handle(
+        repositoryRowsQuery(daniel),
+      ),
+    );
+
+    expect(rows.map((row) => [`${row.owner}/${row.name}`, row.pinned])).toEqual(
+      [
+        ["nordwind/billing-core", true],
+        ["nordwind/docs-site", true],
+        ["Daniel88dev/brand-new", false],
+      ],
+    );
+  });
+
   it("flags rows an hour stale, or never synced, for a refresh", async () => {
     const { repositories, insights } = setUp();
 

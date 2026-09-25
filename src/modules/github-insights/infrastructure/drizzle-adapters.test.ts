@@ -58,6 +58,7 @@ describe.skipIf(!url)("Postgres adapters", () => {
       );
       unwrap(watched.startSync("manual", t0));
       watched.failSync("GitHub's rate limit is used up.", t0, "rate-limited");
+      watched.pin(t0);
       unwrap(await repositories.save(watched));
 
       const [restored] = await new DrizzleWatchedRepositoryRepository(
@@ -72,6 +73,7 @@ describe.skipIf(!url)("Postgres adapters", () => {
       );
       expect(restored?.sync.isRateLimited).toBe(true);
       expect(restored?.sync.startedAt).toBeNull();
+      expect(restored?.pinnedAt).toEqual(t0);
     });
 
     it("finds a repository whatever case it is asked for in", async () => {

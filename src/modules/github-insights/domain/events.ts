@@ -48,3 +48,27 @@ export class RepositorySyncFailed extends BaseDomainEvent {
     super(aggregateId, occurredAt);
   }
 }
+
+export class RepositoryPinned extends BaseDomainEvent {
+  readonly name = "github-insights.repository-pinned";
+
+  constructor(
+    aggregateId: string,
+    readonly fullName: string,
+    occurredAt?: Date,
+  ) {
+    super(aggregateId, occurredAt);
+  }
+}
+
+export class RepositoryUnpinned extends BaseDomainEvent {
+  readonly name = "github-insights.repository-unpinned";
+
+  constructor(
+    aggregateId: string,
+    readonly fullName: string,
+    occurredAt?: Date,
+  ) {
+    super(aggregateId, occurredAt);
+  }
+}

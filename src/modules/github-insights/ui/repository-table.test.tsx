@@ -30,6 +30,7 @@ function row(overrides: Partial<RepositoryRowView> = {}): RepositoryRowView {
     id: "row-1",
     owner: "nordwind",
     name: "billing-core",
+    pinned: false,
     lastActivityAt: new Date("2026-09-20T11:34:00Z"),
     syncFailure: null,
     rateLimited: false,
@@ -53,6 +54,32 @@ function row(overrides: Partial<RepositoryRowView> = {}): RepositoryRowView {
 }
 
 describe("RepositoryTable", () => {
+  it("marks a pinned row with a pressed pin that unpins it", () => {
+    const pinAction = vi.fn(async () => {});
+    render(
+      <RepositoryTable
+        rows={[row({ pinned: true })]}
+        now={now}
+        pinAction={pinAction}
+      />,
+    );
+
+    expect(
+      screen.getByRole("button", { name: "Unpin nordwind/billing-core" }),
+    ).toHaveAttribute("aria-pressed", "true");
+  });
+
+  it("offers to pin a row that is not pinned", () => {
+    const pinAction = vi.fn(async () => {});
+    render(<RepositoryTable rows={[row()]} now={now} pinAction={pinAction} />);
+
+    expect(
+      screen.getByRole("button", {
+        name: "Pin nordwind/billing-core to the top",
+      }),
+    ).toHaveAttribute("aria-pressed", "false");
+  });
+
   it("shows a row per repository with its counts and hints", () => {
     render(<RepositoryTable rows={[row()]} now={now} />);
 

@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 
 import { CountToggle } from "./count-toggle";
 import { formatAbsolute, formatRelativeTime } from "./format";
+import { PinButton } from "./pin-button";
 import { RowMenu } from "./row-menu";
 import { RowSyncIndicator, SyncProgressBar } from "./sync-status";
 
@@ -19,6 +20,8 @@ export type RepositoryRowView = {
   readonly id: string;
   readonly owner: string;
   readonly name: string;
+  /** Pinned rows come first; the screen has already put them there. */
+  readonly pinned: boolean;
   readonly lastActivityAt: Date | null;
   /** Why the latest sync failed, while the counts are from an older one. */
   readonly syncFailure: string | null;
@@ -46,12 +49,14 @@ const GRID =
 export function RepositoryTable({
   rows,
   now,
+  pinAction,
   unwatchAction,
   emptyAction,
   filteredOut = false,
 }: {
   rows: readonly RepositoryRowView[];
   now: Date;
+  pinAction?: (formData: FormData) => Promise<void>;
   unwatchAction?: (formData: FormData) => Promise<void>;
   /** The Add repositories control, shown when nothing is watched yet. */
   emptyAction?: ReactNode;
@@ -109,6 +114,14 @@ export function RepositoryTable({
                   <span className="text-ink truncate font-mono text-[14.5px] font-medium">
                     {row.name}
                   </span>
+                  {pinAction ? (
+                    <PinButton
+                      owner={row.owner}
+                      name={row.name}
+                      pinned={row.pinned}
+                      pinAction={pinAction}
+                    />
+                  ) : null}
                   <RowSyncIndicator
                     repositoryId={row.id}
                     fullName={`${row.owner}/${row.name}`}
@@ -162,6 +175,8 @@ export function RepositoryTable({
                 <RowMenu
                   owner={row.owner}
                   name={row.name}
+                  pinned={row.pinned}
+                  pinAction={pinAction}
                   unwatchAction={unwatchAction}
                 />
               </div>

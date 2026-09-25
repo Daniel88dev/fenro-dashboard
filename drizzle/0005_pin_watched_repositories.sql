@@ -1,0 +1,1 @@
+ALTER TABLE "github_watched_repository" ADD COLUMN "pinned_at" timestamp with time zone;

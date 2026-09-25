@@ -8,8 +8,10 @@ import {
 
 import type { SyncRefused } from "./errors";
 import {
+  RepositoryPinned,
   RepositorySynced,
   RepositorySyncFailed,
+  RepositoryUnpinned,
   RepositoryUnwatched,
   RepositoryWatched,
 } from "./events";
@@ -46,10 +48,22 @@ type Props = {
  */
 export class WatchedRepository extends AggregateRoot<Props> {
   #sync: SyncState;
+  /**
+   * When its watcher pinned it to the top of their table, or `null`. A time
+   * rather than a flag, so ordering pins by when they were made needs no
+   * migration.
+   */
+  #pinnedAt: Date | null;
 
-  private constructor(id: UniqueId, props: Props, sync: SyncState) {
+  private constructor(
+    id: UniqueId,
+    props: Props,
+    sync: SyncState,
+    pinnedAt: Date | null,
+  ) {
     super(id, props);
     this.#sync = sync;
+    this.#pinnedAt = pinnedAt;
   }
 
   static watch(
@@ -61,6 +75,7 @@ export class WatchedRepository extends AggregateRoot<Props> {
       UniqueId.create(),
       { watcherId, coordinates, watchedAt },
       SyncState.never(),
+      null,
     );
     repository.record(
       new RepositoryWatched(
@@ -77,8 +92,9 @@ export class WatchedRepository extends AggregateRoot<Props> {
     id: UniqueId,
     props: Props,
     sync: SyncState = SyncState.never(),
+    pinnedAt: Date | null = null,
   ): WatchedRepository {
-    return new WatchedRepository(id, props, sync);
+    return new WatchedRepository(id, props, sync, pinnedAt);
   }
 
   unwatch(unwatchedAt: Date): void {
@@ -87,6 +103,31 @@ export class WatchedRepository extends AggregateRoot<Props> {
         this.id.value,
         this.props.coordinates.fullName,
         unwatchedAt,
+      ),
+    );
+  }
+
+  /** Pinning a pinned repository keeps the time it was first pinned. */
+  pin(pinnedAt: Date): void {
+    if (this.#pinnedAt) return;
+    this.#pinnedAt = pinnedAt;
+    this.record(
+      new RepositoryPinned(
+        this.id.value,
+        this.props.coordinates.fullName,
+        pinnedAt,
+      ),
+    );
+  }
+
+  unpin(unpinnedAt: Date): void {
+    if (!this.#pinnedAt) return;
+    this.#pinnedAt = null;
+    this.record(
+      new RepositoryUnpinned(
+        this.id.value,
+        this.props.coordinates.fullName,
+        unpinnedAt,
       ),
     );
   }
@@ -129,6 +170,14 @@ export class WatchedRepository extends AggregateRoot<Props> {
 
   get watchedAt(): Date {
     return this.props.watchedAt;
+  }
+
+  get pinnedAt(): Date | null {
+    return this.#pinnedAt;
+  }
+
+  get isPinned(): boolean {
+    return this.#pinnedAt !== null;
   }
 
   get sync(): SyncState {

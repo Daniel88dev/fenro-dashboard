@@ -126,6 +126,8 @@ export class DrizzleWatchedRepositoryRepository implements WatchedRepositoryRepo
         lastFailureKind: failureKind(row.lastSyncFailureKind),
         startedAt: row.syncStartedAt,
       }),
+
+      row.pinnedAt,
     );
     this.#loadedVersions.set(repository, row.version);
     return repository;
@@ -140,6 +142,7 @@ function toValues(repository: WatchedRepository) {
     owner: repository.coordinates.owner,
     name: repository.coordinates.name,
     watchedAt: repository.watchedAt,
+    pinnedAt: repository.pinnedAt,
     lastSyncedAt: sync.lastSyncedAt,
     lastSyncAttemptedAt: sync.lastAttemptedAt,
     lastSyncFailure: sync.lastFailure,
