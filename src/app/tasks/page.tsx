@@ -4,9 +4,11 @@ import { DashboardChrome } from "@/modules/github-insights/ui/dashboard-chrome";
 import { TaskLoading } from "@/modules/tasks/ui/task-loading";
 import { SignInPanel } from "@/modules/identity/ui/sign-in-panel";
 import type { ListTasksQuery } from "@/modules/tasks/application/queries/list-tasks";
+import { listLabelsQuery } from "@/modules/tasks/application/queries/list-labels";
 import { listTasksQuery } from "@/modules/tasks/application/queries/list-tasks";
 import {
   isTaskView,
+  parseLabelsParam,
   TASK_VIEWS,
   TaskList,
   type TaskListFilter,
@@ -61,6 +63,7 @@ async function TasksScreen({
     view: isTaskView(params.view) ? params.view : "open",
     repository: one(params.repository),
     text: one(params.q),
+    labels: parseLabelsParam(one(params.labels)),
   };
 
   const { container, ownerId } = await tasksContext();
@@ -76,9 +79,11 @@ async function TasksScreen({
   const scope = {
     repository: filter.repository || undefined,
     text: filter.text || undefined,
+    labels: filter.labels,
   };
   // One small count per tab, asked alongside the list itself.
-  const [list, ...totals] = await Promise.all([
+  const [labels, list, ...totals] = await Promise.all([
+    container.queryBus.ask(listLabelsQuery(ownerId)),
     container.queryBus.ask(
       listTasksQuery(ownerId, {
         ...VIEW_FILTERS[filter.view],
@@ -95,5 +100,7 @@ async function TasksScreen({
   const counts = Object.fromEntries(
     TASK_VIEWS.map(({ view }, index) => [view, totals[index]!.total]),
   );
-  return <TaskList list={list} filter={filter} counts={counts} />;
+  return (
+    <TaskList list={list} filter={filter} counts={counts} labels={labels} />
+  );
 }

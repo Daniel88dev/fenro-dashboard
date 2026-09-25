@@ -5,6 +5,7 @@ import { Suspense } from "react";
 import { DashboardChrome } from "@/modules/github-insights/ui/dashboard-chrome";
 import { TaskLoading } from "@/modules/tasks/ui/task-loading";
 import { SignInPanel } from "@/modules/identity/ui/sign-in-panel";
+import { listLabelsQuery } from "@/modules/tasks/application/queries/list-labels";
 import { NewTaskForm } from "@/modules/tasks/ui/task-forms";
 
 import { signInWithGitHubAction } from "../../sign-in/actions";
@@ -46,7 +47,7 @@ async function NewTaskScreen({
 }) {
   const params = await searchParams;
 
-  const { ownerId } = await tasksContext();
+  const { container, ownerId } = await tasksContext();
   if (!ownerId) {
     return (
       <SignInPanel
@@ -80,6 +81,7 @@ async function NewTaskScreen({
       <NewTaskForm
         action={TASK_ACTIONS.create}
         defaults={newTaskDefaults(params)}
+        labels={await container.queryBus.ask(listLabelsQuery(ownerId))}
         cancel={
           <Link
             href="/tasks"

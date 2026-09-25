@@ -6,6 +6,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 
 import {
   ExternalReference,
+  Label,
   RepositoryReference,
   Task,
   type Actor,
@@ -16,6 +17,7 @@ import { getEnv } from "@/shared/config/env";
 import { isErr, isOk, unwrap } from "@/shared/domain";
 import type { Database } from "@/shared/infrastructure/database/client";
 
+import { DrizzleLabelRepository } from "./drizzle-label.repository";
 import { DrizzleTaskReadStore } from "./drizzle-task.read-store";
 import { DrizzleTaskRepository } from "./drizzle-task.repository";
 import { taskJournalEntry } from "./persistence/schema";
@@ -67,7 +69,7 @@ describe.skipIf(!url)("Postgres tasks adapters", () => {
   });
 
   beforeEach(async () => {
-    await db.execute(sql`truncate task cascade`);
+    await db.execute(sql`truncate task, task_label cascade`);
   });
 
   afterAll(async () => {
@@ -436,6 +438,39 @@ describe.skipIf(!url)("Postgres tasks adapters", () => {
         { kind: "blocked-by", taskId: task.id.value },
       ]);
       expect(blockerDetail.links).toEqual([]);
+    });
+  });
+
+  describe("DrizzleLabelRepository", () => {
+    const aLabel = (name: string, ownerId = "user-1") =>
+      unwrap(
+        Label.create({
+          id: crypto.randomUUID(),
+          ownerId,
+          name,
+          colour: "teal",
+          now: t0,
+        }),
+      );
+
+    it("keeps one label per name per owner, and lists each owner's own", async () => {
+      const labels = new DrizzleLabelRepository(db);
+      unwrap(await labels.save(aLabel("bug")));
+      unwrap(await labels.save(aLabel("docs")));
+      unwrap(await labels.save(aLabel("bug", "user-2")));
+
+      const twice = await labels.save(aLabel("bug"));
+      expect(isErr(twice) && twice.error.code).toBe("label-exists");
+
+      const found = await labels.all("user-1");
+      expect(found.map((label) => [label.name, label.colour])).toEqual([
+        ["bug", "teal"],
+        ["docs", "teal"],
+      ]);
+      expect(await new DrizzleTaskReadStore(db).labels("user-1")).toEqual([
+        { name: "bug", colour: "teal" },
+        { name: "docs", colour: "teal" },
+      ]);
     });
   });
 

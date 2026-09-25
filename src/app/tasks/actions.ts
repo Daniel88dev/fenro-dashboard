@@ -69,7 +69,7 @@ const lines = (formData: FormData, key: string) =>
     .map((line) => line.trim())
     .filter(Boolean);
 
-/** Keys or labels typed as "T-3, T-7". */
+/** Keys typed as "T-3, T-7". */
 const list = (formData: FormData, key: string) =>
   text(formData, key)
     .split(/[,\s]+/)
@@ -108,7 +108,7 @@ export async function createTaskAction(
     priority: PRIORITIES.includes(priority as Priority)
       ? (priority as Priority)
       : undefined,
-    labels: list(formData, "labels"),
+    labels: labelsOf(formData),
     repository: text(formData, "repository") || undefined,
     parent: text(formData, "parent") || undefined,
     criteria: lines(formData, "criteria"),
@@ -150,10 +150,38 @@ export async function updateTaskAction(
     priority: PRIORITIES.includes(priority as Priority)
       ? (priority as Priority)
       : undefined,
-    labels: list(formData, "labels"),
     repository: text(formData, "repository") || null,
   };
   return answer(state, await container.commandBus.dispatch(command), task);
+}
+
+/** The label picker's pick: one `labels` field per name. */
+const labelsOf = (formData: FormData) =>
+  formData
+    .getAll("labels")
+    .map((value) => String(value).trim())
+    .filter(Boolean);
+
+/** Replaces a task's labels; names not in the owner's labels are added. */
+export async function setLabelsAction(
+  state: TaskFormState,
+  formData: FormData,
+): Promise<TaskFormState> {
+  const session = await signedIn();
+  if (!session) return { error: SIGNED_OUT, saved: state.saved };
+  const { ownerId, actor, container } = session;
+
+  const task = text(formData, "task");
+  const command: UpdateTaskCommand = {
+    type: "tasks.update-task",
+    ownerId,
+    actor,
+    task,
+    labels: labelsOf(formData),
+  };
+  const outcome = await container.commandBus.dispatch(command);
+  if (outcome.ok) revalidatePath("/tasks");
+  return answer(state, outcome, task);
 }
 
 /** Adds criteria, attaches a link, or detaches one: the smaller edits. */

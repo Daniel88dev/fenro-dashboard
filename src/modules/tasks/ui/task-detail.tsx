@@ -27,8 +27,10 @@ import {
   EditTaskForm,
   InlineForm,
   NoteForm,
+  TaskLabelsForm,
   type TaskActions,
 } from "./task-forms";
+import { LabelChips, type LabelOption } from "./labels";
 import { LiveDot } from "./task-list";
 import { InlineMarkdown, Markdown } from "./markdown";
 import { STATE_TONES, taskHref } from "./task-state";
@@ -72,8 +74,20 @@ function isOpen(task: TaskBrief): boolean {
   return task.status !== "done" && task.status !== "cancelled";
 }
 
-/** The chips under a task's title: state, priority, repository, labels. */
-export function TaskChips({ task }: { task: TaskBrief }) {
+/**
+ * The chips under a task's title: state, priority, repository, labels. With
+ * actions, the labels can be changed right there.
+ */
+export function TaskChips({
+  task,
+  labels = [],
+  actions,
+}: {
+  task: TaskBrief;
+  /** The owner's labels: their colours, and what the picker offers. */
+  labels?: readonly LabelOption[];
+  actions?: TaskActions;
+}) {
   return (
     <div className="flex flex-wrap items-center gap-1.5">
       <Chip tone={STATE_TONES[task.state]}>{task.state}</Chip>
@@ -85,9 +99,16 @@ export function TaskChips({ task }: { task: TaskBrief }) {
           <span className="font-mono">{task.repository}</span>
         </Chip>
       ) : null}
-      {task.labels.map((label) => (
-        <Chip key={label}>{label}</Chip>
-      ))}
+      {actions ? (
+        <TaskLabelsForm
+          action={actions.labels}
+          task={task.key}
+          labels={task.labels}
+          catalogue={labels}
+        />
+      ) : (
+        <LabelChips names={task.labels} catalogue={labels} />
+      )}
     </div>
   );
 }
@@ -529,9 +550,12 @@ export function HoldNotice({ task }: { task: TaskBrief }) {
 export function TaskDetail({
   task,
   actions,
+  labels = [],
 }: {
   task: TaskBrief;
   actions: TaskActions;
+  /** The owner's labels. */
+  labels?: readonly LabelOption[];
 }) {
   const { key } = task;
   const open = isOpen(task);
@@ -597,7 +621,7 @@ export function TaskDetail({
               </span>
               {task.title}
             </h1>
-            <TaskChips task={task} />
+            <TaskChips task={task} labels={labels} actions={actions} />
           </div>
           <StatusActions task={task} actions={actions} />
         </div>

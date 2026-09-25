@@ -2,6 +2,7 @@ import { McpServer, type CallToolResult } from "@modelcontextprotocol/server";
 import { z } from "zod";
 
 import type { ChangeStatusCommand } from "@/modules/tasks/application/commands/change-status";
+import type { CreateLabelCommand } from "@/modules/tasks/application/commands/create-label";
 import type { CheckCriterionCommand } from "@/modules/tasks/application/commands/check-criterion";
 import type { CreateTaskCommand } from "@/modules/tasks/application/commands/create-task";
 import type { FinishSessionCommand } from "@/modules/tasks/application/commands/finish-session";
@@ -9,10 +10,16 @@ import type { LinkTasksCommand } from "@/modules/tasks/application/commands/link
 import type { RecordNoteCommand } from "@/modules/tasks/application/commands/record-note";
 import type { StartTaskCommand } from "@/modules/tasks/application/commands/start-task";
 import type { UpdateTaskCommand } from "@/modules/tasks/application/commands/update-task";
+import { listLabelsQuery } from "@/modules/tasks/application/queries/list-labels";
 import { listTasksQuery } from "@/modules/tasks/application/queries/list-tasks";
-import type { TaskBrief } from "@/modules/tasks/application/queries/read-models";
+import type {
+  LabelItem,
+  TaskBrief,
+} from "@/modules/tasks/application/queries/read-models";
 import { taskBriefQuery } from "@/modules/tasks/application/queries/task-brief";
 import {
+  LABEL_COLOURS,
+  normaliseLabelName,
   NOTE_KINDS,
   PRIORITIES,
   SESSION_OUTCOMES,
@@ -50,6 +57,8 @@ The loop:
 5. finish_session with a handoff summary and an outcome: done, in_review (a person must look, e.g. a pull request is open), paused, blocked (say on what), or released (give it back).
 
 A task is not done while it has open sub-tasks or unmet criteria. Tasks are named by key, like T-12.
+
+Labels group tasks, and the person filters their list by them. Reuse the labels list_labels returns before inventing new ones; a name that does not exist yet is created when a task is saved with it.
 
 ${FORMATTING}`;
 
@@ -97,7 +106,10 @@ export function createTasksMcpServer(
         status: z.array(z.enum(TASK_STATUSES)).optional(),
         include_closed: z.boolean().optional(),
         repository: z.string().optional().describe("owner/name"),
-        label: z.string().optional(),
+        labels: z
+          .array(z.string())
+          .optional()
+          .describe("Tasks carrying any of these labels"),
         parent: z.string().optional().describe("Only sub-tasks of this task"),
         text: z.string().optional().describe("Words in the title"),
         limit: z.number().int().min(1).max(100).optional(),
@@ -112,7 +124,7 @@ export function createTasksMcpServer(
             statuses: input.status,
             includeClosed: input.include_closed,
             repository: input.repository,
-            label: input.label,
+            labels: input.labels,
             parent: input.parent,
             text: input.text,
             limit: input.limit,
@@ -137,6 +149,19 @@ export function createTasksMcpServer(
       const found = await brief(task, journal_limit);
       return found.ok ? json(found.value) : refused(found.error);
     },
+  );
+
+  server.registerTool(
+    "list_labels",
+    {
+      title: "List labels",
+      description:
+        "The labels tasks can carry, with each one's colour and how many open tasks carry it. Reuse these names in save_task and list_tasks.",
+      inputSchema: z.object({}),
+      annotations: { readOnlyHint: true, openWorldHint: false },
+    },
+    async () =>
+      json((await queryBus.ask(listLabelsQuery(ownerId))).map(labelOf)),
   );
 
   if (!access.canWrite) return server;
@@ -177,7 +202,22 @@ export function createTasksMcpServer(
         title: z.string().optional(),
         description: z.string().optional().describe(MARKDOWN),
         priority: z.enum(PRIORITIES).optional(),
-        labels: z.array(z.string()).optional().describe("Replaces all labels"),
+        labels: z
+          .array(z.string())
+          .optional()
+          .describe(
+            "Replaces all labels. Names not in list_labels yet are created, in a colour of their own",
+          ),
+        add_labels: z
+          .array(z.string())
+          .optional()
+          .describe(
+            "On update: labels to add, keeping the rest; new names are created",
+          ),
+        remove_labels: z
+          .array(z.string())
+          .optional()
+          .describe("On update: labels to take off"),
         repository: z
           .string()
           .nullable()
@@ -231,6 +271,8 @@ export function createTasksMcpServer(
           description: input.description,
           priority: input.priority,
           labels: input.labels,
+          addLabels: input.add_labels,
+          removeLabels: input.remove_labels,
           repository: input.repository,
           parent: input.parent,
           addCriteria: input.add_criteria,
@@ -257,7 +299,7 @@ export function createTasksMcpServer(
         description: input.description,
         status: input.status,
         priority: input.priority,
-        labels: input.labels,
+        labels: [...(input.labels ?? []), ...(input.add_labels ?? [])],
         repository: input.repository,
         parent: input.parent,
         criteria: input.add_criteria,
@@ -267,6 +309,39 @@ export function createTasksMcpServer(
         discoveredFrom: input.discovered_from,
       };
       return standing(taskId, await commandBus.dispatch(command));
+    },
+  );
+
+  server.registerTool(
+    "create_label",
+    {
+      title: "Create a label",
+      description:
+        "Add a label before any task carries it, or in a colour you choose. Not needed just to label a task: save_task creates unknown names itself. Names are lower-case; spaces become -.",
+      inputSchema: z.object({
+        name: z.string().describe("e.g. bug, needs-review, area:auth"),
+        colour: z
+          .enum(LABEL_COLOURS)
+          .optional()
+          .describe("Left out, the name picks one"),
+      }),
+      annotations: { readOnlyHint: false, destructiveHint: false },
+    },
+    async (input) => {
+      const command: CreateLabelCommand = {
+        type: "tasks.create-label",
+        ownerId,
+        actor,
+        labelId: crypto.randomUUID(),
+        name: input.name,
+        colour: input.colour,
+      };
+      const created = await commandBus.dispatch(command);
+      if (!created.ok) return refused(created.error);
+      const labels = await queryBus.ask(listLabelsQuery(ownerId));
+      const name = normaliseLabelName(input.name);
+      const label = labels.find((candidate) => candidate.name === name);
+      return json(label ? labelOf(label) : { name });
     },
   );
 
@@ -492,11 +567,21 @@ function standingOf(task: TaskBrief) {
     status: task.status,
     state: task.state,
     hold: task.hold?.reason ?? null,
+    labels: task.labels,
     criteria: task.acceptanceCriteria.map(
       (criterion) =>
         `${criterion.met ? "[x]" : "[ ]"} ${criterion.number}. ${criterion.text}`,
     ),
     session: task.session,
+  };
+}
+
+function labelOf(label: LabelItem) {
+  return {
+    name: label.name,
+    colour: label.colour,
+    open_tasks: label.openTasks,
+    tasks: label.tasks,
   };
 }
 

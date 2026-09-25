@@ -1,6 +1,7 @@
 import type {
   ExternalSystem,
   JournalKind,
+  LabelColour,
   LinkKind,
   Priority,
   SessionOutcome,
@@ -17,7 +18,14 @@ export interface TaskReadStore {
   records(ownerId: string): Promise<TaskRecord[]>;
   /** One task in full. */
   detail(ownerId: string, id: string): Promise<TaskDetailRecord | undefined>;
+  /** The owner's label catalogue. */
+  labels(ownerId: string): Promise<LabelRecord[]>;
 }
+
+export type LabelRecord = {
+  readonly name: string;
+  readonly colour: LabelColour;
+};
 
 export type SessionRecord = {
   readonly id: string;

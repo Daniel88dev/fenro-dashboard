@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 
+import { listLabelsQuery } from "@/modules/tasks/application/queries/list-labels";
 import { taskBriefQuery } from "@/modules/tasks/application/queries/task-brief";
 import { RouteDialog } from "@/modules/tasks/ui/route-dialog";
 import { TaskDialogContent } from "@/modules/tasks/ui/task-dialog";
@@ -22,14 +23,21 @@ export default async function TaskDialogPage({
   const { container, ownerId } = await tasksContext();
   if (!ownerId) return null;
 
-  const task = await container.queryBus.ask(
-    taskBriefQuery(ownerId, decodeURIComponent(key), JOURNAL_LIMIT),
-  );
+  const [task, labels] = await Promise.all([
+    container.queryBus.ask(
+      taskBriefQuery(ownerId, decodeURIComponent(key), JOURNAL_LIMIT),
+    ),
+    container.queryBus.ask(listLabelsQuery(ownerId)),
+  ]);
   if (!task.ok) notFound();
 
   return (
     <RouteDialog labelledBy="task-dialog-title" width="sm:w-[920px]">
-      <TaskDialogContent task={task.value} actions={TASK_ACTIONS} />
+      <TaskDialogContent
+        task={task.value}
+        actions={TASK_ACTIONS}
+        labels={labels}
+      />
     </RouteDialog>
   );
 }

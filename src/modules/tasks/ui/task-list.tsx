@@ -9,6 +9,7 @@ import type {
   TaskState,
 } from "@/modules/tasks/application/queries/read-models";
 
+import { colourOf, LabelDot, type LabelOption } from "./labels";
 import { STATE_TONES, taskHref } from "./task-state";
 
 export const TASK_VIEWS = [
@@ -29,12 +30,27 @@ export type TaskListFilter = {
   readonly view: TaskView;
   readonly repository: string;
   readonly text: string;
+  /** Tasks carrying any of these; none means every task. */
+  readonly labels: readonly string[];
 };
+
+/** `labels=bug,docs` in the URL: a label name never holds a comma. */
+export function parseLabelsParam(value: string): string[] {
+  return [
+    ...new Set(
+      value
+        .split(",")
+        .map((name) => name.trim().toLowerCase())
+        .filter(Boolean),
+    ),
+  ];
+}
 
 function hrefFor(filter: TaskListFilter): string {
   const params = new URLSearchParams();
   if (filter.view !== "open") params.set("view", filter.view);
   if (filter.repository) params.set("repository", filter.repository);
+  if (filter.labels.length > 0) params.set("labels", filter.labels.join(","));
   if (filter.text) params.set("q", filter.text);
   const query = params.toString();
   return query ? `/tasks?${query}` : "/tasks";
@@ -74,9 +90,12 @@ export function TaskList({
   list,
   filter,
   counts,
+  labels = [],
 }: {
   list: TaskListResult;
   filter: TaskListFilter;
+  /** The owner's labels, offered as filters. */
+  labels?: readonly LabelOption[];
   /** How many tasks each view holds, for the tabs. */
   counts?: Partial<Record<TaskView, number>>;
 }) {
@@ -161,6 +180,13 @@ export function TaskList({
           {filter.repository ? (
             <input type="hidden" name="repository" value={filter.repository} />
           ) : null}
+          {filter.labels.length > 0 ? (
+            <input
+              type="hidden"
+              name="labels"
+              value={filter.labels.join(",")}
+            />
+          ) : null}
           <MagnifyingGlass
             aria-hidden="true"
             className="text-ink-faint size-[15px] shrink-0"
@@ -185,9 +211,13 @@ export function TaskList({
         </Form>
       </div>
 
+      <LabelFilter filter={filter} labels={labels} />
+
       {list.tasks.length === 0 ? (
         <p className="border-hairline bg-surface text-ink-muted rounded-xl border px-5 py-10 text-center text-[13px]">
-          {filter.text ? "No task matches that search." : EMPTY[filter.view]}
+          {filter.text || filter.labels.length > 0
+            ? `No task matches ${filter.text ? "that search" : "those labels"}.`
+            : EMPTY[filter.view]}
         </p>
       ) : (
         groupsOf(list.tasks).map((group) => (
@@ -207,7 +237,7 @@ export function TaskList({
             <ul className="border-hairline bg-surface divide-hairline-soft m-0 list-none divide-y overflow-hidden rounded-xl border p-0">
               {group.tasks.map((task) => (
                 <li key={task.key}>
-                  <TaskRow task={task} />
+                  <TaskRow task={task} labels={labels} />
                 </li>
               ))}
             </ul>
@@ -232,7 +262,75 @@ const PRIORITY_WORDS: Record<TaskListItem["priority"], string | null> = {
   urgent: "Urgent",
 };
 
-function TaskRow({ task }: { task: TaskListItem }) {
+/**
+ * One pill per label, pressed ones filtering the list to tasks carrying any
+ * of them. The pick lives in the URL beside the view and the search, as the
+ * issue chips on the repository table do.
+ */
+function LabelFilter({
+  filter,
+  labels,
+}: {
+  filter: TaskListFilter;
+  labels: readonly LabelOption[];
+}) {
+  // A label in the URL that no longer exists can still be unpressed.
+  const shown = [
+    ...labels,
+    ...filter.labels
+      .filter((name) => !labels.some((label) => label.name === name))
+      .map((name) => ({ name, colour: colourOf(labels, name) })),
+  ];
+  if (shown.length === 0) return null;
+
+  return (
+    <nav
+      aria-label="Filter by label"
+      className="-mt-1 flex [scrollbar-width:none] items-center gap-1.5 overflow-x-auto md:flex-wrap"
+    >
+      <span className="text-ink-muted shrink-0 pr-1 text-[12px]">Labels</span>
+      {shown.map((label) => {
+        const on = filter.labels.includes(label.name);
+        const next = on
+          ? filter.labels.filter((name) => name !== label.name)
+          : [...filter.labels, label.name];
+        return (
+          <Link
+            key={label.name}
+            href={hrefFor({ ...filter, labels: next })}
+            aria-pressed={on}
+            scroll={false}
+            className={`focus-visible:outline-pr inline-flex h-[26px] shrink-0 items-center gap-1.5 rounded-full border px-2.5 text-[12px] whitespace-nowrap focus-visible:outline-2 focus-visible:outline-offset-1 ${
+              on
+                ? "border-ink bg-ink text-ground font-medium"
+                : "border-hairline bg-surface text-ink-soft hover:border-ink-faint hover:text-ink"
+            }`}
+          >
+            <LabelDot colour={label.colour} />
+            {label.name}
+          </Link>
+        );
+      })}
+      {filter.labels.length > 0 ? (
+        <Link
+          href={hrefFor({ ...filter, labels: [] })}
+          scroll={false}
+          className="text-ink-muted hover:text-ink shrink-0 px-1.5 text-[12px] underline underline-offset-2"
+        >
+          Clear
+        </Link>
+      ) : null}
+    </nav>
+  );
+}
+
+function TaskRow({
+  task,
+  labels,
+}: {
+  task: TaskListItem;
+  labels: readonly LabelOption[];
+}) {
   const priority = PRIORITY_WORDS[task.priority];
   return (
     <Link
@@ -245,7 +343,7 @@ function TaskRow({ task }: { task: TaskListItem }) {
       </span>
       <span className="flex min-w-0 flex-col gap-[3px]">
         <span className="text-ink text-[14px]">{task.title}</span>
-        <Meta task={task} />
+        <Meta task={task} labels={labels} />
       </span>
       <span className="text-ink-soft hidden items-center gap-[7px] text-[12px] md:flex">
         {task.workedOnBy ? (
@@ -266,7 +364,13 @@ function TaskRow({ task }: { task: TaskListItem }) {
 }
 
 /** The facts under a title, spaced apart rather than joined with dots. */
-function Meta({ task }: { task: TaskListItem }) {
+function Meta({
+  task,
+  labels,
+}: {
+  task: TaskListItem;
+  labels: readonly LabelOption[];
+}) {
   const facts: {
     text: string;
     mono?: boolean;
@@ -296,10 +400,21 @@ function Meta({ task }: { task: TaskListItem }) {
   if (task.workedOnBy) {
     facts.push({ text: `${task.workedOnBy} is on it`, narrowOnly: true });
   }
-  if (facts.length === 0) facts.push({ text: "Nothing recorded yet" });
+  if (facts.length === 0 && task.labels.length === 0) {
+    facts.push({ text: "Nothing recorded yet" });
+  }
 
   return (
     <span className="text-ink-muted flex flex-wrap gap-x-3.5 gap-y-0.5 text-[12px]">
+      {task.labels.map((name) => (
+        <span
+          key={`label:${name}`}
+          className="inline-flex items-center gap-1.5"
+        >
+          <LabelDot colour={colourOf(labels, name)} />
+          {name}
+        </span>
+      ))}
       {facts.map((fact) => (
         <span
           key={fact.text}

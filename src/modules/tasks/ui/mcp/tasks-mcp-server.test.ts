@@ -14,6 +14,10 @@ import {
   type CheckCriterionCommand,
 } from "@/modules/tasks/application/commands/check-criterion";
 import {
+  CreateLabelHandler,
+  type CreateLabelCommand,
+} from "@/modules/tasks/application/commands/create-label";
+import {
   CreateTaskHandler,
   type CreateTaskCommand,
 } from "@/modules/tasks/application/commands/create-task";
@@ -38,10 +42,15 @@ import {
   type UpdateTaskCommand,
 } from "@/modules/tasks/application/commands/update-task";
 import {
+  ListLabelsHandler,
+  type ListLabelsQuery,
+} from "@/modules/tasks/application/queries/list-labels";
+import {
   ListTasksHandler,
   type ListTasksQuery,
 } from "@/modules/tasks/application/queries/list-tasks";
 import type {
+  LabelItem,
   TaskBrief,
   TaskList,
 } from "@/modules/tasks/application/queries/read-models";
@@ -65,11 +74,11 @@ function buses() {
   const commandBus = new CommandBus();
   commandBus.register<CreateTaskCommand>(
     "tasks.create-task",
-    new CreateTaskHandler(store, clock),
+    new CreateTaskHandler(store, store, clock),
   );
   commandBus.register<UpdateTaskCommand>(
     "tasks.update-task",
-    new UpdateTaskHandler(store, clock),
+    new UpdateTaskHandler(store, store, clock),
   );
   commandBus.register<StartTaskCommand>(
     "tasks.start-task",
@@ -95,7 +104,15 @@ function buses() {
     "tasks.change-status",
     new ChangeStatusHandler(store, clock),
   );
+  commandBus.register<CreateLabelCommand>(
+    "tasks.create-label",
+    new CreateLabelHandler(store, clock),
+  );
   const queryBus = new QueryBus();
+  queryBus.register<ListLabelsQuery, LabelItem[]>(
+    "tasks.list-labels",
+    new ListLabelsHandler(store),
+  );
   queryBus.register<ListTasksQuery, TaskList>(
     "tasks.list-tasks",
     new ListTasksHandler(store, clock),
@@ -206,10 +223,60 @@ beforeEach(() => {
 });
 
 describe("the tasks MCP server", () => {
+  it("lets an agent label tasks, make labels, and filter by them", async () => {
+    const agentSide = await connect(agent("labeller"));
+
+    // A name nobody made yet is made on the spot, in one call.
+    parse(
+      await agentSide.call("save_task", {
+        title: "Fix sign-in",
+        labels: ["Bug", "area:auth"],
+      }),
+    );
+    const made = parse<{ name: string; colour: string }>(
+      await agentSide.call("create_label", {
+        name: "Needs review",
+        colour: "purple",
+      }),
+    );
+    expect(made).toMatchObject({ name: "needs-review", colour: "purple" });
+    const twice = await agentSide.call("create_label", { name: "bug" });
+    expect(twice.isError).toBe(true);
+    expect(twice.text).toMatch(/^label-exists:/);
+
+    await agentSide.call("save_task", { title: "Write docs" });
+    const updated = parse<{ labels: string[] }>(
+      await agentSide.call("save_task", {
+        task: "T-1",
+        add_labels: ["needs-review"],
+        remove_labels: ["Bug"],
+      }),
+    );
+    expect(updated.labels).toEqual(["area:auth", "needs-review"]);
+
+    const labels = parse<{ name: string; open_tasks: number }[]>(
+      await agentSide.call("list_labels"),
+    );
+    expect(labels.map((label) => [label.name, label.open_tasks])).toEqual([
+      ["area:auth", 1],
+      ["bug", 0],
+      ["needs-review", 1],
+    ]);
+
+    const filtered = parse<TaskList>(
+      await agentSide.call("list_tasks", { labels: ["needs-review", "bug"] }),
+    );
+    expect(keys(filtered)).toEqual(["T-1"]);
+  });
+
   it("offers only the reading tools to a read-only token", async () => {
     const reader = await connect(agent("reader", false));
 
-    expect(await reader.tools()).toEqual(["list_tasks", "get_task"]);
+    expect(await reader.tools()).toEqual([
+      "list_tasks",
+      "get_task",
+      "list_labels",
+    ]);
   });
 
   it("carries an agent through the loop: plan, claim, record, hand off", async () => {

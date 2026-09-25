@@ -5,6 +5,7 @@ import {
   CloseDialogButton,
   RouteDialog,
 } from "@/modules/tasks/ui/route-dialog";
+import { listLabelsQuery } from "@/modules/tasks/application/queries/list-labels";
 import { NewTaskForm } from "@/modules/tasks/ui/task-forms";
 
 import { newTaskDefaults } from "../../../tasks/new/defaults";
@@ -18,11 +19,12 @@ import { TASK_ACTIONS } from "../../../tasks/task-actions";
 export default async function NewTaskDialogPage({
   searchParams,
 }: PageProps<"/tasks/new">) {
-  const { ownerId } = await tasksContext();
+  const { container, ownerId } = await tasksContext();
   if (!ownerId) return null;
 
   const params = await searchParams;
   const defaults = newTaskDefaults(params);
+  const labels = await container.queryBus.ask(listLabelsQuery(ownerId));
   const query = new URLSearchParams(
     Object.entries({
       repository: defaults.repository,
@@ -68,6 +70,7 @@ export default async function NewTaskDialogPage({
         <NewTaskForm
           action={TASK_ACTIONS.create}
           defaults={defaults}
+          labels={labels}
           variant="dialog"
           cancel={<CancelDialogButton />}
         />

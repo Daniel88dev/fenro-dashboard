@@ -147,3 +147,22 @@ export const taskJournalEntry = pgTable(
     index("task_journal_entry_task_idx").on(table.taskId, table.recordedAt),
   ],
 );
+
+/**
+ * Each person's label catalogue. Tasks carry label names in `task.labels`
+ * rather than ids: the name is unique per owner, and it is what agents,
+ * filters and URLs use.
+ */
+export const taskLabel = pgTable(
+  "task_label",
+  {
+    id: text("id").primaryKey(),
+    ownerId: text("owner_id").notNull(),
+    name: text("name").notNull(),
+    colour: text("colour").notNull(),
+    createdAt: instant("created_at").notNull(),
+  },
+  (table) => [
+    uniqueIndex("task_label_owner_name_idx").on(table.ownerId, table.name),
+  ],
+);

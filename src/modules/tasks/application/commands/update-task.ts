@@ -1,6 +1,8 @@
 import {
+  normaliseLabelName,
   RepositoryReference,
   taskError,
+  type LabelRepository,
   type Priority,
   type TaskEdit,
   type TaskError,
@@ -9,6 +11,7 @@ import {
 import type { CommandHandler } from "@/shared/application";
 import { err, ok, type Result } from "@/shared/domain";
 
+import { ensureLabels } from "./create-label";
 import { parseReferences, type ReferenceInput } from "./create-task";
 import {
   changeTask,
@@ -27,7 +30,14 @@ export type UpdateTaskCommand = TaskCommand<"tasks.update-task"> & {
   readonly title?: string;
   readonly description?: string;
   readonly priority?: Priority;
+  /**
+   * Replaces every label. Names the owner has no label for yet are added to
+   * their labels, here and in `addLabels`.
+   */
   readonly labels?: readonly string[];
+  /** Applied after `labels`, so an agent need not repeat what is there. */
+  readonly addLabels?: readonly string[];
+  readonly removeLabels?: readonly string[];
   readonly repository?: string | null;
   readonly parent?: TaskReference | null;
   readonly addCriteria?: readonly string[];
@@ -40,6 +50,7 @@ export type UpdateTaskCommand = TaskCommand<"tasks.update-task"> & {
 export class UpdateTaskHandler implements CommandHandler<UpdateTaskCommand> {
   constructor(
     private readonly tasks: TaskRepository,
+    private readonly labels: LabelRepository,
     private readonly clock: () => Date,
   ) {}
 
@@ -50,7 +61,6 @@ export class UpdateTaskHandler implements CommandHandler<UpdateTaskCommand> {
       title: command.title,
       description: command.description,
       priority: command.priority,
-      labels: command.labels,
     };
     if (command.repository !== undefined) {
       if (command.repository === null) {
@@ -80,8 +90,18 @@ export class UpdateTaskHandler implements CommandHandler<UpdateTaskCommand> {
       async (task, graph) => {
         const now = this.clock();
 
-        const edited = task.edit(edit, actor, now);
+        const labels = labelsAfter(task.state.labels, command);
+        const edited = task.edit({ ...edit, labels }, actor, now);
         if (!edited.ok) return edited;
+        if (labels !== undefined) {
+          const labelled = await ensureLabels(
+            this.labels,
+            ownerId,
+            task.state.labels,
+            now,
+          );
+          if (!labelled.ok) return labelled;
+        }
 
         if (parentId !== undefined && parentId !== task.parentId) {
           if (
@@ -116,4 +136,19 @@ export class UpdateTaskHandler implements CommandHandler<UpdateTaskCommand> {
       },
     );
   }
+}
+
+/** The names a task ends up with, or `undefined` when labels are untouched. */
+function labelsAfter(
+  current: readonly string[],
+  command: UpdateTaskCommand,
+): readonly string[] | undefined {
+  const { labels, addLabels, removeLabels } = command;
+  if (labels === undefined && !addLabels?.length && !removeLabels?.length) {
+    return undefined;
+  }
+  const removed = new Set((removeLabels ?? []).map(normaliseLabelName));
+  return [...(labels ?? current), ...(addLabels ?? [])].filter(
+    (name) => !removed.has(normaliseLabelName(name)),
+  );
 }

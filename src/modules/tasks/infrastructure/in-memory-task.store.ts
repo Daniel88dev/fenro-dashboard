@@ -1,14 +1,18 @@
 import type {
+  LabelRecord,
   SessionRecord,
   TaskDetailRecord,
   TaskReadStore,
   TaskRecord,
 } from "@/modules/tasks/application/ports/task-read-store";
 import {
+  Label,
+  labelExists,
   Task,
   TaskGraph,
   taskError,
   type JournalEntry,
+  type LabelRepository,
   type Session,
   type TaskError,
   type TaskRepository,
@@ -31,8 +35,11 @@ type Stored = {
  * Postgres adapter does, so a handler that forgets to save — or saves over a
  * newer copy — fails here too.
  */
-export class InMemoryTaskStore implements TaskRepository, TaskReadStore {
+export class InMemoryTaskStore
+  implements TaskRepository, TaskReadStore, LabelRepository
+{
   readonly #tasks = new Map<string, Stored>();
+  readonly #labels: Label[] = [];
   readonly #journal: (JournalEntry & { taskId: string })[] = [];
   readonly #loadedVersions = new WeakMap<Task, number>();
 
@@ -74,7 +81,7 @@ export class InMemoryTaskStore implements TaskRepository, TaskReadStore {
     );
   }
 
-  async save(task: Task): Promise<Result<void, TaskError>> {
+  async #saveTask(task: Task): Promise<Result<void, TaskError>> {
     const loaded = this.#loadedVersions.get(task);
     const current = this.#tasks.get(task.id.value);
     const numberTaken = [...this.#tasks.values()].some(
@@ -112,7 +119,39 @@ export class InMemoryTaskStore implements TaskRepository, TaskReadStore {
     return ok(undefined);
   }
 
+  // --- LabelRepository ---------------------------------------------------------
+
+  async all(ownerId: string): Promise<Label[]> {
+    return this.#labels.filter((label) => label.ownerId === ownerId);
+  }
+
+  async save(label: Label): Promise<Result<void, TaskError>>;
+  async save(task: Task): Promise<Result<void, TaskError>>;
+  async save(item: Task | Label): Promise<Result<void, TaskError>> {
+    return item instanceof Label ? this.#saveLabel(item) : this.#saveTask(item);
+  }
+
+  #saveLabel(label: Label): Result<void, TaskError> {
+    if (
+      this.#labels.some(
+        (other) => other.ownerId === label.ownerId && other.name === label.name,
+      )
+    ) {
+      return err(labelExists(label.name));
+    }
+    this.#labels.push(label);
+    label.pullDomainEvents();
+    return ok(undefined);
+  }
+
   // --- TaskReadStore -----------------------------------------------------------
+
+  async labels(ownerId: string): Promise<LabelRecord[]> {
+    return this.#labels
+      .filter((label) => label.ownerId === ownerId)
+      .map((label) => ({ name: label.name, colour: label.colour }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }
 
   async records(ownerId: string): Promise<TaskRecord[]> {
     return this.#owned(ownerId).map((task) => this.#record(task));

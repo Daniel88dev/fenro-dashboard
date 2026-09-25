@@ -18,7 +18,9 @@ export type TaskErrorCode =
   | "invalid-transition"
   | "dependency-cycle"
   | "no-live-session"
-  | "concurrent-modification";
+  | "concurrent-modification"
+  | "invalid-label"
+  | "label-exists";
 
 export type TaskError = {
   readonly code: TaskErrorCode;
