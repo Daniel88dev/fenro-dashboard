@@ -30,6 +30,7 @@ import {
   type TaskActions,
 } from "./task-forms";
 import { LiveDot } from "./task-list";
+import { InlineMarkdown, Markdown } from "./markdown";
 import { STATE_TONES, taskHref } from "./task-state";
 
 const DATE = new Intl.DateTimeFormat("en", {
@@ -238,9 +239,9 @@ export function HandoffCard({ entry }: { entry: JournalItem | null }) {
             {when(entry.recordedAt)}
           </span>
         </span>
-        <p className="text-ink text-[14px] leading-relaxed wrap-break-word whitespace-pre-wrap">
+        <Markdown className="text-ink text-[14px] leading-relaxed">
           {entry.text}
-        </p>
+        </Markdown>
       </li>
     </ol>
   );
@@ -315,7 +316,14 @@ export function CriteriaList({
               <CriterionForm
                 action={actions.checkCriterion}
                 task={task.key}
-                {...criterion}
+                number={criterion.number}
+                met={criterion.met}
+                text={<InlineMarkdown>{criterion.text}</InlineMarkdown>}
+                evidence={
+                  criterion.evidence ? (
+                    <InlineMarkdown>{criterion.evidence}</InlineMarkdown>
+                  ) : null
+                }
               />
             </li>
           ))}
@@ -350,9 +358,9 @@ function JournalEntry({ entry }: { entry: JournalItem }) {
           {entry.session ? `, session ${entry.session}` : ""},{" "}
           {when(entry.recordedAt)}
         </span>
-        <p className="text-ink text-[13px] leading-relaxed wrap-break-word whitespace-pre-wrap">
+        <Markdown className="text-ink text-[13px] leading-relaxed">
           {entry.text}
-        </p>
+        </Markdown>
       </div>
     </li>
   );
@@ -603,9 +611,9 @@ export function TaskDetail({
           <div className="flex flex-col gap-6">
             <Section title="Description">
               {task.description ? (
-                <p className="text-ink max-w-[68ch] text-[13.5px] leading-relaxed wrap-break-word whitespace-pre-wrap">
+                <Markdown className="text-ink max-w-[72ch] text-[13.5px] leading-relaxed">
                   {task.description}
-                </p>
+                </Markdown>
               ) : (
                 <Empty>No description yet.</Empty>
               )}

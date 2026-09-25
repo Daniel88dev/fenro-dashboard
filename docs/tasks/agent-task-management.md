@@ -157,6 +157,39 @@ optional `repository` (`owner/name`) that narrows the ready queue to that
 repository's tasks, and is offered only to tokens that can write, since it
 claims a task. In Claude Code it shows up as `/mcp__<server>__work_on_next_task`.
 
+### Text format: GitHub-flavoured Markdown _(2026-09-25)_
+
+Descriptions, journal notes, handoff summaries, acceptance criteria and their
+evidence are stored exactly as written and rendered as GitHub-flavoured
+Markdown on the task page and dialog. Rendering is a read-side concern in
+`src/modules/tasks/ui/markdown.tsx`; the domain keeps plain strings, and the
+MCP tools return them unchanged, so an agent reads back what it wrote.
+
+Why Markdown rather than HTML, a block JSON (Jira's ADF, Notion blocks) or
+plain text:
+
+- Agents write it unprompted, and it is what the tools they already use take:
+  GitHub issues and PRs, Linear's MCP server (issue descriptions and comments),
+  Atlassian's Rovo MCP (`createJiraIssue` takes Markdown only and converts to
+  ADF itself), and Notion's hosted MCP, which moved from block JSON to its own
+  "Notion-flavored Markdown" because it costs fewer tokens.
+- It reads fine unrendered, in a tool result or a terminal.
+- Block JSON is lossy to round-trip (Rovo's Markdown edits drop ADF panels and
+  media) and expensive in the agent's context window.
+
+What renders: headings (from `#`, shown as h3 and smaller under the page's
+own), paragraphs with a single newline as a line break (as GitHub comments
+do), nested lists, `- [ ]` checklists (read-only), inline code and fenced
+blocks, tables, block quotes, links, strikethrough. Criteria and evidence are
+one line, so only inline Markdown renders there. Raw HTML is dropped, unsafe
+URL schemes are stripped, outside links open in a new tab with
+`noreferrer noopener`, and images show as a link instead of loading.
+
+Agents are told once, in the server instructions (`FORMATTING` in
+`tasks-mcp-server.ts`), and again on each field that takes Markdown. The
+instructions also ask them to put acceptance criteria in `add_criteria`
+rather than as a checklist in the description, so they can be checked off.
+
 ## 5. Agent access (auth)
 
 **Personal access tokens first.** Daniel mints a token on a new Settings →
