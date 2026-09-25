@@ -451,7 +451,7 @@ export function EditTaskForm({
                   name="description"
                   rows={8}
                   defaultValue={task.description}
-                  className={`${FIELD} py-2 font-mono text-[12.5px]`}
+                  className={`${FIELD} field-sizing-content max-h-[70vh] min-h-[180px] py-2 font-mono text-[12.5px] leading-relaxed`}
                   {...NOT_A_LOGIN}
                 />
               )}
@@ -581,9 +581,10 @@ export function CriterionForm({
   action: TaskAction;
   task: string;
   number: number;
-  text: string;
+  /** Rendered by the server, so the Markdown parser stays off the client. */
+  text: ReactNode;
   met: boolean;
-  evidence: string | null;
+  evidence: ReactNode;
 }) {
   return (
     <ActionForm

@@ -31,6 +31,15 @@ export type AgentAccess = {
   readonly canWrite: boolean;
 };
 
+/**
+ * What the task page renders, told to the agent once in the instructions and
+ * again, briefly, on each field that takes it. People read these fields on
+ * the task page, so structure pays; raw HTML is dropped, not rendered.
+ */
+export const FORMATTING = `Formatting: descriptions, notes, handoff summaries, criteria and evidence are GitHub-flavoured Markdown, shown rendered to the person on the task page. Use short paragraphs, "## " headings to split a long description (Context, What to build, Out of scope), "- " lists (indent two spaces to nest), \`code\` for paths, identifiers and commands, fenced code blocks with a language, tables for comparisons, "> " for quotes, and "- [ ] " for a checklist. A single newline is a line break. HTML is not rendered. Put each acceptance criterion in add_criteria, not as a checklist in the description, so it can be checked off.`;
+
+const MARKDOWN = "GitHub-flavoured Markdown, rendered for people";
+
 export const INSTRUCTIONS = `Fenro is the task list you work from. Tasks carry context between sessions, so record what you learn as you go.
 
 The loop:
@@ -40,7 +49,9 @@ The loop:
 4. check_criterion for each acceptance criterion with its evidence.
 5. finish_session with a handoff summary and an outcome: done, in_review (a person must look, e.g. a pull request is open), paused, blocked (say on what), or released (give it back).
 
-A task is not done while it has open sub-tasks or unmet criteria. Tasks are named by key, like T-12.`;
+A task is not done while it has open sub-tasks or unmet criteria. Tasks are named by key, like T-12.
+
+${FORMATTING}`;
 
 /**
  * The tasks context as an MCP server: the way an agent reads and changes the
@@ -164,7 +175,7 @@ export function createTasksMcpServer(
       inputSchema: z.object({
         task: z.string().optional().describe("Key of the task to update"),
         title: z.string().optional(),
-        description: z.string().optional().describe("Markdown"),
+        description: z.string().optional().describe(MARKDOWN),
         priority: z.enum(PRIORITIES).optional(),
         labels: z.array(z.string()).optional().describe("Replaces all labels"),
         repository: z
@@ -181,7 +192,10 @@ export function createTasksMcpServer(
           .enum(["backlog", "todo"])
           .optional()
           .describe("On create only; default todo"),
-        add_criteria: z.array(z.string()).optional(),
+        add_criteria: z
+          .array(z.string())
+          .optional()
+          .describe("One line each; inline Markdown (code, bold, links)"),
         remove_criteria: z.array(z.number().int()).optional(),
         attach: z
           .array(
@@ -311,7 +325,7 @@ export function createTasksMcpServer(
       inputSchema: z.object({
         task: z.string(),
         kind: z.enum(NOTE_KINDS as [string, ...string[]]),
-        text: z.string(),
+        text: z.string().describe(MARKDOWN),
       }),
       annotations: { readOnlyHint: false, destructiveHint: false },
     },
@@ -338,7 +352,10 @@ export function createTasksMcpServer(
         task: z.string(),
         criterion: z.number().int(),
         met: z.boolean().default(true),
-        evidence: z.string().optional(),
+        evidence: z
+          .string()
+          .optional()
+          .describe("Inline Markdown; link the run, commit or PR"),
       }),
       annotations: {
         readOnlyHint: false,
@@ -401,7 +418,7 @@ export function createTasksMcpServer(
       inputSchema: z.object({
         task: z.string(),
         outcome: z.enum(SESSION_OUTCOMES),
-        summary: z.string(),
+        summary: z.string().describe(MARKDOWN),
         reason: z.string().optional().describe("What it waits on, if blocked"),
       }),
       annotations: { readOnlyHint: false, destructiveHint: false },
