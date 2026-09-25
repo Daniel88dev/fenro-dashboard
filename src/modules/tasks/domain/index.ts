@@ -4,6 +4,8 @@ export * from "./errors";
 export * from "./events";
 export * from "./external-reference";
 export * from "./journal-entry";
+export * from "./label";
+export * from "./label.repository";
 export * from "./repository-reference";
 export * from "./session";
 export * from "./task";

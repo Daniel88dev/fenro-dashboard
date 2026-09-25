@@ -1,18 +1,28 @@
 import { beforeEach, describe, expect, it } from "vitest";
 
-import type { Actor } from "@/modules/tasks/domain";
+import {
+  defaultLabelColour,
+  type Actor,
+  type LabelColour,
+} from "@/modules/tasks/domain";
 import { InMemoryTaskStore } from "@/modules/tasks/infrastructure/in-memory-task.store";
 
 import {
   ChangeStatusHandler,
   type ChangeStatusCommand,
 } from "./commands/change-status";
+import { CreateLabelHandler } from "./commands/create-label";
 import {
   CreateTaskHandler,
   type CreateTaskCommand,
 } from "./commands/create-task";
 import { StartTaskHandler } from "./commands/start-task";
 import { changeTask } from "./commands/task-commands";
+import {
+  UpdateTaskHandler,
+  type UpdateTaskCommand,
+} from "./commands/update-task";
+import { ListLabelsHandler, listLabelsQuery } from "./queries/list-labels";
 import { ListTasksHandler, listTasksQuery } from "./queries/list-tasks";
 import {
   TaskCountsByRepositoryHandler,
@@ -43,7 +53,7 @@ async function create(
   ownerId = OWNER,
 ) {
   ids += 1;
-  return new CreateTaskHandler(store, clock).handle({
+  return new CreateTaskHandler(store, store, clock).handle({
     type: "tasks.create-task",
     ownerId,
     actor: DANIEL,
@@ -197,5 +207,86 @@ describe("listing tasks by state", () => {
     );
     expect(active.tasks.map((task) => task.key)).toEqual(["T-1"]);
     expect(blocked.tasks.map((task) => task.key)).toEqual(["T-2"]);
+  });
+});
+
+describe("labels", () => {
+  const labels = () =>
+    new ListLabelsHandler(store).handle(listLabelsQuery(OWNER));
+  const update = (
+    fields: Omit<UpdateTaskCommand, "type" | "ownerId" | "actor">,
+  ) =>
+    new UpdateTaskHandler(store, store, clock).handle({
+      type: "tasks.update-task",
+      ownerId: OWNER,
+      actor: DANIEL,
+      ...fields,
+    });
+
+  it("adds a name no label has yet to the owner's labels, in a stable colour", async () => {
+    await create({ title: "Sign-in", labels: ["Bug", "needs review"] });
+    await create({ title: "Theirs", labels: ["bug"] }, "user-2");
+
+    expect(await labels()).toEqual([
+      {
+        name: "bug",
+        colour: defaultLabelColour("bug"),
+        openTasks: 1,
+        tasks: 1,
+      },
+      {
+        name: "needs-review",
+        colour: defaultLabelColour("needs-review"),
+        openTasks: 1,
+        tasks: 1,
+      },
+    ]);
+  });
+
+  it("keeps a label made ahead of use, and refuses a second of the same name", async () => {
+    const make = (name: string, colour?: LabelColour) =>
+      new CreateLabelHandler(store, clock).handle({
+        type: "tasks.create-label",
+        ownerId: OWNER,
+        actor: DANIEL,
+        labelId: crypto.randomUUID(),
+        name,
+        colour,
+      });
+
+    expect((await make("Area:Auth", "blue")).ok).toBe(true);
+    const again = await make("area:auth");
+    expect(!again.ok && again.error.code).toBe("label-exists");
+    const bad = await make("no, commas");
+    expect(!bad.ok && bad.error.code).toBe("invalid-label");
+
+    // Carrying it later does not change its colour.
+    await create({ title: "Session expiry", labels: ["area:auth"] });
+    expect(await labels()).toEqual([
+      { name: "area:auth", colour: "blue", openTasks: 1, tasks: 1 },
+    ]);
+  });
+
+  it("adds and removes labels without repeating the rest", async () => {
+    await create({ title: "Sign-in", labels: ["bug", "backend"] });
+
+    await update({ task: "T-1", addLabels: ["urgent"], removeLabels: ["Bug"] });
+
+    expect((await store.findByNumber(OWNER, 1))?.state.labels).toEqual([
+      "backend",
+      "urgent",
+    ]);
+    expect((await labels()).map((label) => label.name)).toContain("urgent");
+  });
+
+  it("lists tasks carrying any of the labels asked for", async () => {
+    await create({ title: "One", labels: ["bug"] });
+    await create({ title: "Two", labels: ["docs"] });
+    await create({ title: "Three" });
+
+    const list = await new ListTasksHandler(store, clock).handle(
+      listTasksQuery(OWNER, { labels: ["docs", "Bug"] }),
+    );
+    expect(list.tasks.map((task) => task.key)).toEqual(["T-1", "T-2"]);
   });
 });

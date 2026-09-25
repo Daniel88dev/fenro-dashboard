@@ -1,6 +1,7 @@
 import type {
   ExternalSystem,
   JournalKind,
+  LabelColour,
   Priority,
   TaskStatus,
 } from "@/modules/tasks/domain";
@@ -30,6 +31,19 @@ export type TaskState =
   | "in-review"
   | "done"
   | "cancelled";
+
+/**
+ * One of the owner's labels. Tasks carry label names; this is where a name's
+ * colour comes from, and how many tasks carry it.
+ */
+export type LabelItem = {
+  readonly name: string;
+  readonly colour: LabelColour;
+  /** Open tasks carrying it. */
+  readonly openTasks: number;
+  /** All tasks carrying it, closed ones too. */
+  readonly tasks: number;
+};
 
 /** One task in a list: enough to choose it, not enough to work it. */
 export type TaskListItem = {

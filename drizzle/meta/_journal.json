@@ -29,6 +29,13 @@
       "when": 1790193804190,
       "tag": "0003_tasks_and_agent_access_tokens",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1790342284972,
+      "tag": "0004_task_labels",
+      "breakpoints": true
     }
   ]
 }

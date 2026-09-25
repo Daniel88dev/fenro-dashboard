@@ -63,14 +63,14 @@ describe("Task", () => {
     it("numbers its acceptance criteria and normalises its labels", () => {
       const task = aTask({
         criteria: ["Tests pass", "", "Docs updated"],
-        labels: ["Backend", "backend", "ddd"],
+        labels: ["Backend", "backend", "ddd", "Needs review"],
       });
 
       expect(task.state.criteria.map((c) => [c.number, c.text])).toEqual([
         [1, "Tests pass"],
         [2, "Docs updated"],
       ]);
-      expect(task.state.labels).toEqual(["backend", "ddd"]);
+      expect(task.state.labels).toEqual(["backend", "ddd", "needs-review"]);
     });
 
     it("keeps one source among its references", () => {

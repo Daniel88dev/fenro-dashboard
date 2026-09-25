@@ -1,6 +1,7 @@
 import {
   formatTaskKey,
   isOpen,
+  normaliseLabelName,
   priorityRank,
   SESSION_LEASE_MS,
   type Priority,
@@ -33,7 +34,8 @@ export type TaskFilter = {
   /** Include done and cancelled tasks when no status is asked for. */
   readonly includeClosed?: boolean;
   readonly repository?: string;
-  readonly label?: string;
+  /** Only tasks carrying at least one of these labels. */
+  readonly labels?: readonly string[];
   /** Only the sub-tasks of this task (its id). */
   readonly parentId?: string;
   /** Words that must all appear in the title or the key. */
@@ -197,7 +199,7 @@ function listOrder(a: TaskListItem, b: TaskListItem) {
 export function listTasks(index: TaskIndex, filter: TaskFilter): TaskList {
   const words = (filter.text ?? "").toLowerCase().split(/\s+/).filter(Boolean);
   const repository = filter.repository?.toLowerCase();
-  const label = filter.label?.toLowerCase();
+  const labels = new Set((filter.labels ?? []).map(normaliseLabelName));
 
   const matching = index.records
     .filter((record) => {
@@ -209,7 +211,12 @@ export function listTasks(index: TaskIndex, filter: TaskFilter): TaskList {
       if (repository && fullName(record)?.toLowerCase() !== repository) {
         return false;
       }
-      if (label && !record.labels.includes(label)) return false;
+      if (
+        labels.size > 0 &&
+        !record.labels.some((label) => labels.has(label))
+      ) {
+        return false;
+      }
       if (filter.parentId && record.parentId !== filter.parentId) return false;
       if (words.length > 0) {
         const haystack =

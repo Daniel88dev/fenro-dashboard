@@ -91,6 +91,10 @@ import {
   type CheckCriterionCommand,
 } from "@/modules/tasks/application/commands/check-criterion";
 import {
+  CreateLabelHandler,
+  type CreateLabelCommand,
+} from "@/modules/tasks/application/commands/create-label";
+import {
   CreateTaskHandler,
   type CreateTaskCommand,
 } from "@/modules/tasks/application/commands/create-task";
@@ -116,10 +120,15 @@ import {
 } from "@/modules/tasks/application/commands/update-task";
 import type { TaskReadStore } from "@/modules/tasks/application/ports/task-read-store";
 import {
+  ListLabelsHandler,
+  type ListLabelsQuery,
+} from "@/modules/tasks/application/queries/list-labels";
+import {
   ListTasksHandler,
   type ListTasksQuery,
 } from "@/modules/tasks/application/queries/list-tasks";
 import type {
+  LabelItem,
   RepositoryTasks,
   TaskCountsByRepository,
   TaskList,
@@ -137,7 +146,8 @@ import {
   TasksForRepositoryHandler,
   type TasksForRepositoryQuery,
 } from "@/modules/tasks/application/queries/tasks-for-repository";
-import type { TaskRepository } from "@/modules/tasks/domain";
+import type { LabelRepository, TaskRepository } from "@/modules/tasks/domain";
+import { DrizzleLabelRepository } from "@/modules/tasks/infrastructure/drizzle-label.repository";
 import { DrizzleTaskReadStore } from "@/modules/tasks/infrastructure/drizzle-task.read-store";
 import { DrizzleTaskRepository } from "@/modules/tasks/infrastructure/drizzle-task.repository";
 import { CommandBus, QueryBus } from "@/shared/application";
@@ -164,6 +174,7 @@ export type ContainerParts = {
   /** Already bound to the viewer's token, or to none when signed out. */
   readonly gitHub: GitHubGateway;
   readonly tasks: TaskRepository;
+  readonly labels: LabelRepository;
   readonly taskReads: TaskReadStore;
   readonly accessTokens: AccessTokenRepository;
   readonly authenticator: Authenticator;
@@ -231,15 +242,19 @@ export function buildContainer(parts: ContainerParts): Container {
 function registerTasks(
   commandBus: CommandBus,
   queryBus: QueryBus,
-  { tasks, taskReads, clock }: ContainerParts,
+  { tasks, labels, taskReads, clock }: ContainerParts,
 ): void {
   commandBus.register<CreateTaskCommand>(
     "tasks.create-task",
-    new CreateTaskHandler(tasks, clock),
+    new CreateTaskHandler(tasks, labels, clock),
   );
   commandBus.register<UpdateTaskCommand>(
     "tasks.update-task",
-    new UpdateTaskHandler(tasks, clock),
+    new UpdateTaskHandler(tasks, labels, clock),
+  );
+  commandBus.register<CreateLabelCommand>(
+    "tasks.create-label",
+    new CreateLabelHandler(labels, clock),
   );
   commandBus.register<StartTaskCommand>(
     "tasks.start-task",
@@ -269,6 +284,10 @@ function registerTasks(
   queryBus.register<ListTasksQuery, TaskList>(
     "tasks.list-tasks",
     new ListTasksHandler(taskReads, clock),
+  );
+  queryBus.register<ListLabelsQuery, LabelItem[]>(
+    "tasks.list-labels",
+    new ListLabelsHandler(taskReads),
   );
   queryBus.register<TaskBriefQuery, TaskBriefResult>(
     "tasks.task-brief",
@@ -361,6 +380,7 @@ function containerFor(
     snapshots: new DrizzleRepositorySnapshotStore(db),
     gitHub: new GitHubGraphqlGateway(gitHubToken),
     tasks: new DrizzleTaskRepository(db),
+    labels: new DrizzleLabelRepository(db),
     taskReads: new DrizzleTaskReadStore(db),
     accessTokens: new DrizzleAccessTokenRepository(db),
     authenticator,

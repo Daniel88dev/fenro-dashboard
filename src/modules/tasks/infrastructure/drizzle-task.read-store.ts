@@ -1,18 +1,20 @@
 import { and, asc, count, desc, eq, inArray } from "drizzle-orm";
 
 import type {
+  LabelRecord,
   SessionRecord,
   TaskDetailRecord,
   TaskReadStore,
   TaskRecord,
 } from "@/modules/tasks/application/ports/task-read-store";
-import type {
-  ExternalSystem,
-  JournalKind,
-  LinkKind,
-  Priority,
-  SessionOutcome,
-  TaskStatus,
+import {
+  isLabelColour,
+  type ExternalSystem,
+  type JournalKind,
+  type LinkKind,
+  type Priority,
+  type SessionOutcome,
+  type TaskStatus,
 } from "@/modules/tasks/domain";
 import type { Database } from "@/shared/infrastructure/database/client";
 
@@ -20,6 +22,7 @@ import {
   task as taskTable,
   taskExternalReference,
   taskJournalEntry,
+  taskLabel,
   taskLink,
   taskSession,
 } from "./persistence/schema";
@@ -124,6 +127,18 @@ export class DrizzleTaskReadStore implements TaskReadStore {
       })),
       completedAt: row.completedAt,
     };
+  }
+
+  async labels(ownerId: string): Promise<LabelRecord[]> {
+    const rows = await this.db
+      .select({ name: taskLabel.name, colour: taskLabel.colour })
+      .from(taskLabel)
+      .where(eq(taskLabel.ownerId, ownerId))
+      .orderBy(asc(taskLabel.name));
+    return rows.map((row) => ({
+      name: row.name,
+      colour: isLabelColour(row.colour) ? row.colour : "gray",
+    }));
   }
 
   async #records(rows: readonly TaskRow[]): Promise<TaskRecord[]> {

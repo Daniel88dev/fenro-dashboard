@@ -52,3 +52,15 @@ export class SessionEnded extends BaseDomainEvent {
     super(aggregateId, occurredAt);
   }
 }
+
+export class LabelCreated extends BaseDomainEvent {
+  readonly name = "tasks.label-created";
+
+  constructor(
+    aggregateId: string,
+    readonly label: string,
+    occurredAt?: Date,
+  ) {
+    super(aggregateId, occurredAt);
+  }
+}

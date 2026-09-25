@@ -13,6 +13,7 @@ import {
   TaskStatusChanged,
 } from "./events";
 import type { ExternalReference } from "./external-reference";
+import { parseLabelName } from "./label";
 import {
   JOURNAL_TEXT_LIMIT,
   type JournalEntry,
@@ -29,8 +30,6 @@ export const TITLE_LIMIT = 200;
 export const DESCRIPTION_LIMIT = 50_000;
 export const LABEL_LIMIT = 20;
 export const CRITERIA_LIMIT = 50;
-
-const LABEL = /^[a-z0-9][a-z0-9._:/-]{0,39}$/;
 
 /**
  * What the task cannot see from inside itself but must obey: whether the tasks
@@ -807,25 +806,21 @@ function checkDescription(description: string): Result<string, TaskError> {
   return ok(trimmed);
 }
 
-/** Labels are compared as written, so they are stored lower-case. */
+/** Names as the label catalogue keeps them: lower-case, once each. */
 function checkLabels(
   labels: readonly string[],
 ): Result<readonly string[], TaskError> {
-  const normalised = [
-    ...new Set(labels.map((label) => label.trim().toLowerCase())),
-  ].filter(Boolean);
-  const bad = normalised.find((label) => !LABEL.test(label));
-  if (bad !== undefined) {
-    return err(
-      invalidTask(
-        `"${bad}" is not a label: up to 40 lower-case letters, digits and . _ : / -`,
-      ),
-    );
+  const names = new Set<string>();
+  for (const label of labels) {
+    if (!label.trim()) continue;
+    const name = parseLabelName(label);
+    if (!name.ok) return name;
+    names.add(name.value);
   }
-  if (normalised.length > LABEL_LIMIT) {
+  if (names.size > LABEL_LIMIT) {
     return err(invalidTask(`A task has at most ${LABEL_LIMIT} labels.`));
   }
-  return ok(normalised);
+  return ok([...names]);
 }
 
 function checkCriteria(

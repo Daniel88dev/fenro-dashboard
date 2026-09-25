@@ -4,6 +4,7 @@ import {
   Task,
   taskError,
   type ExternalReference as Reference,
+  type LabelRepository,
   type Priority,
   type TaskError,
   type TaskRepository,
@@ -11,6 +12,7 @@ import {
 import type { CommandHandler } from "@/shared/application";
 import { err, ok, type Result } from "@/shared/domain";
 
+import { ensureLabels } from "./create-label";
 import {
   findTask,
   type TaskCommand,
@@ -33,6 +35,7 @@ export type CreateTaskCommand = TaskCommand<"tasks.create-task"> & {
   readonly description?: string;
   readonly status?: "backlog" | "todo";
   readonly priority?: Priority;
+  /** Label names; ones the owner has no label for yet are added. */
   readonly labels?: readonly string[];
   /** `owner/name`. Left out, a sub-task takes its parent's. */
   readonly repository?: string | null;
@@ -51,6 +54,7 @@ const ATTEMPTS = 3;
 export class CreateTaskHandler implements CommandHandler<CreateTaskCommand> {
   constructor(
     private readonly tasks: TaskRepository,
+    private readonly labels: LabelRepository,
     private readonly clock: () => Date,
   ) {}
 
@@ -120,6 +124,14 @@ export class CreateTaskHandler implements CommandHandler<CreateTaskCommand> {
         const linked = task.link(link.kind, link.taskId, command.actor, now);
         if (!linked.ok) return linked;
       }
+
+      const labelled = await ensureLabels(
+        this.labels,
+        ownerId,
+        task.state.labels,
+        now,
+      );
+      if (!labelled.ok) return labelled;
 
       const saved = await this.tasks.save(task);
       if (saved.ok || saved.error.code !== "concurrent-modification") {
