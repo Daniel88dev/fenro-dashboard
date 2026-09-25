@@ -156,6 +156,22 @@ async function connect(access: AgentAccess) {
       };
       return result.tools.map((tool) => tool.name);
     },
+    async prompts(): Promise<string[]> {
+      const result = (await request("prompts/list", {})) as {
+        prompts: { name: string }[];
+      };
+      return result.prompts.map((prompt) => prompt.name);
+    },
+    async prompt(
+      name: string,
+      args: Record<string, string> = {},
+    ): Promise<string> {
+      const result = (await request("prompts/get", {
+        name,
+        arguments: args,
+      })) as { messages: { content: { text: string } }[] };
+      return result.messages[0].content.text;
+    },
     async call(
       name: string,
       args: Record<string, unknown> = {},
@@ -323,6 +339,32 @@ describe("the tasks MCP server", () => {
       await second.call("start_task", { task: "T-1" }),
     );
     expect(taken.session).toMatchObject({ number: 2, by: "Agent second" });
+  });
+
+  it("offers the work loop as a prompt to a token that can write", async () => {
+    const worker = await connect(agent("worker"));
+
+    expect(await worker.prompts()).toEqual(["work_on_next_task"]);
+    expect(await worker.prompt("work_on_next_task")).toContain(
+      "start_task without a task",
+    );
+    expect(
+      await worker.prompt("work_on_next_task", {
+        repository: "Daniel88dev/fenro-dashboard",
+      }),
+    ).toContain('repository: "Daniel88dev/fenro-dashboard"');
+  });
+
+  it("refuses to claim by key a task that is not ready", async () => {
+    const planner = await connect(agent("planner"));
+    await planner.call("save_task", { title: "Someday", status: "backlog" });
+    await planner.call("save_task", { title: "Parent" });
+    await planner.call("save_task", { title: "Child", parent: "T-2" });
+
+    const backlog = await planner.call("start_task", { task: "T-1" });
+    expect(backlog.text).toMatch(/^task-not-ready:/);
+    const waiting = await planner.call("start_task", { task: "T-2" });
+    expect(waiting.text).toMatch(/^open-subtasks:.*T-3/);
   });
 
   it("answers an unknown task with a refusal the agent can read", async () => {

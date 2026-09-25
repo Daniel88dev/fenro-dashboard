@@ -101,7 +101,10 @@ contends on the same row.
 ### Rules the aggregate enforces (all return `Result`, never throw)
 
 - Only a ready task can be claimed; claiming an already-claimed task fails
-  with who holds it and until when.
+  with who holds it and until when. A task in the `backlog`, on hold, blocked,
+  or still `todo` with open sub-tasks is refused with what to do instead. A
+  paused task (`in_progress`, no live session) and one sent back from
+  `in_review` can be resumed by key.
 - A task can't be marked `done` while it has open sub-tasks or unchecked
   acceptance criteria; the error lists what is open.
 - Finishing a session requires a handoff summary (it becomes a `handoff`
@@ -133,7 +136,7 @@ key to identity tables, same as github-insights.
   container). Serves both the 2026-07-28 spec and older clients.
 - The route is thin: verify the token, then each tool dispatches a command or
   asks a query on the buses. Tool definitions live in
-  `src/modules/tasks/mcp/`, a second driving adapter beside `ui/`.
+  `src/modules/tasks/ui/mcp/`, a second driving adapter beside the screens.
 - Tools (compact output by default, full detail only in `get_task`):
 
 | Tool              | What it does                                                                                                        |
@@ -149,7 +152,10 @@ key to identity tables, same as github-insights.
 | `set_status`      | Move to backlog, todo or done, cancel, reopen, set or clear a hold                                                  |
 
 Plus one prompt, `work_on_next_task`, that tells an agent the loop:
-`list_tasks ready` → `start_task` → notes → `finish_session`.
+`list_tasks ready` → `start_task` → notes → `finish_session`. It takes an
+optional `repository` (`owner/name`) that narrows the ready queue to that
+repository's tasks, and is offered only to tokens that can write, since it
+claims a task. In Claude Code it shows up as `/mcp__<server>__work_on_next_task`.
 
 ## 5. Agent access (auth)
 

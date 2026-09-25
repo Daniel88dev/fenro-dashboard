@@ -130,6 +130,31 @@ export function createTasksMcpServer(
 
   if (!access.canWrite) return server;
 
+  // The loop is in the instructions too; as a prompt it becomes a slash command
+  // that starts a session, e.g. /mcp__fenro__work_on_next_task in Claude Code.
+  server.registerPrompt(
+    "work_on_next_task",
+    {
+      title: "Work on the next task",
+      description:
+        "Claim the top ready task, work it, and hand off. Give a repository to pick only from its tasks.",
+      argsSchema: z.object({
+        repository: z
+          .string()
+          .optional()
+          .describe("owner/name to pick only from that repository's tasks"),
+      }),
+    },
+    ({ repository }) => ({
+      messages: [
+        {
+          role: "user",
+          content: { type: "text", text: workOnNextTask(repository?.trim()) },
+        },
+      ],
+    }),
+  );
+
   server.registerTool(
     "save_task",
     {
@@ -428,6 +453,19 @@ export function createTasksMcpServer(
   );
 
   return server;
+}
+
+function workOnNextTask(repository: string | undefined): string {
+  const pick = repository
+    ? `Call list_tasks with ready: true and repository: "${repository}", then start_task with the first key it returns. If none is ready, say so and stop.`
+    : "Call start_task without a task to claim the top ready one. If none is ready, say so and stop.";
+  return `Work on the next task from fenro.
+
+1. ${pick}
+2. Read the brief it returns: the latest handoff and the decisions first, then the acceptance criteria.
+3. Do the work. Record decisions, discoveries and open questions with add_note as you go, and file new work you find with save_task and discovered_from instead of doing it now.
+4. check_criterion for each acceptance criterion you meet, with its evidence.
+5. finish_session with a handoff summary and an outcome: done, in_review, paused, blocked (say on what) or released.`;
 }
 
 function standingOf(task: TaskBrief) {

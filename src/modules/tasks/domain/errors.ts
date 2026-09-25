@@ -12,6 +12,7 @@ export type TaskErrorCode =
   | "task-claimed"
   | "task-blocked"
   | "task-on-hold"
+  | "task-not-ready"
   | "open-subtasks"
   | "unmet-criteria"
   | "invalid-transition"
