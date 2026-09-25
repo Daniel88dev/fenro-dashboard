@@ -201,6 +201,62 @@ describe("TaskList", () => {
     ).toHaveTextContent("bug");
   });
 
+  it("filters by one repository in the URL, keeping the rest of the filter", () => {
+    render(
+      <TaskList
+        list={list}
+        filter={{
+          view: "blocked",
+          repository: "daniel88dev/fenro-dashboard",
+          text: "",
+          labels: ["bug"],
+        }}
+        repositories={[
+          { name: "Daniel88dev/fenro-dashboard" },
+          { name: "Daniel88dev/other" },
+        ]}
+      />,
+    );
+
+    const filters = screen.getByRole("navigation", {
+      name: "Filter by repository",
+    });
+    const here = within(filters).getByRole("link", {
+      name: "Daniel88dev/fenro-dashboard",
+    });
+    const other = within(filters).getByRole("link", {
+      name: "Daniel88dev/other",
+    });
+    expect(here).toHaveAttribute("aria-pressed", "true");
+    expect(here).toHaveAttribute("href", "/tasks?view=blocked&labels=bug");
+    expect(other).toHaveAttribute("aria-pressed", "false");
+    expect(other).toHaveAttribute(
+      "href",
+      "/tasks?view=blocked&repository=Daniel88dev%2Fother&labels=bug",
+    );
+  });
+
+  it("offers a repository from the URL that no task names, so it can be unpressed", () => {
+    render(
+      <TaskList
+        list={{ total: 0, tasks: [] }}
+        filter={{
+          view: "open",
+          repository: "Daniel88dev/new-one",
+          text: "",
+          labels: [],
+        }}
+      />,
+    );
+
+    const filters = screen.getByRole("navigation", {
+      name: "Filter by repository",
+    });
+    expect(
+      within(filters).getByRole("link", { name: "Daniel88dev/new-one" }),
+    ).toHaveAttribute("href", "/tasks");
+  });
+
   it("explains an empty view", () => {
     render(
       <TaskList

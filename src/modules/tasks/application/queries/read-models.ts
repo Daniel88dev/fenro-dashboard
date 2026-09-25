@@ -45,6 +45,16 @@ export type LabelItem = {
   readonly tasks: number;
 };
 
+/** A repository the owner's tasks name, offered as a filter. */
+export type TaskRepositoryItem = {
+  /** `owner/name`, as the tasks spell it. */
+  readonly name: string;
+  /** Open tasks naming it. */
+  readonly openTasks: number;
+  /** All tasks naming it, closed ones too. */
+  readonly tasks: number;
+};
+
 /** One task in a list: enough to choose it, not enough to work it. */
 export type TaskListItem = {
   readonly key: string;

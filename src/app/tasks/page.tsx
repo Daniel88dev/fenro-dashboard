@@ -5,6 +5,7 @@ import { TaskLoading } from "@/modules/tasks/ui/task-loading";
 import { SignInPanel } from "@/modules/identity/ui/sign-in-panel";
 import type { ListTasksQuery } from "@/modules/tasks/application/queries/list-tasks";
 import { listLabelsQuery } from "@/modules/tasks/application/queries/list-labels";
+import { listTaskRepositoriesQuery } from "@/modules/tasks/application/queries/list-task-repositories";
 import { listTasksQuery } from "@/modules/tasks/application/queries/list-tasks";
 import {
   isTaskView,
@@ -82,8 +83,9 @@ async function TasksScreen({
     labels: filter.labels,
   };
   // One small count per tab, asked alongside the list itself.
-  const [labels, list, ...totals] = await Promise.all([
+  const [labels, repositories, list, ...totals] = await Promise.all([
     container.queryBus.ask(listLabelsQuery(ownerId)),
+    container.queryBus.ask(listTaskRepositoriesQuery(ownerId)),
     container.queryBus.ask(
       listTasksQuery(ownerId, {
         ...VIEW_FILTERS[filter.view],
@@ -101,6 +103,12 @@ async function TasksScreen({
     TASK_VIEWS.map(({ view }, index) => [view, totals[index]!.total]),
   );
   return (
-    <TaskList list={list} filter={filter} counts={counts} labels={labels} />
+    <TaskList
+      list={list}
+      filter={filter}
+      counts={counts}
+      labels={labels}
+      repositories={repositories}
+    />
   );
 }

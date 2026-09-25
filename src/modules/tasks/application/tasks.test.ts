@@ -23,6 +23,10 @@ import {
   type UpdateTaskCommand,
 } from "./commands/update-task";
 import { ListLabelsHandler, listLabelsQuery } from "./queries/list-labels";
+import {
+  ListTaskRepositoriesHandler,
+  listTaskRepositoriesQuery,
+} from "./queries/list-task-repositories";
 import { ListTasksHandler, listTasksQuery } from "./queries/list-tasks";
 import {
   TaskCountsByRepositoryHandler,
@@ -183,6 +187,25 @@ describe("the repository table's view of tasks", () => {
       state: "running",
       lastActivity: "Session 1 running, 6 min in",
     });
+  });
+});
+
+describe("the repositories tasks name", () => {
+  it("lists each once whatever the case, with open and all task counts", async () => {
+    await create({ title: "One", repository: "Daniel88dev/Fenro-Dashboard" });
+    await create({ title: "Two", repository: "daniel88dev/fenro-dashboard" });
+    await create({ title: "Elsewhere", repository: "nordwind/docs" });
+    await create({ title: "Nowhere" });
+    await create({ title: "Theirs", repository: "someone/else" }, "user-2");
+    await changeStatus({ actor: DANIEL, task: "T-3", status: "done" });
+
+    const repositories = await new ListTaskRepositoriesHandler(store).handle(
+      listTaskRepositoriesQuery(OWNER),
+    );
+    expect(repositories).toEqual([
+      { name: "Daniel88dev/Fenro-Dashboard", openTasks: 2, tasks: 2 },
+      { name: "nordwind/docs", openTasks: 0, tasks: 1 },
+    ]);
   });
 });
 

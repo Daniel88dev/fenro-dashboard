@@ -6,6 +6,7 @@ import { Chip } from "@/modules/github-insights/ui/chip";
 import type {
   TaskListItem,
   TaskList as TaskListResult,
+  TaskRepositoryItem,
   TaskState,
 } from "@/modules/tasks/application/queries/read-models";
 
@@ -91,11 +92,14 @@ export function TaskList({
   filter,
   counts,
   labels = [],
+  repositories = [],
 }: {
   list: TaskListResult;
   filter: TaskListFilter;
   /** The owner's labels, offered as filters. */
   labels?: readonly LabelOption[];
+  /** The repositories the owner's tasks name, offered as filters. */
+  repositories?: readonly Pick<TaskRepositoryItem, "name">[];
   /** How many tasks each view holds, for the tabs. */
   counts?: Partial<Record<TaskView, number>>;
 }) {
@@ -211,13 +215,12 @@ export function TaskList({
         </Form>
       </div>
 
+      <RepositoryFilter filter={filter} repositories={repositories} />
       <LabelFilter filter={filter} labels={labels} />
 
       {list.tasks.length === 0 ? (
         <p className="border-hairline bg-surface text-ink-muted rounded-xl border px-5 py-10 text-center text-[13px]">
-          {filter.text || filter.labels.length > 0
-            ? `No task matches ${filter.text ? "that search" : "those labels"}.`
-            : EMPTY[filter.view]}
+          {emptyMessage(filter)}
         </p>
       ) : (
         groupsOf(list.tasks).map((group) => (
@@ -254,6 +257,12 @@ export function TaskList({
   );
 }
 
+function emptyMessage(filter: TaskListFilter): string {
+  if (filter.text) return "No task matches that search.";
+  if (filter.labels.length > 0) return "No task matches those labels.";
+  return EMPTY[filter.view];
+}
+
 const PRIORITY_WORDS: Record<TaskListItem["priority"], string | null> = {
   none: null,
   low: "Low",
@@ -261,6 +270,12 @@ const PRIORITY_WORDS: Record<TaskListItem["priority"], string | null> = {
   high: "High",
   urgent: "Urgent",
 };
+
+const PILL =
+  "focus-visible:outline-pr inline-flex h-[26px] shrink-0 items-center gap-1.5 rounded-full border px-2.5 text-[12px] whitespace-nowrap focus-visible:outline-2 focus-visible:outline-offset-1";
+const PILL_ON = "border-ink bg-ink text-ground font-medium";
+const PILL_OFF =
+  "border-hairline bg-surface text-ink-soft hover:border-ink-faint hover:text-ink";
 
 /**
  * One pill per label, pressed ones filtering the list to tasks carrying any
@@ -300,11 +315,7 @@ function LabelFilter({
             href={hrefFor({ ...filter, labels: next })}
             aria-pressed={on}
             scroll={false}
-            className={`focus-visible:outline-pr inline-flex h-[26px] shrink-0 items-center gap-1.5 rounded-full border px-2.5 text-[12px] whitespace-nowrap focus-visible:outline-2 focus-visible:outline-offset-1 ${
-              on
-                ? "border-ink bg-ink text-ground font-medium"
-                : "border-hairline bg-surface text-ink-soft hover:border-ink-faint hover:text-ink"
-            }`}
+            className={`${PILL} ${on ? PILL_ON : PILL_OFF}`}
           >
             <LabelDot colour={label.colour} />
             {label.name}
@@ -320,6 +331,52 @@ function LabelFilter({
           Clear
         </Link>
       ) : null}
+    </nav>
+  );
+}
+
+/**
+ * One pill per repository the tasks name; pressing one shows only its tasks,
+ * pressing it again shows them all. One at a time, as "New task here" and the
+ * repository table link here with one.
+ */
+function RepositoryFilter({
+  filter,
+  repositories,
+}: {
+  filter: TaskListFilter;
+  repositories: readonly Pick<TaskRepositoryItem, "name">[];
+}) {
+  const picked = filter.repository.toLowerCase();
+  // A repository in the URL that no task names yet can still be unpressed.
+  const shown =
+    picked && !repositories.some(({ name }) => name.toLowerCase() === picked)
+      ? [...repositories, { name: filter.repository }]
+      : repositories;
+  if (shown.length === 0) return null;
+
+  return (
+    <nav
+      aria-label="Filter by repository"
+      className="-mt-1 flex [scrollbar-width:none] items-center gap-1.5 overflow-x-auto md:flex-wrap"
+    >
+      <span className="text-ink-muted shrink-0 pr-1 text-[12px]">
+        Repositories
+      </span>
+      {shown.map(({ name }) => {
+        const on = name.toLowerCase() === picked;
+        return (
+          <Link
+            key={name}
+            href={hrefFor({ ...filter, repository: on ? "" : name })}
+            aria-pressed={on}
+            scroll={false}
+            className={`${PILL} font-mono ${on ? PILL_ON : PILL_OFF}`}
+          >
+            {name}
+          </Link>
+        );
+      })}
     </nav>
   );
 }
