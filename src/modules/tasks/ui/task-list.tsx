@@ -6,10 +6,12 @@ import { Chip } from "@/modules/github-insights/ui/chip";
 import type {
   TaskListItem,
   TaskList as TaskListResult,
+  TaskRepositoryItem,
   TaskState,
 } from "@/modules/tasks/application/queries/read-models";
 
 import { colourOf, LabelDot, type LabelOption } from "./labels";
+import { RepositoryFilter } from "./repository-filter";
 import { STATE_TONES, taskHref } from "./task-state";
 
 export const TASK_VIEWS = [
@@ -91,11 +93,14 @@ export function TaskList({
   filter,
   counts,
   labels = [],
+  repositories = [],
 }: {
   list: TaskListResult;
   filter: TaskListFilter;
   /** The owner's labels, offered as filters. */
   labels?: readonly LabelOption[];
+  /** The repositories the owner's tasks name, offered as filters. */
+  repositories?: readonly Pick<TaskRepositoryItem, "name" | "openTasks">[];
   /** How many tasks each view holds, for the tabs. */
   counts?: Partial<Record<TaskView, number>>;
 }) {
@@ -169,55 +174,64 @@ export function TaskList({
             );
           })}
         </nav>
-        <Form
-          action="/tasks"
-          role="search"
-          className="border-hairline bg-surface focus-within:outline-pr flex h-[34px] items-center gap-2 rounded-lg border px-[11px] focus-within:outline-2 focus-within:outline-offset-1 md:mb-2 md:w-[260px]"
-        >
-          {filter.view !== "open" ? (
-            <input type="hidden" name="view" value={filter.view} />
-          ) : null}
-          {filter.repository ? (
-            <input type="hidden" name="repository" value={filter.repository} />
-          ) : null}
-          {filter.labels.length > 0 ? (
-            <input
-              type="hidden"
-              name="labels"
-              value={filter.labels.join(",")}
+        <div className="flex flex-wrap items-center gap-2 md:mb-2 md:flex-nowrap">
+          <RepositoryFilter
+            options={repositoryOptions(filter, repositories)}
+            picked={filter.repository}
+            allHref={hrefFor({ ...filter, repository: "" })}
+          />
+          <Form
+            action="/tasks"
+            role="search"
+            className="border-hairline bg-surface focus-within:outline-pr flex h-[34px] items-center gap-2 rounded-lg border px-[11px] focus-within:outline-2 focus-within:outline-offset-1 max-md:flex-1 md:w-[260px]"
+          >
+            {filter.view !== "open" ? (
+              <input type="hidden" name="view" value={filter.view} />
+            ) : null}
+            {filter.repository ? (
+              <input
+                type="hidden"
+                name="repository"
+                value={filter.repository}
+              />
+            ) : null}
+            {filter.labels.length > 0 ? (
+              <input
+                type="hidden"
+                name="labels"
+                value={filter.labels.join(",")}
+              />
+            ) : null}
+            <MagnifyingGlass
+              aria-hidden="true"
+              className="text-ink-faint size-[15px] shrink-0"
             />
-          ) : null}
-          <MagnifyingGlass
-            aria-hidden="true"
-            className="text-ink-faint size-[15px] shrink-0"
-          />
-          <label htmlFor="task-search" className="sr-only">
-            Search tasks
-          </label>
-          {/* Not a login field: the attributes keep password managers off it. */}
-          <input
-            id="task-search"
-            name="q"
-            type="search"
-            defaultValue={filter.text}
-            placeholder="Search by title or key"
-            autoComplete="off"
-            data-1p-ignore
-            data-lpignore="true"
-            data-bwignore
-            data-form-type="other"
-            className="text-ink placeholder:text-ink-faint min-w-0 flex-1 bg-transparent text-[13px] outline-none"
-          />
-        </Form>
+            <label htmlFor="task-search" className="sr-only">
+              Search tasks
+            </label>
+            {/* Not a login field: the attributes keep password managers off it. */}
+            <input
+              id="task-search"
+              name="q"
+              type="search"
+              defaultValue={filter.text}
+              placeholder="Search by title or key"
+              autoComplete="off"
+              data-1p-ignore
+              data-lpignore="true"
+              data-bwignore
+              data-form-type="other"
+              className="text-ink placeholder:text-ink-faint min-w-0 flex-1 bg-transparent text-[13px] outline-none"
+            />
+          </Form>
+        </div>
       </div>
 
       <LabelFilter filter={filter} labels={labels} />
 
       {list.tasks.length === 0 ? (
         <p className="border-hairline bg-surface text-ink-muted rounded-xl border px-5 py-10 text-center text-[13px]">
-          {filter.text || filter.labels.length > 0
-            ? `No task matches ${filter.text ? "that search" : "those labels"}.`
-            : EMPTY[filter.view]}
+          {emptyMessage(filter)}
         </p>
       ) : (
         groupsOf(list.tasks).map((group) => (
@@ -254,6 +268,38 @@ export function TaskList({
   );
 }
 
+function emptyMessage(filter: TaskListFilter): string {
+  if (filter.text) return "No task matches that search.";
+  if (filter.labels.length > 0) return "No task matches those labels.";
+  return EMPTY[filter.view];
+}
+
+/**
+ * The repositories to offer, busiest first. One in the URL that no task
+ * names yet is still offered, so the list can show it picked.
+ */
+function repositoryOptions(
+  filter: TaskListFilter,
+  repositories: readonly Pick<TaskRepositoryItem, "name" | "openTasks">[],
+) {
+  const picked = filter.repository.toLowerCase();
+  const all =
+    picked && !repositories.some(({ name }) => name.toLowerCase() === picked)
+      ? [...repositories, { name: filter.repository, openTasks: 0 }]
+      : repositories;
+  return [...all]
+    .sort(
+      (a, b) =>
+        b.openTasks - a.openTasks ||
+        a.name.toLowerCase().localeCompare(b.name.toLowerCase()),
+    )
+    .map(({ name, openTasks }) => ({
+      name,
+      openTasks,
+      href: hrefFor({ ...filter, repository: name }),
+    }));
+}
+
 const PRIORITY_WORDS: Record<TaskListItem["priority"], string | null> = {
   none: null,
   low: "Low",
@@ -261,6 +307,12 @@ const PRIORITY_WORDS: Record<TaskListItem["priority"], string | null> = {
   high: "High",
   urgent: "Urgent",
 };
+
+const PILL =
+  "focus-visible:outline-pr inline-flex h-[26px] shrink-0 items-center gap-1.5 rounded-full border px-2.5 text-[12px] whitespace-nowrap focus-visible:outline-2 focus-visible:outline-offset-1";
+const PILL_ON = "border-ink bg-ink text-ground font-medium";
+const PILL_OFF =
+  "border-hairline bg-surface text-ink-soft hover:border-ink-faint hover:text-ink";
 
 /**
  * One pill per label, pressed ones filtering the list to tasks carrying any
@@ -300,11 +352,7 @@ function LabelFilter({
             href={hrefFor({ ...filter, labels: next })}
             aria-pressed={on}
             scroll={false}
-            className={`focus-visible:outline-pr inline-flex h-[26px] shrink-0 items-center gap-1.5 rounded-full border px-2.5 text-[12px] whitespace-nowrap focus-visible:outline-2 focus-visible:outline-offset-1 ${
-              on
-                ? "border-ink bg-ink text-ground font-medium"
-                : "border-hairline bg-surface text-ink-soft hover:border-ink-faint hover:text-ink"
-            }`}
+            className={`${PILL} ${on ? PILL_ON : PILL_OFF}`}
           >
             <LabelDot colour={label.colour} />
             {label.name}
