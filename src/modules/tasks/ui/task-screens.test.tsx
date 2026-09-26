@@ -450,6 +450,84 @@ describe("NewTaskForm", () => {
     expect(sent[1].getAll("labels")).toEqual(["docs", "backend"]);
   });
 
+  it("picks the repository from the watched ones, or none", async () => {
+    const create = vi.fn(async () => ({ error: null, saved: 1 }));
+    render(
+      <NewTaskForm
+        action={create}
+        defaults={{ ...defaults, repository: "" }}
+        repositories={[
+          { name: "Daniel88dev/fenro-dashboard", pinned: true },
+          { name: "nordwind/docs", pinned: false },
+        ]}
+      />,
+    );
+
+    expect(screen.queryByRole("textbox", { name: "Repository" })).toBeNull();
+    const field = screen.getByRole("button", { name: "Repository" });
+    expect(field).toHaveTextContent("No repository");
+
+    fireEvent.click(field);
+    const find = screen.getByLabelText("Find a repository");
+    fireEvent.change(find, { target: { value: "docs" } });
+    fireEvent.keyDown(find, { key: "Enter" });
+    expect(field).toHaveTextContent("nordwind/docs");
+
+    fireEvent.change(screen.getByLabelText("Title"), {
+      target: { value: "Retry webhooks" },
+    });
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Create task" }));
+    });
+    const sent = create.mock.calls[0] as unknown as [unknown, FormData];
+    expect(sent[1].get("repository")).toBe("nordwind/docs");
+
+    fireEvent.click(field);
+    fireEvent.click(screen.getByRole("button", { name: "No repository" }));
+    expect(field).toHaveTextContent("No repository");
+    expect(
+      document.querySelector<HTMLInputElement>('input[name="repository"]')
+        ?.value,
+    ).toBe("");
+  });
+
+  it("keeps a repository from the URL that is not watched on offer", () => {
+    render(
+      <NewTaskForm
+        action={actions().create}
+        defaults={defaults}
+        repositories={[{ name: "nordwind/docs", pinned: false }]}
+      />,
+    );
+
+    const field = screen.getByRole("button", { name: "Repository" });
+    expect(field).toHaveTextContent("o/r");
+    fireEvent.click(field);
+    expect(screen.getByRole("button", { name: "o/r" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+  });
+
+  it("floats the label and repository lists above the dialog instead of inside it", () => {
+    render(
+      <NewTaskForm
+        action={actions().create}
+        defaults={defaults}
+        labels={[{ name: "docs", colour: "blue" }]}
+        variant="dialog"
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Add labels" }));
+    const labels = screen.getByRole("dialog", { name: "Labels" });
+    expect(labels).toHaveClass("fixed");
+
+    fireEvent.click(screen.getByRole("button", { name: "Repository" }));
+    const repositories = screen.getByRole("dialog", { name: "Repository" });
+    expect(repositories).toHaveClass("fixed");
+  });
+
   it("leaves the dialog marker off on the page", () => {
     const { container } = render(
       <NewTaskForm action={actions().create} defaults={defaults} />,

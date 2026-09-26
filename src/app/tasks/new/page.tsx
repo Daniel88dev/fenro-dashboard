@@ -47,7 +47,7 @@ async function NewTaskScreen({
 }) {
   const params = await searchParams;
 
-  const { container, ownerId } = await tasksContext();
+  const { container, ownerId, repositoryOptions } = await tasksContext();
   if (!ownerId) {
     return (
       <SignInPanel
@@ -82,6 +82,7 @@ async function NewTaskScreen({
         action={TASK_ACTIONS.create}
         defaults={newTaskDefaults(params)}
         labels={await container.queryBus.ask(listLabelsQuery(ownerId))}
+        repositories={await repositoryOptions()}
         cancel={
           <Link
             href="/tasks"

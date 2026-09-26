@@ -5,6 +5,7 @@ import { useEffect, useId, useRef, useState } from "react";
 
 import { normaliseLabelName, parseLabelName } from "@/modules/tasks/domain";
 
+import { FLOATING_PANEL, useFloatingPanel } from "./floating-panel";
 import { colourOf, LabelChip, LabelDot, type LabelOption } from "./labels";
 
 /** Not a login field: these keep password managers off it. */
@@ -42,6 +43,7 @@ export function LabelPicker({
   const search = useRef<HTMLInputElement>(null);
   const changed = useRef(false);
   const listId = useId();
+  const { anchor, panel } = useFloatingPanel(open);
 
   useEffect(() => {
     if (!changed.current) return;
@@ -96,13 +98,17 @@ export function LabelPicker({
         <LabelChip key={name} name={name} colour={colourOf(catalogue, name)} />
       ))}
       <button
+        ref={anchor}
         type="button"
         aria-expanded={open}
         aria-controls={listId}
         aria-label={picked.length > 0 ? "Edit labels" : "Add labels"}
         onClick={() => setOpen((was) => !was)}
         onKeyDown={(event) => {
-          if (event.key === "Escape") setOpen(false);
+          if (event.key !== "Escape" || !open) return;
+          // Close the picker, not the dialog around it.
+          event.preventDefault();
+          setOpen(false);
         }}
         className="border-hairline text-ink-soft hover:bg-surface-sunken hover:text-ink focus-visible:outline-pr inline-flex h-[22px] cursor-pointer items-center gap-1 rounded-md border border-dashed px-1.5 text-[11px] font-medium focus-visible:outline-2"
       >
@@ -118,16 +124,18 @@ export function LabelPicker({
 
       {open ? (
         <div
+          ref={panel}
           id={listId}
           role="dialog"
           aria-label="Labels"
           onKeyDown={(event) => {
             if (event.key !== "Escape") return;
+            event.preventDefault();
             event.stopPropagation();
             setOpen(false);
-            root.current?.querySelector<HTMLButtonElement>("button")?.focus();
+            anchor.current?.focus();
           }}
-          className="border-hairline bg-surface text-ink absolute top-full left-0 z-30 mt-1.5 flex w-64 max-w-[calc(100vw-32px)] flex-col rounded-xl border p-1.5 shadow-[0_8px_24px_-12px_rgba(20,18,10,0.35)]"
+          className={`${FLOATING_PANEL} border-hairline bg-surface text-ink flex w-64 max-w-[calc(100vw-32px)] flex-col rounded-xl border p-1.5 shadow-[0_8px_24px_-12px_rgba(20,18,10,0.35)]`}
         >
           <label htmlFor={`${listId}-search`} className="sr-only">
             Find or create a label

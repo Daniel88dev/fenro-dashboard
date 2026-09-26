@@ -31,6 +31,7 @@ import {
   type TaskActions,
 } from "./task-forms";
 import { LabelChips, type LabelOption } from "./labels";
+import type { RepositoryOption } from "./repository-select";
 import { LiveDot } from "./task-list";
 import { InlineMarkdown, Markdown } from "./markdown";
 import { STATE_TONES, taskHref } from "./task-state";
@@ -551,11 +552,14 @@ export function TaskDetail({
   task,
   actions,
   labels = [],
+  repositories = [],
 }: {
   task: TaskBrief;
   actions: TaskActions;
   /** The owner's labels. */
   labels?: readonly LabelOption[];
+  /** The repositories the owner watches, for "Edit details". */
+  repositories?: readonly RepositoryOption[];
 }) {
   const { key } = task;
   const open = isOpen(task);
@@ -641,7 +645,11 @@ export function TaskDetail({
               ) : (
                 <Empty>No description yet.</Empty>
               )}
-              <EditTaskForm action={actions.update} task={task} />
+              <EditTaskForm
+                action={actions.update}
+                task={task}
+                repositories={repositories}
+              />
             </Section>
 
             <CriteriaList task={task} actions={actions} />
