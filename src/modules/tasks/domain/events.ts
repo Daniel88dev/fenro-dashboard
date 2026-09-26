@@ -64,3 +64,27 @@ export class LabelCreated extends BaseDomainEvent {
     super(aggregateId, occurredAt);
   }
 }
+
+export class PictureAdded extends BaseDomainEvent {
+  readonly name = "tasks.picture-added";
+
+  constructor(
+    aggregateId: string,
+    readonly taskId: string,
+    occurredAt?: Date,
+  ) {
+    super(aggregateId, occurredAt);
+  }
+}
+
+export class PictureRemoved extends BaseDomainEvent {
+  readonly name = "tasks.picture-removed";
+
+  constructor(
+    aggregateId: string,
+    readonly taskId: string,
+    occurredAt?: Date,
+  ) {
+    super(aggregateId, occurredAt);
+  }
+}

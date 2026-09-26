@@ -2,6 +2,7 @@ import {
   CaretRight,
   Check,
   CheckCircle,
+  ImageSquare,
   DotsThree,
   MagnifyingGlass,
   Plus,
@@ -17,6 +18,7 @@ import { Chip } from "@/modules/github-insights/ui/chip";
 import { Menu } from "@/modules/github-insights/ui/menu";
 import type {
   JournalItem,
+  PictureItem,
   TaskBrief,
   TaskMention,
 } from "@/modules/tasks/application/queries/read-models";
@@ -34,6 +36,7 @@ import { LabelChips, type LabelOption } from "./labels";
 import type { RepositoryOption } from "./repository-select";
 import { LiveDot } from "./task-list";
 import { InlineMarkdown, Markdown } from "./markdown";
+import { PictureThumbs, PicturesSection } from "./pictures";
 import { STATE_TONES, taskHref } from "./task-state";
 
 const DATE = new Intl.DateTimeFormat("en", {
@@ -388,7 +391,103 @@ function JournalEntry({ entry }: { entry: JournalItem }) {
   );
 }
 
-/** The journal after the handoff, oldest first, and a way to add to it. */
+/** Pictures one adder put on the task in one go, shown as one journal line. */
+type PictureGroup = {
+  readonly addedBy: string;
+  readonly session: number | null;
+  readonly addedAt: string;
+  readonly pictures: readonly PictureItem[];
+};
+
+/** Pictures added by the same hand within this long read as one batch. */
+const BATCH_MS = 10 * 60 * 1000;
+
+export function groupPictures(
+  pictures: readonly PictureItem[],
+): readonly PictureGroup[] {
+  const groups: PictureGroup[] = [];
+  for (const picture of pictures) {
+    const last = groups.at(-1);
+    const lastAdded = last?.pictures.at(-1);
+    if (
+      last &&
+      lastAdded &&
+      last.addedBy === picture.addedBy &&
+      last.session === picture.session &&
+      Date.parse(picture.addedAt) - Date.parse(lastAdded.addedAt) <= BATCH_MS
+    ) {
+      groups[groups.length - 1] = {
+        ...last,
+        pictures: [...last.pictures, picture],
+      };
+      continue;
+    }
+    groups.push({
+      addedBy: picture.addedBy,
+      session: picture.session,
+      addedAt: picture.addedAt,
+      pictures: [picture],
+    });
+  }
+  return groups;
+}
+
+function pictureNames(pictures: readonly PictureItem[]): string {
+  const names = pictures.map((picture) => picture.name);
+  if (names.length === 1) return names[0]!;
+  if (names.length <= 3) {
+    return `${names.slice(0, -1).join(", ")} and ${names.at(-1)}`;
+  }
+  return `${names.slice(0, 2).join(", ")} and ${names.length - 2} more`;
+}
+
+function PictureEntry({
+  group,
+  task,
+  actions,
+}: {
+  group: PictureGroup;
+  task: TaskBrief;
+  actions: TaskActions;
+}) {
+  return (
+    <li className="relative grid grid-cols-[20px_minmax(0,1fr)] gap-x-3 pb-[18px] before:absolute before:top-[22px] before:bottom-0 before:left-[9.5px] before:w-px before:bg-[var(--color-hairline)] last:before:hidden">
+      <span className="border-hairline bg-surface text-ink-muted grid size-5 place-items-center rounded-full border">
+        <ImageSquare aria-hidden="true" className="size-3" />
+      </span>
+      <div className="flex min-w-0 flex-col gap-1.5">
+        <span className="text-ink-muted text-[12px]">
+          <span className="text-ink-soft font-semibold">Pictures</span>{" "}
+          <span className="font-mono">{group.addedBy}</span>
+          {group.session ? `, session ${group.session}` : ""},{" "}
+          {when(group.addedAt)}
+        </span>
+        <p className="text-ink text-[13px] leading-relaxed break-words">
+          {`Added ${pictureNames(group.pictures)}.`}
+        </p>
+        <PictureThumbs
+          taskKey={task.key}
+          pictures={group.pictures}
+          all={task.pictures}
+          removeAction={actions.removePicture}
+        />
+      </div>
+    </li>
+  );
+}
+
+type JournalLine =
+  | { readonly kind: "entry"; readonly at: string; readonly entry: JournalItem }
+  | {
+      readonly kind: "pictures";
+      readonly at: string;
+      readonly group: PictureGroup;
+    };
+
+/**
+ * The journal after the handoff, oldest first, with the pictures added along
+ * the way in their place, and a way to add to it.
+ */
 export function JournalSection({
   task,
   actions,
@@ -408,10 +507,29 @@ export function JournalSection({
       entry.kind !== "handoff" ||
       entry.recordedAt !== handoff.recordedAt,
   );
-  const shown = limit ? earlier.slice(-limit) : earlier;
+  const capped = task.recentJournal.length < task.journalEntries;
+  // With a capped journal, pictures older than what it shows would sit
+  // among entries that are not there.
+  const since = capped ? task.recentJournal[0]?.recordedAt : undefined;
+  const lines: JournalLine[] = [
+    ...earlier.map((entry) => ({
+      kind: "entry" as const,
+      at: entry.recordedAt,
+      entry,
+    })),
+    ...groupPictures(task.pictures)
+      .filter((group) => !since || group.addedAt >= since)
+      .map((group) => ({
+        kind: "pictures" as const,
+        at: group.addedAt,
+        group,
+      })),
+  ].sort((a, b) => Date.parse(a.at) - Date.parse(b.at));
+  const shown = limit ? lines.slice(-limit) : lines;
+  const shownEntries = shown.filter((line) => line.kind === "entry").length;
   // The page reads a capped journal; say so only when the cap cut something.
   const note =
-    !moreHref && task.recentJournal.length < task.journalEntries
+    !moreHref && capped
       ? `Latest ${task.recentJournal.length} of ${task.journalEntries} entries`
       : null;
 
@@ -419,7 +537,7 @@ export function JournalSection({
     <Section
       title="Journal"
       aside={
-        moreHref && task.journalEntries > shown.length ? (
+        moreHref && task.journalEntries > shownEntries ? (
           <Link
             href={moreHref}
             className="text-ink-muted hover:text-ink text-[12px]"
@@ -433,9 +551,18 @@ export function JournalSection({
     >
       {shown.length > 0 ? (
         <ol className="m-0 list-none p-0">
-          {shown.map((entry, index) => (
-            <JournalEntry key={index} entry={entry} />
-          ))}
+          {shown.map((line, index) =>
+            line.kind === "entry" ? (
+              <JournalEntry key={`entry-${index}`} entry={line.entry} />
+            ) : (
+              <PictureEntry
+                key={`pictures-${line.group.pictures[0]!.id}`}
+                group={line.group}
+                task={task}
+                actions={actions}
+              />
+            ),
+          )}
         </ol>
       ) : task.journalEntries === 0 ? (
         <Empty>Nothing recorded yet.</Empty>
@@ -523,6 +650,9 @@ export function TaskProperties({ task }: { task: TaskBrief }) {
           </a>
         </Property>
       ) : null}
+      {task.pictures.length > 0 ? (
+        <Property label="Pictures">{task.pictures.length}</Property>
+      ) : null}
       {task.subtasks.length > 0 ? (
         <Property label="Sub-tasks">
           {task.subtasks.map((mention) => (
@@ -553,6 +683,7 @@ export function TaskDetail({
   actions,
   labels = [],
   repositories = [],
+  picturesEnabled = false,
 }: {
   task: TaskBrief;
   actions: TaskActions;
@@ -560,6 +691,8 @@ export function TaskDetail({
   labels?: readonly LabelOption[];
   /** The repositories the owner watches, for "Edit details". */
   repositories?: readonly RepositoryOption[];
+  /** Whether this Fenro has somewhere to keep pictures. */
+  picturesEnabled?: boolean;
 }) {
   const { key } = task;
   const open = isOpen(task);
@@ -651,6 +784,13 @@ export function TaskDetail({
                 repositories={repositories}
               />
             </Section>
+
+            <PicturesSection
+              taskKey={key}
+              pictures={task.pictures}
+              removeAction={actions.removePicture}
+              enabled={picturesEnabled}
+            />
 
             <CriteriaList task={task} actions={actions} />
 

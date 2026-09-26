@@ -66,7 +66,8 @@ disagree:
 
 ## Prototype log
 
-| Date       | What                             | Link                                                                                        | Outcome       |
-| ---------- | -------------------------------- | ------------------------------------------------------------------------------------------- | ------------- |
-| 2026-09-20 | Repository table                 | [canvas](https://claude.ai/artifact/CHoCsPDAWY2tvnoL7gHW9t)                                 | Built (PR #3) |
-| 2026-09-24 | Whole-app redesign, 2 directions | [canvas](https://claude.ai/artifact/Uj2hLnvUy6X9dYrzzAdDgr), [notes](./redesign-2026-09.md) | A picked      |
+| Date       | What                             | Link                                                                                        | Outcome                       |
+| ---------- | -------------------------------- | ------------------------------------------------------------------------------------------- | ----------------------------- |
+| 2026-09-20 | Repository table                 | [canvas](https://claude.ai/artifact/CHoCsPDAWY2tvnoL7gHW9t)                                 | Built (PR #3)                 |
+| 2026-09-24 | Whole-app redesign, 2 directions | [canvas](https://claude.ai/artifact/Uj2hLnvUy6X9dYrzzAdDgr), [notes](./redesign-2026-09.md) | A picked                      |
+| 2026-09-26 | Pictures on tasks, 2 directions  | [canvas](https://claude.ai/artifact/35XeAhrc4aQRGTHxQWp1YA)                                 | A picked, plus a large viewer |

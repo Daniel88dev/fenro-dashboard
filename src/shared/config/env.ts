@@ -61,6 +61,11 @@ const envSchema = z.object({
   OAUTH_PROXY_SECRET: optional(
     z.string().min(32, "must be at least 32 characters"),
   ),
+  /**
+   * The UploadThing app pictures on tasks are stored in (its dashboard, API
+   * Keys). Unset, tasks show no pictures and nothing can be added.
+   */
+  UPLOADTHING_TOKEN: optional(z.string()),
 });
 
 export type Env = z.infer<typeof envSchema>;
