@@ -12,6 +12,7 @@ import { CaretRight, Check, PencilSimple } from "@phosphor-icons/react/ssr";
 
 import { LabelPicker } from "./label-picker";
 import type { LabelOption } from "./labels";
+import { RepositorySelect, type RepositoryOption } from "./repository-select";
 import { EMPTY_FORM_STATE, type TaskFormState } from "./task-form-state";
 
 export type TaskAction = (
@@ -210,6 +211,7 @@ export function NewTaskForm({
   action,
   defaults,
   labels = [],
+  repositories = [],
   variant = "page",
   cancel,
 }: {
@@ -217,6 +219,8 @@ export function NewTaskForm({
   defaults: NewTaskDefaults;
   /** The owner's labels, to pick from. */
   labels?: readonly LabelOption[];
+  /** The repositories the owner watches, to pick from. */
+  repositories?: readonly RepositoryOption[];
   variant?: "page" | "dialog";
   /** The way out: a link on the page, a close button in the dialog. */
   cancel?: ReactNode;
@@ -274,14 +278,12 @@ export function NewTaskForm({
     </Field>
   );
   const repository = (
-    <Field label="Repository" hint="owner/name">
+    <Field label="Repository">
       {(id) => (
-        <input
+        <RepositorySelect
           id={id}
-          name="repository"
+          options={repositories}
           defaultValue={defaults.repository}
-          className={`${FIELD} h-[34px] font-mono text-[12.5px]`}
-          {...NOT_A_LOGIN}
         />
       )}
     </Field>
@@ -418,9 +420,12 @@ export type TaskDetails = {
 export function EditTaskForm({
   action,
   task,
+  repositories = [],
 }: {
   action: TaskAction;
   task: TaskDetails;
+  /** The repositories the owner watches, to pick from. */
+  repositories?: readonly RepositoryOption[];
 }) {
   return (
     <details className="group">
@@ -480,12 +485,10 @@ export function EditTaskForm({
               </Field>
               <Field label="Repository">
                 {(id) => (
-                  <input
+                  <RepositorySelect
                     id={id}
-                    name="repository"
+                    options={repositories}
                     defaultValue={task.repository ?? ""}
-                    className={`${FIELD} h-[34px] font-mono text-[12.5px]`}
-                    {...NOT_A_LOGIN}
                   />
                 )}
               </Field>

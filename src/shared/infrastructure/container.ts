@@ -48,6 +48,11 @@ import {
   type WatchableRepositoriesQuery,
   type WatchableRepositoriesResult,
 } from "@/modules/github-insights/application/queries/watchable-repositories";
+import {
+  WatchedRepositoryNamesHandler,
+  type WatchedRepositoryName,
+  type WatchedRepositoryNamesQuery,
+} from "@/modules/github-insights/application/queries/watched-repository-names";
 import type { WatchedRepositoryRepository } from "@/modules/github-insights/domain";
 import { DrizzleRepositorySnapshotStore } from "@/modules/github-insights/infrastructure/drizzle-repository-snapshot.store";
 import { DrizzleWatchedRepositoryRepository } from "@/modules/github-insights/infrastructure/drizzle-watched-repository.repository";
@@ -247,6 +252,10 @@ export function buildContainer(parts: ContainerParts): Container {
   queryBus.register<WatchableRepositoriesQuery, WatchableRepositoriesResult>(
     "github-insights.watchable-repositories",
     new WatchableRepositoriesHandler(gitHub, watchedRepositories),
+  );
+  queryBus.register<WatchedRepositoryNamesQuery, WatchedRepositoryName[]>(
+    "github-insights.watched-repository-names",
+    new WatchedRepositoryNamesHandler(watchedRepositories),
   );
   queryBus.register<SignedInUserQuery, SignedInUser | null>(
     "identity.signed-in-user",
