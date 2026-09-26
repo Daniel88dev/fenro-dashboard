@@ -184,6 +184,8 @@ key to identity tables, same as github-insights.
 | `save_task`       | Create or update: title, description, priority, labels (or `add_labels`/`remove_labels`), repository, parent, criteria, links, `discoveredFrom` |
 | `start_task`      | Claim a ready task and open a session; returns the brief                                                                                        |
 | `add_note`        | Append a journal entry (note, decision, discovery, question)                                                                                    |
+| `attach_picture`  | Add a picture to a task: returns an upload link and a `curl -T` command, or takes `data_base64` (up to 3 MB) when there is no shell             |
+| `get_picture`     | Show one of a task's pictures (ids come from `get_task`) as an image the agent can see                                                          |
 | `check_criterion` | Tick or untick an acceptance criterion, with evidence                                                                                           |
 | `link_tasks`      | Add or remove `blocks`, `relates-to`                                                                                                            |
 | `finish_session`  | End the session with a handoff summary and an outcome: `done`, `paused`, `blocked` (with a reason), `in_review`                                 |
@@ -227,6 +229,37 @@ Agents are told once, in the server instructions (`FORMATTING` in
 `tasks-mcp-server.ts`), and again on each field that takes Markdown. The
 instructions also ask them to put acceptance criteria in `add_criteria`
 rather than as a checklist in the description, so they can be checked off.
+
+### Pictures _(2026-09-26)_
+
+Daniel asked for pictures on tasks, added by people and by agents (designs
+from prototyping). Decisions:
+
+- **Storage: UploadThing's free plan**, one env key `UPLOADTHING_TOKEN`, no
+  bucket. It sits behind the `PictureStorage` port, so S3 or R2 would be one
+  more adapter.
+- **`Picture` is its own aggregate** in the tasks context, not part of `Task`:
+  nothing about a picture changes a task's rules, and loading a task should not
+  load its pictures. It records the adder and, when the adder holds the task's
+  live session, that session. Pictures are added and removed, never edited.
+- **Every upload goes through the app's server** (`UTApi`), so there is no
+  UploadThing webhook to reach, which would fail on a laptop and on protected
+  previews. The file's type comes from its first bytes (PNG, JPEG, WebP, GIF;
+  SVG refused, as it can carry script); the limit is 4 MB, under Vercel's
+  4.5 MB request cap.
+- **Agents** call `attach_picture` and get a link signed by the app (HMAC with
+  a key derived from `BETTER_AUTH_SECRET`, 15 minutes, one picture id, so a
+  retried upload adds it once) plus a `curl -T` command, so the bytes never
+  pass through the model's context. Without a shell, `data_base64` takes up
+  to 3 MB. `get_picture` returns the picture as MCP image content, so the next
+  session can look at the design it is building.
+- **Pictures stay private.** Pages load `/api/pictures/<id>`, which checks the
+  owner and redirects to an UploadThing signed URL that expires within the
+  hour.
+- **UI (direction A of the prototype):** a Pictures section after the
+  description (drop, paste or pick; newest last), a strip of the newest three
+  in the task dialog, each batch of pictures as a line in the journal, and a
+  full-screen viewer with arrow-key stepping, Open original and Remove.
 
 ## 5. Agent access (auth)
 

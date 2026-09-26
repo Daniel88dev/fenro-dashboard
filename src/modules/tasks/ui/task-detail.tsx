@@ -537,8 +537,7 @@ export function JournalSection({
     <Section
       title="Journal"
       aside={
-        moreHref &&
-        (task.journalEntries > shownEntries || lines.length > shown.length) ? (
+        moreHref && task.journalEntries > shownEntries ? (
           <Link
             href={moreHref}
             className="text-ink-muted hover:text-ink text-[12px]"
