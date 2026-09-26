@@ -20,7 +20,11 @@ export type TaskErrorCode =
   | "no-live-session"
   | "concurrent-modification"
   | "invalid-label"
-  | "label-exists";
+  | "label-exists"
+  | "invalid-picture"
+  | "picture-not-found"
+  | "pictures-unavailable"
+  | "invalid-upload-link";
 
 export type TaskError = {
   readonly code: TaskErrorCode;

@@ -166,3 +166,26 @@ export const taskLabel = pgTable(
     uniqueIndex("task_label_owner_name_idx").on(table.ownerId, table.name),
   ],
 );
+
+/**
+ * Pictures on tasks. The bytes live in the picture store (UploadThing);
+ * `storage_key` is how that store names them. Rows go with their task.
+ */
+export const taskPicture = pgTable(
+  "task_picture",
+  {
+    id: text("id").primaryKey(),
+    ownerId: text("owner_id").notNull(),
+    taskId: taskId(),
+    name: text("name").notNull(),
+    type: text("type").notNull(),
+    byteSize: integer("byte_size").notNull(),
+    storageKey: text("storage_key").notNull(),
+    addedByKind: text("added_by_kind").notNull(),
+    addedById: text("added_by_id").notNull(),
+    addedByName: text("added_by_name").notNull(),
+    sessionId: text("session_id"),
+    addedAt: instant("added_at").notNull(),
+  },
+  (table) => [index("task_picture_task_idx").on(table.taskId, table.addedAt)],
+);

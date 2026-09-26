@@ -8,6 +8,7 @@ import type { CheckCriterionCommand } from "@/modules/tasks/application/commands
 import type { CreateTaskCommand } from "@/modules/tasks/application/commands/create-task";
 import type { LinkTasksCommand } from "@/modules/tasks/application/commands/link-tasks";
 import type { RecordNoteCommand } from "@/modules/tasks/application/commands/record-note";
+import type { RemovePictureCommand } from "@/modules/tasks/application/commands/remove-picture";
 import type { UpdateTaskCommand } from "@/modules/tasks/application/commands/update-task";
 import { taskBriefQuery } from "@/modules/tasks/application/queries/task-brief";
 import {
@@ -300,6 +301,24 @@ export async function linkTasksAction(
     kind,
     target: text(formData, "target"),
     remove: formData.get("remove") === "true",
+  };
+  return answer(state, await container.commandBus.dispatch(command), task);
+}
+
+export async function removePictureAction(
+  state: TaskFormState,
+  formData: FormData,
+): Promise<TaskFormState> {
+  const session = await signedIn();
+  if (!session) return { error: SIGNED_OUT, saved: state.saved };
+  const { ownerId, actor, container } = session;
+
+  const task = text(formData, "task");
+  const command: RemovePictureCommand = {
+    type: "tasks.remove-picture",
+    ownerId,
+    actor,
+    picture: text(formData, "picture"),
   };
   return answer(state, await container.commandBus.dispatch(command), task);
 }

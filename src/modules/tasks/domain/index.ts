@@ -6,6 +6,8 @@ export * from "./external-reference";
 export * from "./journal-entry";
 export * from "./label";
 export * from "./label.repository";
+export * from "./picture";
+export * from "./picture.repository";
 export * from "./repository-reference";
 export * from "./session";
 export * from "./task";

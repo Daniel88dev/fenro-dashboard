@@ -7,6 +7,8 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import {
   ExternalReference,
   Label,
+  Picture,
+  PictureFile,
   RepositoryReference,
   Task,
   type Actor,
@@ -18,6 +20,7 @@ import { isErr, isOk, unwrap } from "@/shared/domain";
 import type { Database } from "@/shared/infrastructure/database/client";
 
 import { DrizzleLabelRepository } from "./drizzle-label.repository";
+import { DrizzlePictureRepository } from "./drizzle-picture.repository";
 import { DrizzleTaskReadStore } from "./drizzle-task.read-store";
 import { DrizzleTaskRepository } from "./drizzle-task.repository";
 import { taskJournalEntry } from "./persistence/schema";
@@ -494,6 +497,77 @@ describe.skipIf(!url)("Postgres tasks adapters", () => {
         (await store.records("user-1")).map((record) => record.id),
       ).toEqual([mine.id.value]);
       expect(await store.records("user-3")).toEqual([]);
+    });
+  });
+
+  describe("DrizzlePictureRepository", () => {
+    const png = new Uint8Array([
+      0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a,
+    ]);
+
+    function aPicture(
+      task: Task,
+      id: string,
+      overrides: { sessionId?: string | null; now?: Date; by?: Actor } = {},
+    ) {
+      return Picture.add({
+        id,
+        ownerId: "user-1",
+        taskId: task.id.value,
+        file: unwrap(PictureFile.read(`${id}.png`, png)),
+        storageKey: `key-${id}`,
+        addedBy: overrides.by ?? claude,
+        sessionId: overrides.sessionId ?? null,
+        now: overrides.now ?? later(10),
+      });
+    }
+
+    it("adds, finds, lists on the task with its session, and removes", async () => {
+      const task = aTask({ number: 1 });
+      unwrap(task.startSession(claude, clear, later(1)));
+      await saved(task);
+      const session = task.liveSession(later(2))!.id;
+      const repository = new DrizzlePictureRepository(db);
+
+      await repository.add(
+        aPicture(task, "pic-2", { by: daniel, now: later(12) }),
+      );
+      await repository.add(aPicture(task, "pic-1", { sessionId: session }));
+
+      const found = await repository.pictureById("user-1", "pic-1");
+      expect(found).toMatchObject({
+        name: "pic-1.png",
+        type: "image/png",
+        byteSize: png.byteLength,
+        storageKey: "key-pic-1",
+        sessionId: session,
+      });
+      expect(found?.addedBy).toEqual(claude);
+      expect(await repository.pictureById("user-2", "pic-1")).toBeUndefined();
+
+      const store = new DrizzleTaskReadStore(db);
+      const detail = await store.detail("user-1", task.id.value);
+      expect(
+        detail?.pictures.map((picture) => [
+          picture.id,
+          picture.addedByName,
+          picture.sessionNumber,
+        ]),
+      ).toEqual([
+        ["pic-1", "claude-code", 1],
+        ["pic-2", "Daniel", null],
+      ]);
+      expect(await store.picture("user-1", "pic-1")).toMatchObject({
+        taskId: task.id.value,
+        sessionNumber: 1,
+      });
+      expect(await store.picture("user-2", "pic-1")).toBeUndefined();
+
+      await repository.remove(found!);
+      expect(await repository.pictureById("user-1", "pic-1")).toBeUndefined();
+      expect(
+        (await store.detail("user-1", task.id.value))?.pictures,
+      ).toHaveLength(1);
     });
   });
 });

@@ -2,6 +2,7 @@ import { and, asc, count, desc, eq, inArray } from "drizzle-orm";
 
 import type {
   LabelRecord,
+  PictureRecord,
   SessionRecord,
   TaskDetailRecord,
   TaskReadStore,
@@ -9,6 +10,7 @@ import type {
 } from "@/modules/tasks/application/ports/task-read-store";
 import {
   isLabelColour,
+  isPictureType,
   type ExternalSystem,
   type JournalKind,
   type LinkKind,
@@ -24,11 +26,13 @@ import {
   taskJournalEntry,
   taskLabel,
   taskLink,
+  taskPicture,
   taskSession,
 } from "./persistence/schema";
 
 type TaskRow = typeof taskTable.$inferSelect;
 type SessionRow = typeof taskSession.$inferSelect;
+type PictureRow = typeof taskPicture.$inferSelect;
 
 /**
  * The tasks read side, straight from the tables: no aggregate is loaded to
@@ -57,7 +61,7 @@ export class DrizzleTaskReadStore implements TaskReadStore {
       .where(and(eq(taskTable.ownerId, ownerId), eq(taskTable.id, id)));
     if (!row) return undefined;
 
-    const [[record], links, incoming, references, sessions, journal] =
+    const [[record], links, incoming, references, sessions, journal, pictures] =
       await Promise.all([
         this.#records([row]),
         this.db
@@ -83,6 +87,11 @@ export class DrizzleTaskReadStore implements TaskReadStore {
           .from(taskJournalEntry)
           .where(eq(taskJournalEntry.taskId, id))
           .orderBy(asc(taskJournalEntry.recordedAt)),
+        this.db
+          .select()
+          .from(taskPicture)
+          .where(eq(taskPicture.taskId, id))
+          .orderBy(asc(taskPicture.addedAt)),
       ]);
 
     const sessionRecords = sessions.map(toSessionRecord);
@@ -125,8 +134,28 @@ export class DrizzleTaskReadStore implements TaskReadStore {
           : null,
         recordedAt: entry.recordedAt,
       })),
+      pictures: pictures.map((picture) =>
+        toPictureRecord(
+          picture,
+          picture.sessionId
+            ? (sessionNumbers.get(picture.sessionId) ?? null)
+            : null,
+        ),
+      ),
       completedAt: row.completedAt,
     };
+  }
+
+  async picture(
+    ownerId: string,
+    id: string,
+  ): Promise<PictureRecord | undefined> {
+    const [row] = await this.db
+      .select({ picture: taskPicture, sessionNumber: taskSession.number })
+      .from(taskPicture)
+      .leftJoin(taskSession, eq(taskSession.id, taskPicture.sessionId))
+      .where(and(eq(taskPicture.ownerId, ownerId), eq(taskPicture.id, id)));
+    return row ? toPictureRecord(row.picture, row.sessionNumber) : undefined;
   }
 
   async labels(ownerId: string): Promise<LabelRecord[]> {
@@ -215,5 +244,23 @@ function toSessionRecord(session: SessionRow): SessionRecord {
     lastSeenAt: session.lastSeenAt,
     endedAt: session.endedAt,
     outcome: session.outcome as SessionOutcome | null,
+  };
+}
+
+function toPictureRecord(
+  row: PictureRow,
+  sessionNumber: number | null,
+): PictureRecord {
+  return {
+    id: row.id,
+    taskId: row.taskId,
+    name: row.name,
+    type: isPictureType(row.type) ? row.type : "image/png",
+    byteSize: row.byteSize,
+    storageKey: row.storageKey,
+    addedByKind: row.addedByKind === "agent" ? "agent" : "human",
+    addedByName: row.addedByName,
+    sessionNumber,
+    addedAt: row.addedAt,
   };
 }
