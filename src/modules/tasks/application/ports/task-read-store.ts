@@ -3,6 +3,7 @@ import type {
   JournalKind,
   LabelColour,
   LinkKind,
+  PictureType,
   Priority,
   SessionOutcome,
   TaskStatus,
@@ -20,7 +21,22 @@ export interface TaskReadStore {
   detail(ownerId: string, id: string): Promise<TaskDetailRecord | undefined>;
   /** The owner's label catalogue. */
   labels(ownerId: string): Promise<LabelRecord[]>;
+  /** One picture, wherever it is. */
+  picture(ownerId: string, id: string): Promise<PictureRecord | undefined>;
 }
+
+export type PictureRecord = {
+  readonly id: string;
+  readonly taskId: string;
+  readonly name: string;
+  readonly type: PictureType;
+  readonly byteSize: number;
+  readonly storageKey: string;
+  readonly addedByKind: "agent" | "human";
+  readonly addedByName: string;
+  readonly sessionNumber: number | null;
+  readonly addedAt: Date;
+};
 
 export type LabelRecord = {
   readonly name: string;
@@ -93,5 +109,7 @@ export type TaskDetailRecord = TaskRecord & {
     readonly sessionNumber: number | null;
     readonly recordedAt: Date;
   }[];
+  /** Oldest first. */
+  readonly pictures: readonly PictureRecord[];
   readonly completedAt: Date | null;
 };

@@ -7,6 +7,7 @@ import { SignInPanel } from "@/modules/identity/ui/sign-in-panel";
 import { listLabelsQuery } from "@/modules/tasks/application/queries/list-labels";
 import { taskBriefQuery } from "@/modules/tasks/application/queries/task-brief";
 import { TaskDetail } from "@/modules/tasks/ui/task-detail";
+import { getEnv } from "@/shared/config/env";
 
 import { signInWithGitHubAction } from "../../sign-in/actions";
 import { SignedInAccount } from "../../signed-in-account";
@@ -67,6 +68,7 @@ async function TaskScreen({
       actions={TASK_ACTIONS}
       labels={labels}
       repositories={repositories}
+      picturesEnabled={Boolean(getEnv().UPLOADTHING_TOKEN)}
     />
   );
 }

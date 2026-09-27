@@ -1,5 +1,6 @@
 import type {
   LabelRecord,
+  PictureRecord,
   SessionRecord,
   TaskDetailRecord,
   TaskReadStore,
@@ -13,6 +14,8 @@ import {
   taskError,
   type JournalEntry,
   type LabelRepository,
+  type Picture,
+  type PictureRepository,
   type Session,
   type TaskError,
   type TaskRepository,
@@ -36,10 +39,11 @@ type Stored = {
  * newer copy — fails here too.
  */
 export class InMemoryTaskStore
-  implements TaskRepository, TaskReadStore, LabelRepository
+  implements TaskRepository, TaskReadStore, LabelRepository, PictureRepository
 {
   readonly #tasks = new Map<string, Stored>();
   readonly #labels: Label[] = [];
+  readonly #pictures: Picture[] = [];
   readonly #journal: (JournalEntry & { taskId: string })[] = [];
   readonly #loadedVersions = new WeakMap<Task, number>();
 
@@ -144,7 +148,37 @@ export class InMemoryTaskStore
     return ok(undefined);
   }
 
+  // --- PictureRepository -------------------------------------------------------
+
+  async pictureById(ownerId: string, id: string): Promise<Picture | undefined> {
+    return this.#pictures.find(
+      (picture) => picture.ownerId === ownerId && picture.id.value === id,
+    );
+  }
+
+  async add(picture: Picture): Promise<void> {
+    if (this.#pictures.some((other) => other.id.equals(picture.id))) {
+      throw new Error(`Picture ${picture.id.value} is already stored.`);
+    }
+    this.#pictures.push(picture);
+  }
+
+  async remove(picture: Picture): Promise<void> {
+    const index = this.#pictures.findIndex((other) =>
+      other.id.equals(picture.id),
+    );
+    if (index >= 0) this.#pictures.splice(index, 1);
+  }
+
   // --- TaskReadStore -----------------------------------------------------------
+
+  async picture(
+    ownerId: string,
+    id: string,
+  ): Promise<PictureRecord | undefined> {
+    const picture = await this.pictureById(ownerId, id);
+    return picture ? this.#pictureRecord(picture) : undefined;
+  }
 
   async labels(ownerId: string): Promise<LabelRecord[]> {
     return this.#labels
@@ -194,11 +228,33 @@ export class InMemoryTaskStore
           null,
         recordedAt: entry.recordedAt,
       })),
+      pictures: this.#pictures
+        .filter((picture) => picture.taskId === id)
+        .sort((a, b) => a.addedAt.getTime() - b.addedAt.getTime())
+        .map((picture) => this.#pictureRecord(picture)),
       completedAt: state.completedAt,
     };
   }
 
   // --- Internals ---------------------------------------------------------------
+
+  #pictureRecord(picture: Picture): PictureRecord {
+    const sessions = this.#tasks.get(picture.taskId)?.state.sessions ?? [];
+    return {
+      id: picture.id.value,
+      taskId: picture.taskId,
+      name: picture.name,
+      type: picture.type,
+      byteSize: picture.byteSize,
+      storageKey: picture.storageKey,
+      addedByKind: picture.addedBy.kind,
+      addedByName: picture.addedBy.name,
+      sessionNumber:
+        sessions.find((session) => session.id === picture.sessionId)?.number ??
+        null,
+      addedAt: picture.addedAt,
+    };
+  }
 
   #owned(ownerId: string): Stored[] {
     return [...this.#tasks.values()].filter((task) => task.ownerId === ownerId);

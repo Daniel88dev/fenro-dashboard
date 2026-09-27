@@ -7,6 +7,7 @@ import {
   editTaskAction,
   linkTasksAction,
   recordNoteAction,
+  removePictureAction,
   setLabelsAction,
   updateTaskAction,
 } from "./actions";
@@ -21,4 +22,5 @@ export const TASK_ACTIONS: TaskActions = {
   checkCriterion: checkCriterionAction,
   changeStatus: changeStatusAction,
   link: linkTasksAction,
+  removePicture: removePictureAction,
 };

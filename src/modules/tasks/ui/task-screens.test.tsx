@@ -85,6 +85,7 @@ const brief: TaskBrief = {
     },
   ],
   journalEntries: 2,
+  pictures: [],
   createdAt: "2026-09-24T07:00:00.000Z",
   updatedAt: "2026-09-24T09:00:00.000Z",
 };
@@ -100,6 +101,7 @@ function actions(overrides: Partial<TaskActions> = {}): TaskActions {
     checkCriterion: saved,
     changeStatus: saved,
     link: saved,
+    removePicture: saved,
     ...overrides,
   };
 }

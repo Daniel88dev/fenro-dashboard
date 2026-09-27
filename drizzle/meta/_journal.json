@@ -43,6 +43,13 @@
       "when": 1790360831159,
       "tag": "0005_pin_watched_repositories",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1790440351159,
+      "tag": "0006_task_pictures",
+      "breakpoints": true
     }
   ]
 }

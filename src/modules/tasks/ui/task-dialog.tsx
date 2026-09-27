@@ -14,6 +14,7 @@ import {
 } from "./task-detail";
 import type { LabelOption } from "./labels";
 import type { TaskActions } from "./task-forms";
+import { PictureStrip } from "./pictures";
 import { CloseDialogButton } from "./route-dialog";
 import { taskHref } from "./task-state";
 
@@ -26,11 +27,14 @@ export function TaskDialogContent({
   task,
   actions,
   labels = [],
+  picturesEnabled = false,
 }: {
   task: TaskBrief;
   actions: TaskActions;
   /** The owner's labels. */
   labels?: readonly LabelOption[];
+  /** Whether this Fenro has somewhere to keep pictures. */
+  picturesEnabled?: boolean;
 }) {
   const fullPage = taskHref(task.key);
   return (
@@ -66,6 +70,13 @@ export function TaskDialogContent({
         <div className="flex min-w-0 flex-col gap-5">
           <HoldNotice task={task} />
           <HandoffCard entry={task.latestHandoff} />
+          <PictureStrip
+            taskKey={task.key}
+            pictures={task.pictures}
+            removeAction={actions.removePicture}
+            enabled={picturesEnabled}
+            fullPage={fullPage}
+          />
           <CriteriaList task={task} actions={actions} addable={false} />
           <JournalSection
             task={task}

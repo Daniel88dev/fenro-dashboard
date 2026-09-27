@@ -9,12 +9,14 @@ import {
 } from "@/modules/tasks/domain";
 
 import type {
+  PictureRecord,
   SessionRecord,
   TaskDetailRecord,
   TaskRecord,
 } from "../ports/task-read-store";
 import type {
   JournalItem,
+  PictureItem,
   RepositoryTasks,
   TaskBrief,
   TaskCountsByRepository,
@@ -310,8 +312,22 @@ export function brief(
     decisions: journal.filter((entry) => entry.kind === "decision"),
     recentJournal: journal.slice(-journalLimit),
     journalEntries: journal.length,
+    pictures: detail.pictures.map(pictureItem),
     createdAt: detail.createdAt.toISOString(),
     updatedAt: detail.updatedAt.toISOString(),
+  };
+}
+
+export function pictureItem(record: PictureRecord): PictureItem {
+  return {
+    id: record.id,
+    name: record.name,
+    type: record.type,
+    bytes: record.byteSize,
+    addedBy: record.addedByName,
+    addedByKind: record.addedByKind,
+    session: record.sessionNumber,
+    addedAt: record.addedAt.toISOString(),
   };
 }
 

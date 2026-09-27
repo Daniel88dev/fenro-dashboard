@@ -94,6 +94,12 @@ import {
 import type { AccessTokenRepository } from "@/modules/identity/domain";
 import { DrizzleAccessTokenRepository } from "@/modules/identity/infrastructure/drizzle-access-token.repository";
 import {
+  AddPictureHandler,
+  UploadPictureHandler,
+  type AddPictureCommand,
+  type UploadPictureCommand,
+} from "@/modules/tasks/application/commands/add-picture";
+import {
   ChangeStatusHandler,
   type ChangeStatusCommand,
 } from "@/modules/tasks/application/commands/change-status";
@@ -122,6 +128,10 @@ import {
   type RecordNoteCommand,
 } from "@/modules/tasks/application/commands/record-note";
 import {
+  RemovePictureHandler,
+  type RemovePictureCommand,
+} from "@/modules/tasks/application/commands/remove-picture";
+import {
   StartTaskHandler,
   type StartTaskCommand,
 } from "@/modules/tasks/application/commands/start-task";
@@ -129,7 +139,9 @@ import {
   UpdateTaskHandler,
   type UpdateTaskCommand,
 } from "@/modules/tasks/application/commands/update-task";
+import type { PictureStorage } from "@/modules/tasks/application/ports/picture-storage";
 import type { TaskReadStore } from "@/modules/tasks/application/ports/task-read-store";
+import type { UploadTickets } from "@/modules/tasks/application/ports/upload-tickets";
 import {
   ListLabelsHandler,
   type ListLabelsQuery,
@@ -142,6 +154,19 @@ import {
   ListTasksHandler,
   type ListTasksQuery,
 } from "@/modules/tasks/application/queries/list-tasks";
+import {
+  PictureContentHandler,
+  PictureLinkHandler,
+  type PictureContentQuery,
+  type PictureContentResult,
+  type PictureLinkQuery,
+  type PictureLinkResult,
+} from "@/modules/tasks/application/queries/picture";
+import {
+  PictureUploadTicketHandler,
+  type PictureUploadTicketQuery,
+  type PictureUploadTicketResult,
+} from "@/modules/tasks/application/queries/picture-upload-ticket";
 import type {
   LabelItem,
   RepositoryTasks,
@@ -162,11 +187,22 @@ import {
   TasksForRepositoryHandler,
   type TasksForRepositoryQuery,
 } from "@/modules/tasks/application/queries/tasks-for-repository";
-import type { LabelRepository, TaskRepository } from "@/modules/tasks/domain";
+import type {
+  LabelRepository,
+  PictureRepository,
+  TaskRepository,
+} from "@/modules/tasks/domain";
 import { DrizzleLabelRepository } from "@/modules/tasks/infrastructure/drizzle-label.repository";
+import { DrizzlePictureRepository } from "@/modules/tasks/infrastructure/drizzle-picture.repository";
 import { DrizzleTaskReadStore } from "@/modules/tasks/infrastructure/drizzle-task.read-store";
 import { DrizzleTaskRepository } from "@/modules/tasks/infrastructure/drizzle-task.repository";
+import { HmacUploadTickets } from "@/modules/tasks/infrastructure/hmac-upload-tickets";
+import {
+  UnconfiguredPictureStorage,
+  UploadThingPictureStorage,
+} from "@/modules/tasks/infrastructure/uploadthing-picture.storage";
 import { CommandBus, QueryBus } from "@/shared/application";
+import { getEnv } from "@/shared/config/env";
 import { getDatabase } from "@/shared/infrastructure/database/client";
 
 /**
@@ -191,6 +227,9 @@ export type ContainerParts = {
   readonly gitHub: GitHubGateway;
   readonly tasks: TaskRepository;
   readonly labels: LabelRepository;
+  readonly pictures: PictureRepository;
+  readonly pictureStorage: PictureStorage;
+  readonly uploadTickets: UploadTickets;
   readonly taskReads: TaskReadStore;
   readonly accessTokens: AccessTokenRepository;
   readonly authenticator: Authenticator;
@@ -270,7 +309,15 @@ export function buildContainer(parts: ContainerParts): Container {
 function registerTasks(
   commandBus: CommandBus,
   queryBus: QueryBus,
-  { tasks, labels, taskReads, clock }: ContainerParts,
+  {
+    tasks,
+    labels,
+    pictures,
+    pictureStorage,
+    uploadTickets,
+    taskReads,
+    clock,
+  }: ContainerParts,
 ): void {
   commandBus.register<CreateTaskCommand>(
     "tasks.create-task",
@@ -308,6 +355,21 @@ function registerTasks(
     "tasks.change-status",
     new ChangeStatusHandler(tasks, clock),
   );
+  const addPicture = new AddPictureHandler(
+    tasks,
+    pictures,
+    pictureStorage,
+    clock,
+  );
+  commandBus.register<AddPictureCommand>("tasks.add-picture", addPicture);
+  commandBus.register<UploadPictureCommand>(
+    "tasks.upload-picture",
+    new UploadPictureHandler(uploadTickets, addPicture, clock),
+  );
+  commandBus.register<RemovePictureCommand>(
+    "tasks.remove-picture",
+    new RemovePictureHandler(pictures, pictureStorage, clock),
+  );
 
   queryBus.register<ListTasksQuery, TaskList>(
     "tasks.list-tasks",
@@ -324,6 +386,23 @@ function registerTasks(
   queryBus.register<TaskBriefQuery, TaskBriefResult>(
     "tasks.task-brief",
     new TaskBriefHandler(taskReads, clock),
+  );
+  queryBus.register<PictureLinkQuery, PictureLinkResult>(
+    "tasks.picture-link",
+    new PictureLinkHandler(taskReads, pictureStorage),
+  );
+  queryBus.register<PictureContentQuery, PictureContentResult>(
+    "tasks.picture-content",
+    new PictureContentHandler(taskReads, pictureStorage),
+  );
+  queryBus.register<PictureUploadTicketQuery, PictureUploadTicketResult>(
+    "tasks.picture-upload-ticket",
+    new PictureUploadTicketHandler(
+      taskReads,
+      pictureStorage,
+      uploadTickets,
+      clock,
+    ),
   );
   queryBus.register<TaskCountsByRepositoryQuery, TaskCountsByRepository>(
     "tasks.task-counts-by-repository",
@@ -413,11 +492,32 @@ function containerFor(
     gitHub: new GitHubGraphqlGateway(gitHubToken),
     tasks: new DrizzleTaskRepository(db),
     labels: new DrizzleLabelRepository(db),
+    pictures: new DrizzlePictureRepository(db),
+    pictureStorage: pictureStorage(),
+    uploadTickets: uploadTickets(),
     taskReads: new DrizzleTaskReadStore(db),
     accessTokens: new DrizzleAccessTokenRepository(db),
     authenticator,
     clock,
   });
+}
+
+/** UploadThing when a token is set; otherwise pictures are off. */
+function pictureStorage(): PictureStorage {
+  const token = getEnv().UPLOADTHING_TOKEN;
+  return token
+    ? new UploadThingPictureStorage(token)
+    : new UnconfiguredPictureStorage();
+}
+
+/**
+ * Upload links are signed with a key derived from the app's secret. Without
+ * one (a laptop without sign-in set up), a key made at start-up still signs
+ * them safely; links then last only as long as the process.
+ */
+const processSecret = crypto.randomUUID() + crypto.randomUUID();
+function uploadTickets(): UploadTickets {
+  return new HmacUploadTickets(getEnv().BETTER_AUTH_SECRET ?? processSecret);
 }
 
 export function getAuthenticator(): Authenticator {

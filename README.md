@@ -170,6 +170,29 @@ everything an agent can change. **New task here** on a repository and **Make a
 task from this** on a pull request start a task already carrying where it came
 from.
 
+### Pictures on tasks
+
+People and agents can add PNG, JPEG, WebP or GIF pictures (up to 4 MB each) to
+a task: a design from a prototype, a screenshot of a bug. On the task page,
+drop them on the Pictures section, paste them anywhere, or use **Add
+pictures**; click one to see it large. Agents use the MCP tools
+`attach_picture` and `get_picture`.
+
+The files are kept on [UploadThing](https://uploadthing.com)'s free plan, with
+no bucket or cloud account to set up:
+
+1. Sign in at uploadthing.com and create an app.
+2. Copy the `UPLOADTHING_TOKEN` value from its **API Keys** page into
+   `.env.local` as `UPLOADTHING_TOKEN`.
+
+Without the token everything else works and the Pictures section says pictures
+are off. Uploads go through this app's server, so no UploadThing callback URL
+is needed. The app shows a picture only to its owner: a page loads one through
+`/api/pictures/<id>`, which checks it is yours and redirects to a link that
+expires within the hour. The files themselves sit under random keys at
+UploadThing; if your UploadThing app lets you make its files private, do, so
+only those expiring links open them.
+
 ## Configuration
 
 Everything the app reads comes from plain environment variables, validated once
@@ -194,6 +217,8 @@ Settings → Environment Variables, with `APP_URL` set to the production origin.
   keys it adds. Apply migrations from your machine against the direct
   (unpooled) string, `DATABASE_URL=<direct string> pnpm db:migrate`, before
   deploying a change that adds one. The build does not run them.
+- **Pictures.** Set `UPLOADTHING_TOKEN` on Production and Preview. One
+  UploadThing app can serve both.
 - **GitHub OAuth app.** A second app for production, with the callback URL
   `https://<your-domain>/api/auth/callback/github`.
 - **Sign-in on previews.** Previews get new URLs, which the OAuth app cannot
@@ -231,6 +256,10 @@ What would change:
   instance keeps its own pool (`pg`'s default of 10 connections), so size the
   database's connection limit, or put RDS Proxy in front, for the number of
   instances. Run `pnpm db:migrate` as a one-off task in the deploy pipeline.
+- **Pictures.** UploadThing keeps working unchanged. To keep the files in S3
+  instead, write a second adapter for the `PictureStorage` port
+  (`src/modules/tasks/application/ports/picture-storage.ts`); nothing else
+  knows where pictures live.
 - **Sign-in.** Point the production GitHub OAuth app's callback at the new
   origin and update `APP_URL`. Sessions and tokens live in Postgres, so they
   survive the move as long as `BETTER_AUTH_SECRET` stays the same.

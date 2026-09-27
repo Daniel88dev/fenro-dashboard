@@ -6,6 +6,12 @@ import {
 import { beforeEach, describe, expect, it } from "vitest";
 
 import {
+  AddPictureHandler,
+  UploadPictureHandler,
+  type AddPictureCommand,
+  type UploadPictureCommand,
+} from "@/modules/tasks/application/commands/add-picture";
+import {
   ChangeStatusHandler,
   type ChangeStatusCommand,
 } from "@/modules/tasks/application/commands/change-status";
@@ -42,6 +48,16 @@ import {
   type UpdateTaskCommand,
 } from "@/modules/tasks/application/commands/update-task";
 import {
+  PictureContentHandler,
+  type PictureContentQuery,
+  type PictureContentResult,
+} from "@/modules/tasks/application/queries/picture";
+import {
+  PictureUploadTicketHandler,
+  type PictureUploadTicketQuery,
+  type PictureUploadTicketResult,
+} from "@/modules/tasks/application/queries/picture-upload-ticket";
+import {
   ListLabelsHandler,
   type ListLabelsQuery,
 } from "@/modules/tasks/application/queries/list-labels";
@@ -59,6 +75,8 @@ import {
   type TaskBriefQuery,
   type TaskBriefResult,
 } from "@/modules/tasks/application/queries/task-brief";
+import { HmacUploadTickets } from "@/modules/tasks/infrastructure/hmac-upload-tickets";
+import { InMemoryPictureStorage } from "@/modules/tasks/infrastructure/in-memory-picture.storage";
 import { InMemoryTaskStore } from "@/modules/tasks/infrastructure/in-memory-task.store";
 import { CommandBus, QueryBus } from "@/shared/application";
 
@@ -68,6 +86,8 @@ const OWNER = "user-1";
 
 let now: Date;
 let store: InMemoryTaskStore;
+let storage: InMemoryPictureStorage;
+const tickets = new HmacUploadTickets("test-secret");
 
 function buses() {
   const clock = () => now;
@@ -108,7 +128,21 @@ function buses() {
     "tasks.create-label",
     new CreateLabelHandler(store, clock),
   );
+  const addPicture = new AddPictureHandler(store, store, storage, clock);
+  commandBus.register<AddPictureCommand>("tasks.add-picture", addPicture);
+  commandBus.register<UploadPictureCommand>(
+    "tasks.upload-picture",
+    new UploadPictureHandler(tickets, addPicture, clock),
+  );
   const queryBus = new QueryBus();
+  queryBus.register<PictureContentQuery, PictureContentResult>(
+    "tasks.picture-content",
+    new PictureContentHandler(store, storage),
+  );
+  queryBus.register<PictureUploadTicketQuery, PictureUploadTicketResult>(
+    "tasks.picture-upload-ticket",
+    new PictureUploadTicketHandler(store, storage, tickets, clock),
+  );
   queryBus.register<ListLabelsQuery, LabelItem[]>(
     "tasks.list-labels",
     new ListLabelsHandler(store),
@@ -125,6 +159,12 @@ function buses() {
 }
 
 type ToolAnswer = { text: string; isError: boolean };
+type Content = {
+  type: string;
+  text?: string;
+  data?: string;
+  mimeType?: string;
+};
 
 /**
  * A bare JSON-RPC client over the SDK's in-memory transport: the agent's side
@@ -138,7 +178,9 @@ async function connect(access: AgentAccess) {
       pending.get(message.id)?.(message);
     }
   };
-  await createTasksMcpServer(access, buses()).connect(serverSide);
+  await createTasksMcpServer(access, buses(), {
+    upload: (ticket) => `https://fenro.test/api/pictures/upload/${ticket}`,
+  }).connect(serverSide);
   await agentSide.start();
 
   let nextId = 0;
@@ -199,6 +241,16 @@ async function connect(access: AgentAccess) {
       })) as { content: { text: string }[]; isError?: boolean };
       return { text: result.content[0].text, isError: !!result.isError };
     },
+    async look(
+      name: string,
+      args: Record<string, unknown> = {},
+    ): Promise<Content[]> {
+      const result = (await request("tools/call", {
+        name,
+        arguments: args,
+      })) as { content: Content[] };
+      return result.content;
+    },
   };
 }
 
@@ -220,6 +272,7 @@ const keys = (list: TaskList) => list.tasks.map((task) => task.key);
 beforeEach(() => {
   now = new Date("2026-09-23T10:00:00Z");
   store = new InMemoryTaskStore();
+  storage = new InMemoryPictureStorage();
 });
 
 describe("the tasks MCP server", () => {
@@ -276,6 +329,7 @@ describe("the tasks MCP server", () => {
       "list_tasks",
       "get_task",
       "list_labels",
+      "get_picture",
     ]);
   });
 
@@ -441,4 +495,91 @@ describe("the tasks MCP server", () => {
     expect(missing.isError).toBe(true);
     expect(missing.text).toMatch(/^task-not-found:/);
   });
+
+  it("lets an agent attach a picture inline and look at it later", async () => {
+    const designer = await connect(agent("designer"));
+    parse(await designer.call("save_task", { title: "Redesign sign-in" }));
+
+    const attached = parse<{ id: string; name: string; addedBy: string }>(
+      await designer.call("attach_picture", {
+        task: "T-1",
+        file_name: "prototypes/sign-in-a",
+        data_base64: Buffer.from(PNG).toString("base64"),
+      }),
+    );
+    expect(attached).toMatchObject({
+      name: "sign-in-a.png",
+      addedBy: "Agent designer",
+    });
+
+    const task = parse<TaskBrief>(
+      await designer.call("get_task", { task: "T-1" }),
+    );
+    expect(task.pictures.map((picture) => picture.id)).toEqual([attached.id]);
+
+    const seen = await designer.look("get_picture", { picture: attached.id });
+    expect(seen).toEqual([
+      { type: "text", text: "sign-in-a.png" },
+      {
+        type: "image",
+        data: Buffer.from(PNG).toString("base64"),
+        mimeType: "image/png",
+      },
+    ]);
+  });
+
+  it("hands out an upload link that adds the picture when the bytes arrive", async () => {
+    const designer = await connect(agent("designer"));
+    parse(await designer.call("save_task", { title: "Redesign sign-in" }));
+
+    const offer = parse<{ picture: string; upload_url: string; run: string }>(
+      await designer.call("attach_picture", {
+        task: "T-1",
+        file_name: "direction-b.png",
+      }),
+    );
+    expect(offer.run).toContain("curl -fsS -T");
+    expect(offer.run).toContain(offer.upload_url);
+    // Asking for a link adds nothing yet.
+    expect(storage.files.size).toBe(0);
+
+    const ticket = offer.upload_url.split("/").pop()!;
+    const upload = new UploadPictureHandler(
+      tickets,
+      new AddPictureHandler(store, store, storage, () => now),
+      () => now,
+    );
+    const sent = await upload.handle({
+      type: "tasks.upload-picture",
+      ticket,
+      bytes: PNG,
+    });
+    expect(sent.ok).toBe(true);
+
+    const task = parse<TaskBrief>(
+      await designer.call("get_task", { task: "T-1" }),
+    );
+    expect(task.pictures).toMatchObject([
+      { id: offer.picture, name: "direction-b.png", addedBy: "Agent designer" },
+    ]);
+  });
+
+  it("refuses a file that is not a picture", async () => {
+    const designer = await connect(agent("designer"));
+    parse(await designer.call("save_task", { title: "Redesign sign-in" }));
+
+    const refused = await designer.call("attach_picture", {
+      task: "T-1",
+      file_name: "evil.svg",
+      data_base64: Buffer.from("<svg onload=alert(1)>").toString("base64"),
+    });
+    expect(refused.isError).toBe(true);
+    expect(refused.text).toMatch(/^invalid-picture:/);
+    expect(storage.files.size).toBe(0);
+  });
 });
+
+/** The smallest bytes that read as a PNG: its signature and a little more. */
+const PNG = new Uint8Array([
+  0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 13,
+]);

@@ -2,6 +2,7 @@ import type {
   ExternalSystem,
   JournalKind,
   LabelColour,
+  PictureType,
   Priority,
   TaskStatus,
 } from "@/modules/tasks/domain";
@@ -97,6 +98,18 @@ export type JournalItem = {
   readonly recordedAt: string;
 };
 
+/** A picture on a task. Its bytes are behind get_picture, or /api/pictures/<id>. */
+export type PictureItem = {
+  readonly id: string;
+  readonly name: string;
+  readonly type: PictureType;
+  readonly bytes: number;
+  readonly addedBy: string;
+  readonly addedByKind: "agent" | "human";
+  readonly session: number | null;
+  readonly addedAt: string;
+};
+
 /**
  * Everything the next session needs to pick a task up: what it is, how to know
  * it is finished, what stands in its way, and what earlier sessions learned.
@@ -148,6 +161,8 @@ export type TaskBrief = {
   /** The most recent entries of any kind, oldest first. */
   readonly recentJournal: readonly JournalItem[];
   readonly journalEntries: number;
+  /** Oldest first: designs, screenshots, anything someone showed. */
+  readonly pictures: readonly PictureItem[];
   readonly createdAt: string;
   readonly updatedAt: string;
 };
