@@ -10,7 +10,7 @@ import type {
   TaskBrief,
 } from "@/modules/tasks/application/queries/read-models";
 
-import { PicturesSection, PictureStrip } from "./pictures";
+import { PicturesSection, PictureStrip, scrollsInViewer } from "./pictures";
 import { groupPictures, JournalSection } from "./task-detail";
 import type { TaskActions } from "./task-forms";
 
@@ -193,5 +193,21 @@ describe("pictures in the journal", () => {
     expect(lines[1]).toContain("Added a.png and b.png.");
     expect(lines[2]).toContain("Going with direction A.");
     expect(lines[3]).toContain("Added c.png.");
+  });
+});
+
+describe("fitting a picture in the viewer", () => {
+  const screen = { width: 1120, height: 700 };
+
+  it("fits a wide screenshot on screen", () => {
+    expect(scrollsInViewer({ width: 2560, height: 1600 }, screen)).toBe(false);
+  });
+
+  it("scrolls a full-page screenshot rather than shrinking it to a sliver", () => {
+    expect(scrollsInViewer({ width: 1280, height: 4800 }, screen)).toBe(true);
+  });
+
+  it("leaves a small picture at its own size", () => {
+    expect(scrollsInViewer({ width: 300, height: 400 }, screen)).toBe(false);
   });
 });

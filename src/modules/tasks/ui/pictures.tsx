@@ -591,6 +591,86 @@ const VIEWER_ICON =
   "border-bar-active bg-bar-active text-bar-ink hover:border-bar-ink-muted focus-visible:outline-bar-ink grid size-[38px] cursor-pointer place-items-center rounded-lg border focus-visible:outline-2";
 
 /**
+ * Shrunk to fit the screen, a tall picture (a full-page screenshot, a phone
+ * design) would come out narrower than its thumbnail. Below this share of the
+ * width it could have, it is shown at full width and scrolls instead.
+ */
+const NARROWEST_FIT = 0.6;
+
+/**
+ * Whether a picture should scroll rather than shrink to fit: true when fitting
+ * all of it on screen would leave it too narrow to read.
+ */
+export function scrollsInViewer(
+  picture: { readonly width: number; readonly height: number },
+  stage: { readonly width: number; readonly height: number },
+): boolean {
+  if (picture.width === 0 || picture.height === 0) return false;
+  const readable = Math.min(picture.width, stage.width);
+  const fit = Math.min(
+    stage.width / picture.width,
+    stage.height / picture.height,
+    1,
+  );
+  return picture.width * fit < readable * NARROWEST_FIT;
+}
+
+/** The picture itself, fitted to the space, or full width and scrolling. */
+function PictureStage({ picture }: { picture: PictureItem }) {
+  const stage = useRef<HTMLDivElement>(null);
+  const image = useRef<HTMLImageElement>(null);
+  const [scrolls, setScrolls] = useState(false);
+
+  const measure = useCallback(() => {
+    const box = stage.current;
+    const img = image.current;
+    if (!box || !img || !img.naturalWidth) return;
+    const style = getComputedStyle(box);
+    setScrolls(
+      scrollsInViewer(
+        { width: img.naturalWidth, height: img.naturalHeight },
+        {
+          width:
+            box.clientWidth -
+            parseFloat(style.paddingLeft) -
+            parseFloat(style.paddingRight),
+          height:
+            box.clientHeight -
+            parseFloat(style.paddingTop) -
+            parseFloat(style.paddingBottom),
+        },
+      ),
+    );
+  }, []);
+
+  useEffect(() => {
+    window.addEventListener("resize", measure);
+    return () => window.removeEventListener("resize", measure);
+  }, [measure]);
+
+  return (
+    <div
+      ref={stage}
+      data-scrolls={scrolls || undefined}
+      className={`absolute inset-0 px-4 pb-2 sm:px-20 ${scrolls ? "overflow-y-auto" : "flex items-center justify-center"}`}
+    >
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        ref={image}
+        src={pictureSrc(picture)}
+        alt={picture.name}
+        onLoad={measure}
+        className={
+          scrolls
+            ? "mx-auto block h-auto max-w-full rounded-lg"
+            : "block max-h-full max-w-full rounded-lg object-contain"
+        }
+      />
+    </div>
+  );
+}
+
+/**
  * One picture, large, over everything: the arrows (or arrow keys) step
  * through the task's pictures, Escape closes. Dark in both schemes, as a
  * picture reads best on a dark surround.
@@ -734,21 +814,15 @@ export function PictureViewer({
               {state.error}
             </p>
           ) : null}
-          <div className="relative flex min-h-0 flex-1 items-center justify-center px-4 pb-2 sm:px-20">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              key={picture.id}
-              src={pictureSrc(picture)}
-              alt={picture.name}
-              className="block max-h-full max-w-full rounded-lg object-contain"
-            />
+          <div className="relative min-h-0 flex-1">
+            <PictureStage key={picture.id} picture={picture} />
             {count > 1 ? (
               <>
                 <button
                   type="button"
                   aria-label="Previous picture"
                   onClick={() => step(-1)}
-                  className={`${VIEWER_ICON} absolute left-3 sm:left-6`}
+                  className={`${VIEWER_ICON} absolute top-1/2 left-3 -translate-y-1/2 sm:left-6`}
                 >
                   <CaretLeft aria-hidden="true" className="size-4" />
                 </button>
@@ -756,7 +830,7 @@ export function PictureViewer({
                   type="button"
                   aria-label="Next picture"
                   onClick={() => step(1)}
-                  className={`${VIEWER_ICON} absolute right-3 sm:right-6`}
+                  className={`${VIEWER_ICON} absolute top-1/2 right-3 -translate-y-1/2 sm:right-6`}
                 >
                   <CaretRight aria-hidden="true" className="size-4" />
                 </button>
