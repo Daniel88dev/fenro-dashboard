@@ -51,7 +51,7 @@ export function CopyTaskLink({ taskKey }: { taskKey: string }) {
       </button>
       <span
         role="status"
-        className={`bg-ink text-ground pointer-events-none absolute bottom-full left-1/2 z-10 mb-1 -translate-x-1/2 rounded-md px-2 py-1 text-[11.5px] font-medium whitespace-nowrap ${copied ? "block" : "hidden group-focus-within/copy:block group-hover/copy:block"}`}
+        className={`bg-ink text-ground pointer-events-none absolute top-full left-1/2 z-10 mt-1 -translate-x-1/2 rounded-md px-2 py-1 text-[11.5px] font-medium whitespace-nowrap ${copied ? "block" : "hidden group-focus-within/copy:block group-hover/copy:block"}`}
       >
         {tip}
       </span>
