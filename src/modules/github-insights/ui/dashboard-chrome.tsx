@@ -3,6 +3,7 @@ import type { Icon } from "@phosphor-icons/react";
 import Link from "next/link";
 import type { ReactNode } from "react";
 
+import { FenroMark } from "./fenro-mark";
 import { SavedThemeToggle } from "./saved-theme-toggle";
 
 type Screen = "repositories" | "tasks" | "settings";
@@ -46,12 +47,7 @@ export function DashboardChrome({
     <div className="bg-ground text-ink flex min-h-full flex-1 flex-col font-sans">
       <header className="bg-bar text-bar-ink flex shrink-0 flex-wrap items-center gap-x-6 px-4 sm:flex-nowrap sm:px-[26px]">
         <span className="text-bar-ink flex h-14 items-center gap-2 font-mono text-[15px] font-semibold tracking-tight">
-          <span
-            aria-hidden="true"
-            className="bg-pr text-on-pr grid size-[18px] place-items-center rounded-[5px] text-[11px] font-bold"
-          >
-            F
-          </span>
+          <FenroMark className="size-5" />
           Fenro
         </span>
         <nav
