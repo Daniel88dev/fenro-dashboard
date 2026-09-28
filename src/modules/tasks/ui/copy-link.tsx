@@ -35,6 +35,9 @@ export function CopyTaskLink({ taskKey }: { taskKey: string }) {
   };
 
   const tip = copied ? "Copied" : "Copy link";
+  // The tip sits to the right, clear of the title, and shows on hover or
+  // keyboard focus only: a dialog opening focuses this button first, and a
+  // tip on plain focus would show without anyone pointing at it.
   return (
     <span className="group/copy relative inline-flex">
       <button
@@ -51,7 +54,7 @@ export function CopyTaskLink({ taskKey }: { taskKey: string }) {
       </button>
       <span
         role="status"
-        className={`bg-ink text-ground pointer-events-none absolute top-full left-1/2 z-10 mt-1 -translate-x-1/2 rounded-md px-2 py-1 text-[11.5px] font-medium whitespace-nowrap ${copied ? "block" : "hidden group-focus-within/copy:block group-hover/copy:block"}`}
+        className={`bg-ink text-ground pointer-events-none absolute top-1/2 left-full z-10 ml-1.5 -translate-y-1/2 rounded-md px-2 py-1 text-[11.5px] font-medium whitespace-nowrap ${copied ? "block" : "hidden group-hover/copy:block group-has-[:focus-visible]/copy:block"}`}
       >
         {tip}
       </span>
