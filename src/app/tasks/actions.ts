@@ -152,6 +152,10 @@ export async function updateTaskAction(
       ? (priority as Priority)
       : undefined,
     repository: text(formData, "repository") || null,
+    // Only a form that shows the parent picker may move the task.
+    parent: formData.has("parent")
+      ? text(formData, "parent") || null
+      : undefined,
   };
   return answer(state, await container.commandBus.dispatch(command), task);
 }

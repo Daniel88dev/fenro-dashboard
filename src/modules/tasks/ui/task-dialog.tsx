@@ -11,6 +11,7 @@ import {
   StatusActions,
   TaskChips,
   TaskProperties,
+  TaskTrail,
 } from "./task-detail";
 import type { LabelOption } from "./labels";
 import type { TaskActions } from "./task-forms";
@@ -41,6 +42,7 @@ export function TaskDialogContent({
     <>
       <div className="border-hairline-soft flex items-start justify-between gap-4 border-b px-5 pt-[18px] pb-3.5 sm:px-[22px]">
         <div className="flex min-w-0 flex-col gap-2">
+          <TaskTrail task={task} />
           <h2
             id="task-dialog-title"
             className="text-ink text-[19px] leading-snug font-semibold tracking-tight"

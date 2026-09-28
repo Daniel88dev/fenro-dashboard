@@ -1,5 +1,7 @@
 import { watchedRepositoryNamesQuery } from "@/modules/github-insights/application/queries/watched-repository-names";
 import { signedInUserQuery } from "@/modules/identity/application/queries/signed-in-user";
+import { listTasksQuery } from "@/modules/tasks/application/queries/list-tasks";
+import type { ParentOption } from "@/modules/tasks/ui/parent-select";
 import type { RepositoryOption } from "@/modules/tasks/ui/repository-select";
 import { getContainer } from "@/shared/infrastructure/container";
 
@@ -24,6 +26,14 @@ export async function tasksContext(now?: Date) {
         name: fullName,
         pinned,
       }));
+    },
+    /** The open tasks another task can be put under, as its parent. */
+    parentOptions: async (): Promise<ParentOption[]> => {
+      if (!user) return [];
+      const { tasks } = await container.queryBus.ask(
+        listTasksQuery(user.id, { limit: 100 }),
+      );
+      return tasks.map(({ key, title }) => ({ key, title }));
     },
   };
 }

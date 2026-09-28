@@ -44,7 +44,8 @@ async function TaskScreen({
   params: PageProps<"/tasks/[key]">["params"];
 }) {
   const { key } = await params;
-  const { container, ownerId, repositoryOptions } = await tasksContext();
+  const { container, ownerId, repositoryOptions, parentOptions } =
+    await tasksContext();
   if (!ownerId) {
     return (
       <SignInPanel
@@ -54,12 +55,13 @@ async function TaskScreen({
     );
   }
 
-  const [task, labels, repositories] = await Promise.all([
+  const [task, labels, repositories, parents] = await Promise.all([
     container.queryBus.ask(
       taskBriefQuery(ownerId, decodeURIComponent(key), JOURNAL_LIMIT),
     ),
     container.queryBus.ask(listLabelsQuery(ownerId)),
     repositoryOptions(),
+    parentOptions(),
   ]);
   if (!task.ok) notFound();
   return (
@@ -68,6 +70,7 @@ async function TaskScreen({
       actions={TASK_ACTIONS}
       labels={labels}
       repositories={repositories}
+      parents={parents}
       picturesEnabled={Boolean(getEnv().UPLOADTHING_TOKEN)}
     />
   );

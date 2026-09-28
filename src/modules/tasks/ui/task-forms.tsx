@@ -12,6 +12,7 @@ import { CaretRight, Check, PencilSimple } from "@phosphor-icons/react/ssr";
 
 import { LabelPicker } from "./label-picker";
 import type { LabelOption } from "./labels";
+import { ParentSelect, type ParentOption } from "./parent-select";
 import { RepositorySelect, type RepositoryOption } from "./repository-select";
 import { EMPTY_FORM_STATE, type TaskFormState } from "./task-form-state";
 
@@ -213,11 +214,14 @@ export function NewTaskForm({
   defaults,
   labels = [],
   repositories = [],
+  parents = [],
   variant = "page",
   cancel,
 }: {
   action: TaskAction;
   defaults: NewTaskDefaults;
+  /** The open tasks a new one can go under. */
+  parents?: readonly ParentOption[];
   /** The owner's labels, to pick from. */
   labels?: readonly LabelOption[];
   /** The repositories the owner watches, to pick from. */
@@ -299,15 +303,12 @@ export function NewTaskForm({
   );
   const rest = (
     <>
-      <Field label="Sub-task of" hint="Task key">
+      <Field label="Parent" hint="Sub-task of">
         {(id) => (
-          <input
+          <ParentSelect
             id={id}
-            name="parent"
+            options={parents}
             defaultValue={defaults.parent}
-            placeholder="e.g. T-3"
-            className={`${FIELD} h-[34px] font-mono text-[12.5px]`}
-            {...NOT_A_LOGIN}
           />
         )}
       </Field>
@@ -360,7 +361,7 @@ export function NewTaskForm({
                     aria-hidden="true"
                     className="size-3 transition-transform group-open:rotate-90 motion-reduce:transition-none"
                   />
-                  Sub-task of, blocked by, source
+                  Parent, blocked by, source
                 </summary>
                 <div className="grid gap-4 pt-4 sm:grid-cols-2">{rest}</div>
               </details>
@@ -415,6 +416,7 @@ export type TaskDetails = {
   readonly description: string;
   readonly priority: string;
   readonly repository: string | null;
+  readonly parent: { readonly key: string } | null;
 };
 
 /** Editing what the task says, behind a disclosure so reading comes first. */
@@ -422,11 +424,14 @@ export function EditTaskForm({
   action,
   task,
   repositories = [],
+  parents = [],
 }: {
   action: TaskAction;
   task: TaskDetails;
   /** The repositories the owner watches, to pick from. */
   repositories?: readonly RepositoryOption[];
+  /** The open tasks it can go under. */
+  parents?: readonly ParentOption[];
 }) {
   return (
     <details className="group">
@@ -494,6 +499,16 @@ export function EditTaskForm({
                 )}
               </Field>
             </div>
+            <Field label="Parent" hint="Sub-task of">
+              {(id) => (
+                <ParentSelect
+                  id={id}
+                  options={parents}
+                  defaultValue={task.parent?.key ?? ""}
+                  exclude={task.key}
+                />
+              )}
+            </Field>
             <div>
               <button type="submit" disabled={pending} className={PRIMARY}>
                 {pending ? "Saving…" : "Save"}

@@ -7,6 +7,7 @@ import {
   MagnifyingGlass,
   Plus,
   Robot,
+  TreeStructure,
   UserCircle,
   WarningCircle,
 } from "@phosphor-icons/react/ssr";
@@ -32,7 +33,9 @@ import {
   TaskLabelsForm,
   type TaskActions,
 } from "./task-forms";
+import { CopyTaskLink } from "./copy-link";
 import { LabelChips, type LabelOption } from "./labels";
+import type { ParentOption } from "./parent-select";
 import type { RepositoryOption } from "./repository-select";
 import { LiveDot } from "./task-list";
 import { InlineMarkdown, Markdown } from "./markdown";
@@ -588,6 +591,57 @@ function MentionLink({ task }: { task: TaskMention }) {
   );
 }
 
+/**
+ * Where a task sits, above its title as Jira puts it: the parent it belongs
+ * to, one click away, then the task's own key with a way to copy its link.
+ */
+export function TaskTrail({
+  task,
+  home = false,
+}: {
+  task: TaskBrief;
+  /** Start from the task list, as the full page does. */
+  home?: boolean;
+}) {
+  const caret = <CaretRight aria-hidden="true" className="size-[11px]" />;
+  return (
+    <nav
+      aria-label="Breadcrumb"
+      className="text-ink-muted flex min-w-0 flex-wrap items-center gap-1.5 text-[12.5px]"
+    >
+      {home ? (
+        <>
+          <Link href="/tasks" className="hover:text-ink">
+            Tasks
+          </Link>
+          {caret}
+        </>
+      ) : null}
+      {task.parent ? (
+        <>
+          <Link
+            href={taskHref(task.parent.key)}
+            title={`Parent: ${task.parent.title}`}
+            className="hover:text-ink flex min-w-0 items-center gap-1.5"
+          >
+            <TreeStructure
+              aria-hidden="true"
+              className="text-ink-faint size-[13px] shrink-0"
+            />
+            <span className="font-mono">{task.parent.key}</span>
+            <span className="max-w-[40ch] truncate">{task.parent.title}</span>
+          </Link>
+          {caret}
+        </>
+      ) : null}
+      <span className="flex items-center gap-1">
+        <span className="font-mono">{task.key}</span>
+        <CopyTaskLink taskKey={task.key} />
+      </span>
+    </nav>
+  );
+}
+
 function Property({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div className="border-hairline-soft grid grid-cols-[96px_minmax(0,1fr)] items-baseline gap-2.5 border-t py-2.5 text-[12.5px] first:border-t-0">
@@ -683,6 +737,7 @@ export function TaskDetail({
   actions,
   labels = [],
   repositories = [],
+  parents = [],
   picturesEnabled = false,
 }: {
   task: TaskBrief;
@@ -691,6 +746,8 @@ export function TaskDetail({
   labels?: readonly LabelOption[];
   /** The repositories the owner watches, for "Edit details". */
   repositories?: readonly RepositoryOption[];
+  /** The open tasks it can go under, for "Edit details". */
+  parents?: readonly ParentOption[];
   /** Whether this Fenro has somewhere to keep pictures. */
   picturesEnabled?: boolean;
 }) {
@@ -731,25 +788,7 @@ export function TaskDetail({
   return (
     <div className="flex flex-col gap-6">
       <header className="flex flex-col gap-2.5">
-        <nav
-          aria-label="Breadcrumb"
-          className="text-ink-muted flex flex-wrap items-center gap-1.5 text-[12.5px]"
-        >
-          <Link href="/tasks" className="hover:text-ink">
-            Tasks
-          </Link>
-          {task.parent ? (
-            <>
-              <CaretRight aria-hidden="true" className="size-[11px]" />
-              <Link href={taskHref(task.parent.key)} className="hover:text-ink">
-                <span className="font-mono">{task.parent.key}</span>{" "}
-                {task.parent.title}
-              </Link>
-            </>
-          ) : null}
-          <CaretRight aria-hidden="true" className="size-[11px]" />
-          <span className="font-mono">{key}</span>
-        </nav>
+        <TaskTrail task={task} home />
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div className="flex min-w-0 flex-col gap-2.5">
             <h1 className="text-ink text-[24px] leading-tight font-semibold tracking-tight">
@@ -782,6 +821,7 @@ export function TaskDetail({
                 action={actions.update}
                 task={task}
                 repositories={repositories}
+                parents={parents}
               />
             </Section>
 
