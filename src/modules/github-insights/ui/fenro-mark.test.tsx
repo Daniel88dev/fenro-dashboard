@@ -9,8 +9,10 @@ import { FenroMark } from "./fenro-mark";
 function shapes(root: ParentNode) {
   return {
     paths: [...root.querySelectorAll("path")].map((p) => p.getAttribute("d")),
-    circles: [...root.querySelectorAll("circle")].map((c) =>
-      ["cx", "cy", "r"].map((a) => c.getAttribute(a)).join(","),
+    rects: [...root.querySelectorAll("rect")].map((r) =>
+      ["x", "y", "width", "height", "rx", "fill-opacity"]
+        .map((a) => r.getAttribute(a))
+        .join(","),
     ),
   };
 }
@@ -30,6 +32,9 @@ describe("FenroMark", () => {
     const { container } = render(<FenroMark />);
 
     expect(container.querySelector("rect")).toHaveClass("fill-pr");
-    expect(container.querySelector("g")).toHaveClass("stroke-on-pr");
+    expect(container.querySelector("rect ~ g")).toHaveClass("fill-on-pr");
+    expect(container.querySelector("path")?.parentElement).toHaveClass(
+      "stroke-on-pr",
+    );
   });
 });
