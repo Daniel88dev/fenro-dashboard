@@ -5,6 +5,7 @@ import {
   SignInPanel,
   signInErrorMessage,
 } from "@/modules/identity/ui/sign-in-panel";
+import { FenroMark } from "@/modules/github-insights/ui/fenro-mark";
 import { getContainer } from "@/shared/infrastructure/container";
 
 import { signInWithGitHubAction } from "./actions";
@@ -27,12 +28,7 @@ export default async function SignInPage({
       <main className="mx-auto grid w-full max-w-[1120px] flex-1 content-start gap-10 px-5 pt-16 pb-8 md:grid-cols-2 md:content-center md:items-center md:gap-[72px] md:px-12 md:py-16">
         <div className="flex flex-col gap-5">
           <span className="text-ink flex items-center gap-2 font-mono text-[15px] font-semibold tracking-tight">
-            <span
-              aria-hidden="true"
-              className="bg-pr text-on-pr grid size-[18px] place-items-center rounded-[5px] text-[11px] font-bold"
-            >
-              F
-            </span>
+            <FenroMark className="size-5" />
             Fenro
           </span>
           <SignInPanel

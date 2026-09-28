@@ -7,6 +7,7 @@ import {
   THEME_COOKIE,
   themeAttribute,
 } from "@/modules/github-insights/ui/theme";
+import { getEnv } from "@/shared/config/env";
 
 import "./globals.css";
 
@@ -21,6 +22,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
+  // Link previews need an absolute URL for the Open Graph picture.
+  metadataBase: new URL(getEnv().APP_URL),
   title: "Fenro Dashboard",
   description:
     "GitHub insights and an agentic task list for the repositories you care about.",
