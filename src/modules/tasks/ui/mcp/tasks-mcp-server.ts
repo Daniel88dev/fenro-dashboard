@@ -66,7 +66,7 @@ The loop:
 4. check_criterion for each acceptance criterion with its evidence.
 5. finish_session with a handoff summary and an outcome: done, in_review (a person must look, e.g. a pull request is open), paused, blocked (say on what), or released (give it back).
 
-A task is not done while it has open sub-tasks or unmet criteria. Tasks are named by key, like T-12.
+A task is not done while it has open sub-tasks or unmet criteria. Tasks are named by key, like T-12; a person may paste a task's link instead (…/tasks/T-12), which works wherever a key does. A task can sit under a parent, like an epic: get_task shows its parent and sub-tasks, save_task with parent moves it, and list_tasks with parent lists a parent's sub-tasks.
 
 Labels group tasks, and the person filters their list by them. Reuse the labels list_labels returns before inventing new ones; a name that does not exist yet is created when a task is saved with it.
 
@@ -89,6 +89,8 @@ export function createTasksMcpServer(
   links: {
     /** The address a picture's bytes go to, for a ticket. */
     readonly upload: (ticket: string) => string;
+    /** A task page's full address, to hand back to people. */
+    readonly task: (key: string) => string;
   },
 ): McpServer {
   const { ownerId, actor } = access;
@@ -100,6 +102,7 @@ export function createTasksMcpServer(
 
   const brief = async (task: string, journalLimit?: number) =>
     queryBus.ask(taskBriefQuery(ownerId, task, journalLimit));
+  const url = (key: string) => ({ url: links.task(key) });
 
   /** After a change, answer with where the task now stands. */
   const standing = async (
@@ -108,7 +111,9 @@ export function createTasksMcpServer(
   ): Promise<CallToolResult> => {
     if (!outcome.ok) return refused(outcome.error);
     const found = await brief(task, 0);
-    return found.ok ? json(standingOf(found.value)) : refused(found.error);
+    return found.ok
+      ? json({ ...standingOf(found.value), ...url(found.value.key) })
+      : refused(found.error);
   };
 
   server.registerTool(
@@ -154,16 +159,18 @@ export function createTasksMcpServer(
     {
       title: "Read a task",
       description:
-        "The full brief for one task: description, acceptance criteria, blockers, sub-tasks, links, the latest handoff, every decision, the recent journal and the task's pictures.",
+        "The full brief for one task: description, acceptance criteria, its parent, blockers, sub-tasks, links, the latest handoff, every decision, the recent journal, the task's pictures and its url to share with people.",
       inputSchema: z.object({
-        task: z.string().describe("Key, e.g. T-12"),
+        task: z.string().describe("Key, e.g. T-12, or the task's link"),
         journal_limit: z.number().int().min(0).max(200).optional(),
       }),
       annotations: { readOnlyHint: true, openWorldHint: false },
     },
     async ({ task, journal_limit }) => {
       const found = await brief(task, journal_limit);
-      return found.ok ? json(found.value) : refused(found.error);
+      return found.ok
+        ? json({ ...found.value, ...url(found.value.key) })
+        : refused(found.error);
     },
   );
 
@@ -270,7 +277,9 @@ export function createTasksMcpServer(
           .string()
           .nullable()
           .optional()
-          .describe("Makes it a sub-task; null makes it top-level"),
+          .describe(
+            "Key of the parent task (like an epic) it goes under; null makes it top-level",
+          ),
         status: z
           .enum(["backlog", "todo"])
           .optional()
@@ -424,7 +433,9 @@ export function createTasksMcpServer(
         const started = await commandBus.dispatch(command);
         if (started.ok) {
           const found = await brief(candidate);
-          return found.ok ? json(found.value) : refused(found.error);
+          return found.ok
+            ? json({ ...found.value, ...url(found.value.key) })
+            : refused(found.error);
         }
         last = started.error;
         // Another agent took it between the list and the claim: try the next.

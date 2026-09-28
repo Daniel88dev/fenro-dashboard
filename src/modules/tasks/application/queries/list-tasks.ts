@@ -1,3 +1,4 @@
+import { parseTaskKey } from "@/modules/tasks/domain";
 import type { Query, QueryHandler } from "@/shared/application";
 
 import type { TaskReadStore } from "../ports/task-read-store";
@@ -38,10 +39,9 @@ export class ListTasksHandler implements QueryHandler<
     const { parent, ...filter } = query.filter;
     if (parent === undefined) return listTasks(index, filter);
 
-    const parentRecord = index.records.find(
-      (record) =>
-        `T-${record.number}`.toLowerCase() === parent.trim().toLowerCase() ||
-        record.id === parent.trim(),
+    const number = parseTaskKey(parent);
+    const parentRecord = index.records.find((record) =>
+      number.ok ? record.number === number.value : record.id === parent.trim(),
     );
     if (!parentRecord) return { total: 0, tasks: [] };
     return listTasks(index, { ...filter, parentId: parentRecord.id });

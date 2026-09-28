@@ -403,6 +403,65 @@ describe("TaskDialogContent", () => {
   });
 });
 
+describe("task trail", () => {
+  it("links the parent above the title, and copies the task's link", async () => {
+    const writeText = vi.fn(async () => {});
+    Object.defineProperty(navigator, "clipboard", {
+      value: { writeText },
+      configurable: true,
+    });
+    render(<TaskDialogContent task={brief} actions={actions()} />);
+
+    const trail = screen.getByRole("navigation", { name: "Breadcrumb" });
+    expect(within(trail).getByRole("link", { name: /T-1/ })).toHaveAttribute(
+      "href",
+      "/tasks/T-1",
+    );
+
+    await act(async () => {
+      fireEvent.click(
+        within(trail).getByRole("button", { name: "Copy link to T-2" }),
+      );
+    });
+    expect(writeText).toHaveBeenCalledWith(
+      `${window.location.origin}/tasks/T-2`,
+    );
+    expect(within(trail).getByRole("status")).toHaveTextContent("Copied");
+  });
+
+  it("moves a task under another parent from Edit details", async () => {
+    const update = vi.fn(async () => ({ error: null, saved: 1 }));
+    render(
+      <TaskDetail
+        task={brief}
+        actions={actions({ update })}
+        parents={[
+          { key: "T-1", title: "Ship it" },
+          { key: "T-2", title: "Fix the lint job" },
+          { key: "T-7", title: "Agent access epic" },
+        ]}
+      />,
+    );
+
+    const field = screen.getByRole("button", { name: /^Parent/ });
+    expect(field).toHaveTextContent("T-1");
+    fireEvent.click(field);
+    // A task cannot go under itself.
+    const list = screen.getByRole("dialog", { name: "Parent task" });
+    expect(within(list).queryByText("Fix the lint job")).toBeNull();
+    const find = screen.getByLabelText("Find a task");
+    fireEvent.change(find, { target: { value: "epic" } });
+    fireEvent.keyDown(find, { key: "Enter" });
+    expect(field).toHaveTextContent("T-7");
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    });
+    const sent = update.mock.calls[0] as unknown as [unknown, FormData];
+    expect(sent[1].get("parent")).toBe("T-7");
+  });
+});
+
 describe("NewTaskForm", () => {
   const defaults = { repository: "o/r", parent: "", source: "", title: "" };
 

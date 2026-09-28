@@ -19,14 +19,16 @@ import { TASK_ACTIONS } from "../../../tasks/task-actions";
 export default async function NewTaskDialogPage({
   searchParams,
 }: PageProps<"/tasks/new">) {
-  const { container, ownerId, repositoryOptions } = await tasksContext();
+  const { container, ownerId, repositoryOptions, parentOptions } =
+    await tasksContext();
   if (!ownerId) return null;
 
   const params = await searchParams;
   const defaults = newTaskDefaults(params);
-  const [labels, repositories] = await Promise.all([
+  const [labels, repositories, parents] = await Promise.all([
     container.queryBus.ask(listLabelsQuery(ownerId)),
     repositoryOptions(),
+    parentOptions(),
   ]);
   const query = new URLSearchParams(
     Object.entries({
@@ -75,6 +77,7 @@ export default async function NewTaskDialogPage({
           defaults={defaults}
           labels={labels}
           repositories={repositories}
+          parents={parents}
           variant="dialog"
           cancel={<CancelDialogButton />}
         />

@@ -40,7 +40,24 @@ describe("parseTaskKey", () => {
     expect(unwrap(parseTaskKey(value))).toBe(12);
   });
 
-  it.each(["T-0", "T12x", "abc", ""])("refuses %s", (value) => {
+  it.each([
+    "https://fenro-dashboard.vercel.app/tasks/T-12",
+    "http://localhost:3000/tasks/t-12/",
+    "https://fenro-dashboard.vercel.app/tasks/T-12?from=dialog#journal",
+    "/tasks/T-12",
+  ])("reads the link %s", (value) => {
+    expect(unwrap(parseTaskKey(value))).toBe(12);
+  });
+
+  it.each([
+    "T-0",
+    "T12x",
+    "abc",
+    "",
+    "https://example.com/tasks/new",
+    "https://example.com/issues/T-12",
+    "https://example.com/tasks/T-12/edit",
+  ])("refuses %s", (value) => {
     expect(isErr(parseTaskKey(value))).toBe(true);
   });
 });

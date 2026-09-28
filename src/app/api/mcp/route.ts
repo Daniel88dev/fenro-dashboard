@@ -33,6 +33,7 @@ const mcp = createMcpHandler(
     createTasksMcpServer(toAccess(authInfo!), getAgentContainer(), {
       upload: (ticket) =>
         new URL(`/api/pictures/upload/${ticket}`, getEnv().APP_URL).href,
+      task: (key) => new URL(`/tasks/${key}`, getEnv().APP_URL).href,
     }),
   // No tool here streams progress, so clients on the current protocol get a
   // single JSON body; older clients still get the SSE framing they expect.

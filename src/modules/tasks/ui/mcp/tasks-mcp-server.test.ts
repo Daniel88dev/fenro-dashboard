@@ -180,6 +180,7 @@ async function connect(access: AgentAccess) {
   };
   await createTasksMcpServer(access, buses(), {
     upload: (ticket) => `https://fenro.test/api/pictures/upload/${ticket}`,
+    task: (key) => `https://fenro.test/tasks/${key}`,
   }).connect(serverSide);
   await agentSide.start();
 
@@ -405,6 +406,27 @@ describe("the tasks MCP server", () => {
     expect(brief.decisions.map((entry) => entry.text)).toEqual([
       "Stateless Streamable HTTP, JSON answers.",
     ]);
+  });
+
+  it("opens a task from its pasted link and shows where it sits", async () => {
+    const planner = await connect(agent("planner"));
+    await planner.call("save_task", { title: "Agent access" });
+    await planner.call("save_task", { title: "Token route", parent: "T-1" });
+
+    const child = parse<TaskBrief & { url: string }>(
+      await planner.call("get_task", {
+        task: "https://fenro.test/tasks/T-2",
+      }),
+    );
+    expect(child.url).toBe("https://fenro.test/tasks/T-2");
+    expect(child.parent?.key).toBe("T-1");
+
+    const children = parse<TaskList>(
+      await planner.call("list_tasks", {
+        parent: "https://fenro.test/tasks/T-1",
+      }),
+    );
+    expect(keys(children)).toEqual(["T-2"]);
   });
 
   it("keeps a task open until its criteria are met", async () => {
