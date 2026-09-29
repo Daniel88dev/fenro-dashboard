@@ -13,7 +13,8 @@ export function invalidCoordinates(message: string): InvalidCoordinates {
 }
 
 /** Why a sync may not start now. None of these is an error to show anyone. */
-export type SyncRefusalReason = "in-progress" | "not-due" | "cooling-down";
+export type SyncRefusalReason =
+  "in-progress" | "not-due" | "cooling-down" | "not-connected";
 
 export type SyncRefused = {
   readonly code: "sync-refused";
@@ -26,4 +27,14 @@ export function syncRefused(
   message: string,
 ): SyncRefused {
   return { code: "sync-refused", reason, message };
+}
+
+/** The watcher already has this repository on their dashboard. */
+export type AlreadyWatched = {
+  readonly code: "already-watched";
+  readonly message: string;
+};
+
+export function alreadyWatched(message: string): AlreadyWatched {
+  return { code: "already-watched", message };
 }

@@ -4,6 +4,7 @@ import {
   SyncState,
   WatchedRepository,
   type ConcurrentModification,
+  type RepositorySource,
   type SyncFailureKind,
   type WatchedRepositoryRepository,
 } from "@/modules/github-insights/domain";
@@ -15,6 +16,7 @@ type Row = {
   readonly owner: string;
   readonly name: string;
   readonly watchedAt: Date;
+  readonly source: RepositorySource;
   readonly pinnedAt: Date | null;
   readonly lastSyncedAt: Date | null;
   readonly lastAttemptedAt: Date | null;
@@ -110,6 +112,7 @@ export class InMemoryWatchedRepositoryRepository implements WatchedRepositoryRep
         watcherId: row.watcherId,
         coordinates: unwrap(RepositoryCoordinates.create(row.owner, row.name)),
         watchedAt: row.watchedAt,
+        source: row.source,
       },
       SyncState.restore({
         lastSyncedAt: row.lastSyncedAt,
@@ -134,6 +137,7 @@ function toRow(repository: WatchedRepository, version: number): Row {
     owner: repository.coordinates.owner,
     name: repository.coordinates.name,
     watchedAt: repository.watchedAt,
+    source: repository.source,
     pinnedAt: repository.pinnedAt,
     lastSyncedAt: sync.lastSyncedAt,
     lastAttemptedAt: sync.lastAttemptedAt,

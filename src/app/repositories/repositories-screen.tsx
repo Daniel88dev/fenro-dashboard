@@ -51,6 +51,7 @@ import {
 import { signInWithGitHubAction } from "../sign-in/actions";
 import {
   addRepositoriesAction,
+  addRepositoryManuallyAction,
   pinRepositoryAction,
   syncRepositoriesAction,
   unwatchRepositoryAction,
@@ -163,7 +164,9 @@ export async function RepositoriesScreen({
     const panels: { key: string; node: ReactNode }[] = [];
     const repository = { owner: row.owner, name: row.name };
 
-    if (isOpen(state, { ...repository, column: "prs" })) {
+    // A repository added by hand has no pull requests or issues to open, even
+    // when an old link asks for them.
+    if (!row.manual && isOpen(state, { ...repository, column: "prs" })) {
       panels.push({
         key: "prs",
         node: (
@@ -183,7 +186,7 @@ export async function RepositoriesScreen({
         ),
       });
     }
-    if (isOpen(state, { ...repository, column: "issues" })) {
+    if (!row.manual && isOpen(state, { ...repository, column: "issues" })) {
       panels.push({
         key: "issues",
         node: (
@@ -227,6 +230,7 @@ export async function RepositoriesScreen({
       owner: row.owner,
       name: row.name,
       pinned: row.pinned,
+      manual: row.manual,
       lastActivityAt: row.lastActivityAt,
       syncFailure: row.syncFailure,
       rateLimited: row.rateLimited,
@@ -258,12 +262,14 @@ export async function RepositoriesScreen({
     };
   });
 
-  // Every row syncs, filtered out or not: the filter narrows what is shown,
-  // not what is kept fresh.
+  // Every row read from GitHub syncs, filtered out or not: the filter narrows
+  // what is shown, not what is kept fresh.
   return (
     <SyncProvider
       action={syncRepositoriesAction}
-      repositoryIds={rows.value.map((row) => row.id)}
+      repositoryIds={rows.value
+        .filter((row) => !row.manual)
+        .map((row) => row.id)}
       dueIds={rows.value.filter((row) => row.needsSync).map((row) => row.id)}
     >
       <DashboardHeader
@@ -272,6 +278,7 @@ export async function RepositoriesScreen({
         filter={state.filter}
         now={now}
         addAction={addRepositoriesAction}
+        addManuallyAction={addRepositoryManuallyAction}
         repositoriesSource="/api/github/repositories"
         accessSettingsUrl={getAuthenticator().gitHubAccessSettingsUrl()}
       />
@@ -285,6 +292,7 @@ export async function RepositoriesScreen({
           <AddRepositories
             source="/api/github/repositories"
             action={addRepositoriesAction}
+            manualAction={addRepositoryManuallyAction}
             accessSettingsUrl={getAuthenticator().gitHubAccessSettingsUrl()}
           />
         }

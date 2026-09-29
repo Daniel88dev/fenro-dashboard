@@ -2,6 +2,7 @@
 
 import { refresh, revalidatePath } from "next/cache";
 
+import { addRepositoryManuallyCommand } from "@/modules/github-insights/application/commands/add-repository-manually";
 import {
   pinRepositoryCommand,
   unpinRepositoryCommand,
@@ -70,6 +71,33 @@ export async function addRepositoriesAction(
 
   revalidatePath("/repositories");
   return { error: null, added: toWatch.length };
+}
+
+/**
+ * A repository typed in by hand, for an organization that does not let this
+ * app read it. GitHub is not asked anything; the aggregate decides whether
+ * the name is one GitHub could have and whether it is already watched.
+ */
+export async function addRepositoryManuallyAction(
+  _state: AddRepositoriesState,
+  formData: FormData,
+): Promise<AddRepositoriesState> {
+  const owner = String(formData.get("owner") ?? "");
+  const name = String(formData.get("name") ?? "");
+
+  const { commandBus, queryBus } = await getContainer();
+  const user = await queryBus.ask(signedInUserQuery());
+  if (!user) {
+    return { error: "Sign in with GitHub to add repositories.", added: 0 };
+  }
+
+  const added = await commandBus.dispatch(
+    addRepositoryManuallyCommand(user.id, owner, name),
+  );
+  if (isErr(added)) return { error: added.error.message, added: 0 };
+
+  revalidatePath("/repositories");
+  return { error: null, added: 1 };
 }
 
 export async function unwatchRepositoryAction(

@@ -27,11 +27,15 @@ export function dashboardTotalsQuery(watcher: Watcher): DashboardTotalsQuery {
 }
 
 export function totalsOf(rows: readonly RepositoryRow[]): DashboardTotals {
-  const synced = rows
+  // A repository added by hand is never synced, so it says nothing about how
+  // fresh the page is.
+  const connected = rows.filter((row) => !row.manual);
+  const synced = connected
     .map((row) => row.syncedAt)
     .filter((syncedAt): syncedAt is Date => syncedAt !== null);
   return {
     watchedRepositories: rows.length,
+    connectedRepositories: connected.length,
     openPullRequests: rows.reduce(
       (total, row) => total + row.openPullRequests,
       0,
@@ -41,7 +45,7 @@ export function totalsOf(rows: readonly RepositoryRow[]): DashboardTotals {
       synced.length === 0
         ? null
         : new Date(Math.min(...synced.map((date) => date.getTime()))),
-    neverSynced: rows.length - synced.length,
+    neverSynced: connected.length - synced.length,
     rateLimited: rows.some((row) => row.rateLimited),
   };
 }

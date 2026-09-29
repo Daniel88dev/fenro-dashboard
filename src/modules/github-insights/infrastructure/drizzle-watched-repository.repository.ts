@@ -6,6 +6,7 @@ import {
   SyncState,
   WatchedRepository,
   type ConcurrentModification,
+  type RepositorySource,
   type SyncFailureKind,
   type WatchedRepositoryRepository,
 } from "@/modules/github-insights/domain";
@@ -118,6 +119,7 @@ export class DrizzleWatchedRepositoryRepository implements WatchedRepositoryRepo
         watcherId: row.watcherId,
         coordinates: unwrap(RepositoryCoordinates.create(row.owner, row.name)),
         watchedAt: row.watchedAt,
+        source: sourceOf(row.source),
       },
       SyncState.restore({
         lastSyncedAt: row.lastSyncedAt,
@@ -142,6 +144,7 @@ function toValues(repository: WatchedRepository) {
     owner: repository.coordinates.owner,
     name: repository.coordinates.name,
     watchedAt: repository.watchedAt,
+    source: repository.source,
     pinnedAt: repository.pinnedAt,
     lastSyncedAt: sync.lastSyncedAt,
     lastSyncAttemptedAt: sync.lastAttemptedAt,
@@ -155,4 +158,9 @@ function toValues(repository: WatchedRepository) {
 function failureKind(value: string | null): SyncFailureKind | null {
   if (value === null) return null;
   return value === "rate-limited" ? "rate-limited" : "failed";
+}
+
+/** Anything this version does not recognise is read from GitHub. */
+function sourceOf(value: string): RepositorySource {
+  return value === "manual" ? "manual" : "github";
 }
