@@ -9,7 +9,12 @@ import { FakeGitHubGateway } from "@/modules/github-insights/infrastructure/fake
 import { InMemoryRepositorySnapshotStore } from "@/modules/github-insights/infrastructure/in-memory-repository-snapshot.store";
 import { InMemoryWatchedRepositoryRepository } from "@/modules/github-insights/infrastructure/in-memory-watched-repository.repository";
 import { SYNC_POLICY } from "@/modules/github-insights/domain";
+import { unwrap } from "@/shared/domain";
 
+import {
+  AddRepositoryManuallyHandler,
+  addRepositoryManuallyCommand,
+} from "./add-repository-manually";
 import { PinRepositoryHandler, pinRepositoryCommand } from "./pin-repository";
 import {
   SYNC_CONCURRENCY,
@@ -89,6 +94,24 @@ describe("sync-watched-repositories", () => {
     expect(billing.snapshot?.pullRequests[0]?.title).toBe(
       "nordwind/billing-core",
     );
+  });
+
+  it("never asks GitHub about a repository added by hand", async () => {
+    const { handler, gitHub, repositories, stored } = await setUp(
+      "nordwind/billing-core",
+    );
+    unwrap(
+      await new AddRepositoryManuallyHandler(repositories).handle(
+        addRepositoryManuallyCommand("user-1", "acme", "billing", t0),
+      ),
+    );
+
+    await handler.handle(syncWatchedRepositoriesCommand("user-1", "manual"));
+
+    expect(gitHub.calls).toEqual(["snapshot nordwind/billing-core"]);
+    const manual = await stored("acme/billing");
+    expect(manual.repository.sync.lastAttemptedAt).toBeNull();
+    expect(manual.snapshot).toBeUndefined();
   });
 
   it("does not call GitHub on a visit within the hour", async () => {

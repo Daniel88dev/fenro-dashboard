@@ -158,4 +158,100 @@ describe("AddRepositories", () => {
       "https://github.com/settings/connections/applications/abc",
     );
   });
+
+  describe("added manually", () => {
+    function renderWithManual(
+      manualAction = vi.fn<AddAction>(async () => ({ error: null, added: 1 })),
+    ) {
+      render(
+        <AddRepositories
+          source="/api/github/repositories"
+          action={vi.fn<AddAction>()}
+          manualAction={manualAction}
+          accessSettingsUrl={null}
+        />,
+      );
+      return manualAction;
+    }
+
+    async function openManual() {
+      await open();
+      await act(async () => {
+        fireEvent.click(
+          screen.getByRole("button", {
+            name: "Can't connect it? Add a repository manually",
+          }),
+        );
+      });
+    }
+
+    it("is offered even when GitHub will not list the repositories", async () => {
+      answering({ error: "GitHub refused the request." });
+      renderWithManual();
+
+      await openManual();
+
+      expect(
+        screen.getByRole("form", { name: "Add a repository manually" }),
+      ).toBeInTheDocument();
+    });
+
+    it("sends the owner and name typed in, and closes once added", async () => {
+      answering(listing);
+      const manualAction = renderWithManual();
+      await openManual();
+
+      fireEvent.change(screen.getByLabelText("Owner"), {
+        target: { value: "acme" },
+      });
+      fireEvent.change(screen.getByLabelText("Repository"), {
+        target: { value: "billing" },
+      });
+      await act(async () => {
+        fireEvent.click(screen.getByRole("button", { name: "Add repository" }));
+      });
+
+      const formData = manualAction.mock.calls[0]?.[1];
+      expect(formData?.get("owner")).toBe("acme");
+      expect(formData?.get("name")).toBe("billing");
+      expect(
+        screen.queryByRole("form", { name: "Add a repository manually" }),
+      ).not.toBeInTheDocument();
+    });
+
+    it("keeps the form open and says why when it is refused", async () => {
+      answering(listing);
+      renderWithManual(
+        vi.fn<AddAction>(async () => ({
+          error: "acme/billing is already on your dashboard.",
+          added: 0,
+        })),
+      );
+      await openManual();
+
+      fireEvent.change(screen.getByLabelText("Owner"), {
+        target: { value: "acme" },
+      });
+      fireEvent.change(screen.getByLabelText("Repository"), {
+        target: { value: "billing" },
+      });
+      await act(async () => {
+        fireEvent.click(screen.getByRole("button", { name: "Add repository" }));
+      });
+
+      expect(screen.getByRole("alert")).toHaveTextContent(
+        "acme/billing is already on your dashboard.",
+      );
+    });
+
+    it("keeps its password-manager opt-outs on both fields", async () => {
+      answering(listing);
+      renderWithManual();
+      await openManual();
+
+      for (const label of ["Owner", "Repository"]) {
+        expect(screen.getByLabelText(label)).toHaveAttribute("data-1p-ignore");
+      }
+    });
+  });
 });

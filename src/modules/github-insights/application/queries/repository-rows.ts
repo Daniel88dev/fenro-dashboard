@@ -3,7 +3,10 @@ import type {
   RepositoryInsightsReader,
 } from "@/modules/github-insights/application/ports/repository-insights.reader";
 import type { Watcher } from "@/modules/github-insights/application/ports/viewer";
-import type { WatchedRepositoryRepository } from "@/modules/github-insights/domain";
+import type {
+  WatchedRepository,
+  WatchedRepositoryRepository,
+} from "@/modules/github-insights/domain";
 import type { Query, QueryHandler } from "@/shared/application";
 import { isErr, ok, type Result } from "@/shared/domain";
 
@@ -56,19 +59,16 @@ export async function loadRepositoryRows(
           owner,
           name,
           pinned: repository.isPinned,
+          manual: repository.isManual,
           openPullRequests: count?.openPullRequests ?? 0,
           openIssues: count?.openIssues ?? 0,
-          pullRequestHint:
-            count?.pullRequestHint ??
-            (sync.lastSyncedAt ? "nothing open" : "not synced yet"),
-          issueHint:
-            count?.issueHint ??
-            (sync.lastSyncedAt ? "nothing open" : "not synced yet"),
+          pullRequestHint: count?.pullRequestHint ?? unsyncedHint(repository),
+          issueHint: count?.issueHint ?? unsyncedHint(repository),
           lastActivityAt: count?.lastActivityAt ?? null,
           syncedAt: sync.lastSyncedAt,
           syncFailure: sync.lastFailure,
           rateLimited: sync.isRateLimited,
-          needsSync: sync.isDueAutomatically(now),
+          needsSync: repository.isDueAutomatically(now),
         };
       })
       // Pinned rows first; within each group the order stays alphabetical.
@@ -80,6 +80,11 @@ export async function loadRepositoryRows(
           ),
       ),
   );
+}
+
+function unsyncedHint(repository: WatchedRepository): string {
+  if (repository.isManual) return "not connected";
+  return repository.sync.lastSyncedAt ? "nothing open" : "not synced yet";
 }
 
 export class RepositoryRowsHandler implements QueryHandler<

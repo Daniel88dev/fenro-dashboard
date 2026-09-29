@@ -1,11 +1,14 @@
 import { BaseDomainEvent } from "@/shared/domain";
 
+import type { RepositorySource } from "./watched-repository";
+
 export class RepositoryWatched extends BaseDomainEvent {
   readonly name = "github-insights.repository-watched";
 
   constructor(
     aggregateId: string,
     readonly fullName: string,
+    readonly source: RepositorySource,
     occurredAt?: Date,
   ) {
     super(aggregateId, occurredAt);

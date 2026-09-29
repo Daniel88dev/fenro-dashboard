@@ -35,6 +35,11 @@ export const watchedRepository = pgTable(
     owner: text("owner").notNull(),
     name: text("name").notNull(),
     watchedAt: instant("watched_at").notNull(),
+    /**
+     * `github`, or `manual` for one typed in by hand that is never synced.
+     * Rows from before it was kept were all picked from GitHub.
+     */
+    source: text("source").notNull().default("github"),
     /** When its watcher pinned it to the top of their table; null if not. */
     pinnedAt: instant("pinned_at"),
     lastSyncedAt: instant("last_synced_at"),

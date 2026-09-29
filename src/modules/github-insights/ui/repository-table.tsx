@@ -1,6 +1,7 @@
 import { WarningCircle } from "@phosphor-icons/react/ssr";
 import type { ReactNode } from "react";
 
+import { Chip } from "./chip";
 import { CountToggle } from "./count-toggle";
 import { formatAbsolute, formatRelativeTime } from "./format";
 import { PinButton } from "./pin-button";
@@ -22,6 +23,11 @@ export type RepositoryRowView = {
   readonly name: string;
   /** Pinned rows come first; the screen has already put them there. */
   readonly pinned: boolean;
+  /**
+   * Added by hand and never read from GitHub, so its pull request and issue
+   * columns say so instead of showing a count.
+   */
+  readonly manual: boolean;
   readonly lastActivityAt: Date | null;
   /** Why the latest sync failed, while the counts are from an older one. */
   readonly syncFailure: string | null;
@@ -114,6 +120,11 @@ export function RepositoryTable({
                   <span className="text-ink truncate font-mono text-[14.5px] font-medium">
                     {row.name}
                   </span>
+                  {row.manual ? (
+                    <span title="Added manually. Fenro does not read its pull requests or issues from GitHub.">
+                      <Chip>Manual</Chip>
+                    </span>
+                  ) : null}
                   {pinAction ? (
                     <PinButton
                       owner={row.owner}
@@ -149,10 +160,18 @@ export function RepositoryTable({
               </div>
 
               <div className="[grid-area:prs]">
-                <CountToggle {...row.pullRequests} tone="pr" />
+                {row.manual ? (
+                  <NotConnected what="Pull requests" />
+                ) : (
+                  <CountToggle {...row.pullRequests} tone="pr" />
+                )}
               </div>
               <div className="[grid-area:issues]">
-                <CountToggle {...row.issues} tone="issue" />
+                {row.manual ? (
+                  <NotConnected what="Issues" />
+                ) : (
+                  <CountToggle {...row.issues} tone="issue" />
+                )}
               </div>
               <div className="[grid-area:tasks]">
                 <CountToggle {...row.tasks} tone="neutral" />
@@ -166,6 +185,12 @@ export function RepositoryTable({
                   >
                     {formatRelativeTime(row.lastActivityAt, now)}
                   </time>
+                ) : row.manual ? (
+                  // Nobody reads its activity, so "never" would be a guess.
+                  <>
+                    <span aria-hidden="true">–</span>
+                    <span className="sr-only">unknown</span>
+                  </>
                 ) : (
                   "never"
                 )}
@@ -196,5 +221,26 @@ export function RepositoryTable({
         ))}
       </ul>
     </div>
+  );
+}
+
+/**
+ * Where a count would be for a repository added by hand: a dash rather than a
+ * zero, because nobody knows how many there are.
+ */
+function NotConnected({ what }: { what: string }) {
+  return (
+    <span className="flex flex-col items-start gap-px py-2">
+      <span
+        aria-hidden="true"
+        className="text-ink-faint font-mono text-[19px] leading-tight"
+      >
+        –
+      </span>
+      <span className="text-ink-muted text-[11.5px]">
+        <span className="sr-only">{`${what}: `}</span>
+        not connected
+      </span>
+    </span>
   );
 }

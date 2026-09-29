@@ -76,6 +76,26 @@ describe.skipIf(!url)("Postgres adapters", () => {
       expect(restored?.pinnedAt).toEqual(t0);
     });
 
+    it("remembers a repository was added by hand", async () => {
+      const repositories = new DrizzleWatchedRepositoryRepository(db);
+      unwrap(
+        await repositories.save(
+          WatchedRepository.addManually(
+            "user-1",
+            coordinates("acme/billing"),
+            t0,
+          ),
+        ),
+      );
+
+      const [restored] = await new DrizzleWatchedRepositoryRepository(
+        db,
+      ).findAllFor("user-1");
+
+      expect(restored?.source).toBe("manual");
+      expect(restored?.isDueAutomatically(t0)).toBe(false);
+    });
+
     it("finds a repository whatever case it is asked for in", async () => {
       const repositories = new DrizzleWatchedRepositoryRepository(db);
       unwrap(

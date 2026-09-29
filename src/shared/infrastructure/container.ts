@@ -1,4 +1,8 @@
 import {
+  AddRepositoryManuallyHandler,
+  type AddRepositoryManuallyCommand,
+} from "@/modules/github-insights/application/commands/add-repository-manually";
+import {
   PinRepositoryHandler,
   UnpinRepositoryHandler,
   type PinRepositoryCommand,
@@ -241,6 +245,10 @@ export function buildContainer(parts: ContainerParts): Container {
   const insights = new SnapshotInsightsReader(snapshots, clock);
 
   const commandBus = new CommandBus();
+  commandBus.register<AddRepositoryManuallyCommand>(
+    "github-insights.add-repository-manually",
+    new AddRepositoryManuallyHandler(watchedRepositories),
+  );
   commandBus.register<WatchRepositoryCommand>(
     "github-insights.watch-repository",
     new WatchRepositoryHandler(watchedRepositories),

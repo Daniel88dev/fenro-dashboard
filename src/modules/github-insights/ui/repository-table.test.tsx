@@ -31,6 +31,7 @@ function row(overrides: Partial<RepositoryRowView> = {}): RepositoryRowView {
     owner: "nordwind",
     name: "billing-core",
     pinned: false,
+    manual: false,
     lastActivityAt: new Date("2026-09-20T11:34:00Z"),
     syncFailure: null,
     rateLimited: false,
@@ -205,6 +206,22 @@ describe("RepositoryTable", () => {
 
     expect(
       screen.getByText("Not refreshed: rate limit used up"),
+    ).toBeInTheDocument();
+  });
+
+  it("marks a repository added by hand, with no counts to open", () => {
+    render(<RepositoryTable rows={[row({ manual: true })]} now={now} />);
+
+    expect(screen.getByText("Manual")).toBeInTheDocument();
+    expect(screen.getAllByText("not connected")).toHaveLength(2);
+    expect(
+      screen.queryByRole("button", { name: /open pull requests/ }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /open issues/ }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "0 tasks in nordwind/billing-core" }),
     ).toBeInTheDocument();
   });
 

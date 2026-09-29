@@ -131,9 +131,75 @@ describe("WatchedRepository", () => {
   it("restores without recording anything", () => {
     const restored = WatchedRepository.restore(
       WatchedRepository.watch("user-1", coordinates(), t0).id,
-      { watcherId: "user-1", coordinates: coordinates(), watchedAt: t0 },
+      {
+        watcherId: "user-1",
+        coordinates: coordinates(),
+        watchedAt: t0,
+        source: "github",
+      },
     );
 
     expect(restored.pullDomainEvents()).toHaveLength(0);
+  });
+
+  describe("added manually", () => {
+    it("records that it was added by hand, not picked from GitHub", () => {
+      const repository = WatchedRepository.addManually(
+        "user-1",
+        coordinates(),
+        t0,
+      );
+
+      expect(repository.isManual).toBe(true);
+      expect(repository.source).toBe("manual");
+      expect(repository.pullDomainEvents()).toEqual([
+        expect.objectContaining({
+          name: "github-insights.repository-watched",
+          source: "manual",
+        }),
+      ]);
+    });
+
+    it("is never due for a sync, so opening the page asks GitHub nothing", () => {
+      const repository = WatchedRepository.addManually(
+        "user-1",
+        coordinates(),
+        t0,
+      );
+
+      expect(repository.isDueAutomatically(t0)).toBe(false);
+    });
+
+    it("refuses to start a sync, even when Refresh is pressed", () => {
+      const repository = WatchedRepository.addManually(
+        "user-1",
+        coordinates(),
+        t0,
+      );
+
+      const started = repository.startSync("manual", t0);
+
+      expect(isErr(started) && started.error.reason).toBe("not-connected");
+      expect(repository.sync.startedAt).toBeNull();
+    });
+
+    it("can still be pinned", () => {
+      const repository = WatchedRepository.addManually(
+        "user-1",
+        coordinates(),
+        t0,
+      );
+
+      repository.pin(t0);
+
+      expect(repository.isPinned).toBe(true);
+    });
+  });
+
+  it("is due for a sync when picked from GitHub and never synced", () => {
+    const repository = WatchedRepository.watch("user-1", coordinates(), t0);
+
+    expect(repository.source).toBe("github");
+    expect(repository.isDueAutomatically(t0)).toBe(true);
   });
 });

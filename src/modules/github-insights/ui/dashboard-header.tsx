@@ -35,6 +35,7 @@ export function DashboardHeader({
   filter,
   now,
   addAction,
+  addManuallyAction,
   repositoriesSource,
   accessSettingsUrl,
 }: {
@@ -46,6 +47,10 @@ export function DashboardHeader({
     state: AddRepositoriesState,
     formData: FormData,
   ) => Promise<AddRepositoriesState>;
+  addManuallyAction?: (
+    state: AddRepositoriesState,
+    formData: FormData,
+  ) => Promise<AddRepositoriesState>;
   repositoriesSource: string;
   accessSettingsUrl: string | null;
 }) {
@@ -53,6 +58,7 @@ export function DashboardHeader({
     <AddRepositories
       source={repositoriesSource}
       action={addAction}
+      manualAction={addManuallyAction}
       accessSettingsUrl={accessSettingsUrl}
     />
   );
@@ -104,7 +110,7 @@ export function DashboardHeader({
           <SyncStatus
             syncedAt={totals.syncedAt}
             neverSynced={totals.neverSynced}
-            watched={totals.watchedRepositories}
+            watched={totals.connectedRepositories}
             now={now}
           />
           <Form

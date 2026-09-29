@@ -134,6 +134,35 @@ describe("repository-rows", () => {
     });
   });
 
+  it("gives a repository added by hand a row that is never synced", async () => {
+    const { repositories, insights } = setUp();
+    unwrap(
+      await repositories.save(
+        WatchedRepository.addManually(
+          daniel.id,
+          unwrap(RepositoryCoordinates.parse("acme/billing")),
+          now,
+        ),
+      ),
+    );
+
+    const rows = unwrap(
+      await new RepositoryRowsHandler(repositories, insights, () => now).handle(
+        repositoryRowsQuery(daniel),
+      ),
+    );
+
+    expect(rows.find((row) => row.owner === "acme")).toMatchObject({
+      manual: true,
+      needsSync: false,
+      syncedAt: null,
+      openPullRequests: 0,
+      pullRequestHint: "not connected",
+      issueHint: "not connected",
+    });
+    expect(rows.find((row) => row.name === "billing-core")?.manual).toBe(false);
+  });
+
   it("shows nobody else's repositories", async () => {
     const { repositories, insights } = setUp();
 
@@ -161,11 +190,39 @@ describe("dashboard-totals", () => {
       ),
     ).toEqual({
       watchedRepositories: 3,
+      connectedRepositories: 3,
       openPullRequests: 16,
       openIssues: 47,
       syncedAt: new Date("2026-09-23T10:00:00Z"),
       neverSynced: 1,
       rateLimited: false,
+    });
+  });
+
+  it("leaves repositories added by hand out of how fresh the page is", async () => {
+    const { repositories, insights } = setUp();
+    unwrap(
+      await repositories.save(
+        WatchedRepository.addManually(
+          daniel.id,
+          unwrap(RepositoryCoordinates.parse("acme/billing")),
+          now,
+        ),
+      ),
+    );
+
+    const totals = unwrap(
+      await new DashboardTotalsHandler(
+        repositories,
+        insights,
+        () => now,
+      ).handle({ type: "github-insights.dashboard-totals", watcher: daniel }),
+    );
+
+    expect(totals).toMatchObject({
+      watchedRepositories: 4,
+      connectedRepositories: 3,
+      neverSynced: 1,
     });
   });
 

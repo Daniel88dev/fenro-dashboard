@@ -9,6 +9,11 @@ export type RepositoryRow = {
   readonly name: string;
   /** Its watcher pinned it, so it sits above every unpinned row. */
   readonly pinned: boolean;
+  /**
+   * Added by hand and never read from GitHub: it has tasks but no pull
+   * requests or issues to show.
+   */
+  readonly manual: boolean;
   readonly openPullRequests: number;
   readonly openIssues: number;
   /** "3 need you" — the reason to click the count. */
@@ -42,6 +47,8 @@ export type RepositoryCounts = {
  */
 export type DashboardTotals = {
   readonly watchedRepositories: number;
+  /** Watched and read from GitHub, so a Refresh has something to do. */
+  readonly connectedRepositories: number;
   readonly openPullRequests: number;
   readonly openIssues: number;
   /**

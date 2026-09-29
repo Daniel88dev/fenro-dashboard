@@ -1,12 +1,13 @@
 import {
   AggregateRoot,
+  err,
   isErr,
   ok,
   UniqueId,
   type Result,
 } from "@/shared/domain";
 
-import type { SyncRefused } from "./errors";
+import { syncRefused, type SyncRefused } from "./errors";
 import {
   RepositoryPinned,
   RepositorySynced,
@@ -22,6 +23,14 @@ import {
   type SyncTrigger,
 } from "./sync-state";
 
+/**
+ * Where a watched repository's numbers come from. `github` is read from GitHub
+ * with the watcher's token; `manual` was typed in by hand, for an organization
+ * that does not let this app read it, so it is only ever a name tasks can point
+ * at.
+ */
+export type RepositorySource = "github" | "manual";
+
 type Props = {
   /**
    * The signed-in user whose dashboard this is. Each person keeps their own
@@ -30,6 +39,7 @@ type Props = {
   readonly watcherId: string;
   readonly coordinates: RepositoryCoordinates;
   readonly watchedAt: Date;
+  readonly source: RepositorySource;
 };
 
 /**
@@ -71,9 +81,35 @@ export class WatchedRepository extends AggregateRoot<Props> {
     coordinates: RepositoryCoordinates,
     watchedAt: Date,
   ): WatchedRepository {
+    return WatchedRepository.#create(
+      watcherId,
+      coordinates,
+      watchedAt,
+      "github",
+    );
+  }
+
+  /**
+   * A repository typed in by hand rather than picked from GitHub. It is never
+   * synced, so it has no pull requests or issues, only its name and its tasks.
+   */
+  static addManually(
+    watcherId: string,
+    coordinates: RepositoryCoordinates,
+    addedAt: Date,
+  ): WatchedRepository {
+    return WatchedRepository.#create(watcherId, coordinates, addedAt, "manual");
+  }
+
+  static #create(
+    watcherId: string,
+    coordinates: RepositoryCoordinates,
+    watchedAt: Date,
+    source: RepositorySource,
+  ): WatchedRepository {
     const repository = new WatchedRepository(
       UniqueId.create(),
-      { watcherId, coordinates, watchedAt },
+      { watcherId, coordinates, watchedAt, source },
       SyncState.never(),
       null,
     );
@@ -81,6 +117,7 @@ export class WatchedRepository extends AggregateRoot<Props> {
       new RepositoryWatched(
         repository.id.value,
         coordinates.fullName,
+        source,
         watchedAt,
       ),
     );
@@ -133,10 +170,26 @@ export class WatchedRepository extends AggregateRoot<Props> {
   }
 
   startSync(trigger: SyncTrigger, now: Date): Result<void, SyncRefused> {
+    if (this.isManual) {
+      return err(
+        syncRefused(
+          "not-connected",
+          `${this.props.coordinates.fullName} was added by hand and is not read from GitHub.`,
+        ),
+      );
+    }
     const started = this.#sync.start(trigger, now);
     if (isErr(started)) return started;
     this.#sync = started.value;
     return ok(undefined);
+  }
+
+  /**
+   * Whether opening the dashboard should refresh it from GitHub. Never for a
+   * repository added by hand: there is nothing to refresh it from.
+   */
+  isDueAutomatically(now: Date): boolean {
+    return !this.isManual && this.#sync.isDueAutomatically(now);
   }
 
   completeSync(now: Date): void {
@@ -170,6 +223,14 @@ export class WatchedRepository extends AggregateRoot<Props> {
 
   get watchedAt(): Date {
     return this.props.watchedAt;
+  }
+
+  get source(): RepositorySource {
+    return this.props.source;
+  }
+
+  get isManual(): boolean {
+    return this.props.source === "manual";
   }
 
   get pinnedAt(): Date | null {
