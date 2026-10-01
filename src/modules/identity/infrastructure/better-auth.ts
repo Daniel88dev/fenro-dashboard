@@ -9,14 +9,15 @@ import type { Database } from "@/shared/infrastructure/database/client";
 import { identitySchema } from "./persistence/schema";
 
 /**
- * What the dashboard asks GitHub for, on top of Better Auth's defaults
- * (`read:user` for the profile, `user:email` because every user needs an
- * email). `repo` is the only OAuth-app scope that can read private
- * repositories' pull requests, issues and checks; there is no read-only
- * variant of it. A GitHub App with fine-grained read permissions would be
- * narrower, and is the way to go if write access ever becomes a concern.
+ * Everything the dashboard asks GitHub for. Better Auth's defaults are turned
+ * off because `read:user` ("Read all user profile data") reaches private
+ * profile fields nothing here reads: the public profile (`GET /user`) needs no
+ * scope, and `user:email` is enough for the email every user needs. `repo` is
+ * the only OAuth-app scope that can read private repositories' pull requests,
+ * issues and checks; there is no read-only variant of it. A GitHub App with
+ * fine-grained read permissions would be narrower.
  */
-export const GITHUB_SCOPES = ["repo"] as const;
+export const GITHUB_SCOPES = ["user:email", "repo"] as const;
 
 export type AuthSettings = {
   readonly baseUrl: string;
@@ -42,6 +43,7 @@ export function authOptions(settings: AuthSettings, db: Database) {
       github: {
         clientId: settings.github.clientId,
         clientSecret: settings.github.clientSecret,
+        disableDefaultScope: true,
         scope: [...GITHUB_SCOPES],
         // GitHub usernames can change; keep ours in step on every sign-in.
         overrideUserInfoOnSignIn: true,

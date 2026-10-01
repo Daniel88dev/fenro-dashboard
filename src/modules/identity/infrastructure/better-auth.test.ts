@@ -20,7 +20,8 @@ describe("authOptions", () => {
     expect(options().emailAndPassword.enabled).toBe(false);
   });
 
-  it("asks GitHub for repository access, on top of the profile defaults", () => {
+  it("asks GitHub for repository access and the email, nothing more", () => {
+    expect(options().socialProviders.github.disableDefaultScope).toBe(true);
     expect(options().socialProviders.github.scope).toEqual([...GITHUB_SCOPES]);
     expect(GITHUB_SCOPES).toContain("repo");
   });
@@ -47,25 +48,36 @@ describe("authOptions", () => {
   });
 });
 
+async function gitHubAuthorizationUrl(overrides: Partial<AuthSettings> = {}) {
+  const auth = betterAuth({
+    ...authOptions({ ...settings, ...overrides }, drizzle.mock()),
+    database: memoryAdapter({
+      user: [],
+      session: [],
+      account: [],
+      verification: [],
+    }),
+  });
+  const { url } = await auth.api.signInSocial({
+    body: { provider: "github", callbackURL: "/repositories" },
+  });
+  return new URL(url!);
+}
+
+describe("the GitHub consent screen", () => {
+  it("asks only for the email and repository access", async () => {
+    const url = await gitHubAuthorizationUrl();
+
+    expect(url.searchParams.get("scope")?.split(" ")).toEqual([
+      "user:email",
+      "repo",
+    ]);
+  });
+});
+
 describe("signing in from a preview", () => {
   const PRODUCTION = "https://fenro.example";
   const PREVIEW = "https://fenro-git-branch.example";
-
-  async function gitHubAuthorizationUrl(overrides: Partial<AuthSettings>) {
-    const auth = betterAuth({
-      ...authOptions({ ...settings, ...overrides }, drizzle.mock()),
-      database: memoryAdapter({
-        user: [],
-        session: [],
-        account: [],
-        verification: [],
-      }),
-    });
-    const { url } = await auth.api.signInSocial({
-      body: { provider: "github", callbackURL: "/repositories" },
-    });
-    return new URL(url!);
-  }
 
   it("sends GitHub back to the production origin, which owns the callback", async () => {
     const url = await gitHubAuthorizationUrl({

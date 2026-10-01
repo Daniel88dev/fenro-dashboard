@@ -52,9 +52,9 @@ GitHub is the only way to sign in, through a GitHub OAuth app you own:
 An OAuth app has exactly one callback URL, so use one app for local development
 and a second one for production.
 
-The app asks GitHub for `read:user`, `user:email` and `repo`. `repo` is what
-lets it read pull requests and issues in private repositories; OAuth apps have
-no read-only form of it.
+The app asks GitHub for `user:email` and `repo`, and not for `read:user` (the
+public profile needs no scope). `repo` is what lets it read pull requests and
+issues in private repositories; OAuth apps have no read-only form of it.
 
 ### Scripts
 
