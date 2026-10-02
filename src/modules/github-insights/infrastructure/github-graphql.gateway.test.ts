@@ -162,7 +162,7 @@ describe("GitHubGraphqlGateway", () => {
     });
   });
 
-  it("reports a repository the viewer cannot see as not found", async () => {
+  it("reports a repository the viewer cannot see, or the app is not installed on, as not found", async () => {
     const gateway = new GitHubGraphqlGateway(
       "gho_token",
       respond({
@@ -174,10 +174,14 @@ describe("GitHubGraphqlGateway", () => {
     const result = await gateway.fetchSnapshot(billing);
 
     expect(isErr(result) && result.error.code).toBe("github-not-found");
+    expect(isErr(result) && result.error.message).toContain(
+      "the app is not installed on it",
+    );
   });
 
   it("asks for nothing that needs a scope sign-in does not request", async () => {
-    // Any Team field needs read:org, and GitHub refuses the whole query for it.
+    // Any Team field needs the organization Members permission, which the
+    // GitHub App does not have, and GitHub refuses the whole query for it.
     const fetchImpl = respond({ data: { repository } });
 
     await new GitHubGraphqlGateway("gho_token", fetchImpl).fetchSnapshot(

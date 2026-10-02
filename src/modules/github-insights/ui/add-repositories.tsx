@@ -84,7 +84,8 @@ const QUIET_BUTTON =
   "text-ink-muted hover:text-ink cursor-pointer px-2 text-[12.5px]";
 
 /**
- * Picks repositories from the ones GitHub lets the viewer see, rather than
+ * Picks repositories from the ones GitHub lets the viewer see, which are only
+ * those the GitHub App is installed on, rather than
  * having them type `owner/name`. The list is read when the picker opens, not
  * with the page, so rendering the dashboard costs GitHub nothing.
  *
@@ -96,15 +97,15 @@ export function AddRepositories({
   source,
   action,
   manualAction,
-  accessSettingsUrl,
+  installUrl,
 }: {
   /** Where the picker reads the viewer's repositories from. */
   source: string;
   action: AddAction;
   /** Adds a repository typed in by hand; without it, only picking is offered. */
   manualAction?: AddAction;
-  /** GitHub's page for granting an organization's access, if known. */
-  accessSettingsUrl: string | null;
+  /** GitHub's page for installing the app on more repositories, if known. */
+  installUrl: string | null;
 }) {
   const panelId = useId();
   const searchId = useId();
@@ -223,7 +224,9 @@ export function AddRepositories({
             </div>
           ) : listing.repositories.length === 0 ? (
             <p className="text-ink-muted px-1 py-4 text-[12.5px]">
-              GitHub lists no repositories you can see.
+              {installUrl
+                ? "The app is not installed on any of your repositories yet."
+                : "GitHub lists no repositories you can see."}
             </p>
           ) : (
             <ul className="divide-hairline-soft max-h-[320px] divide-y overflow-y-auto">
@@ -278,14 +281,14 @@ export function AddRepositories({
 
           <div className="border-hairline-soft flex flex-wrap items-center justify-between gap-2 border-t pt-3">
             <div className="flex flex-col items-start gap-1">
-              {accessSettingsUrl ? (
+              {installUrl ? (
                 <a
-                  href={accessSettingsUrl}
+                  href={installUrl}
                   target="_blank"
                   rel="noreferrer"
                   className="text-pr text-[12px] underline-offset-2 hover:underline"
                 >
-                  Missing an organization? Grant access on GitHub
+                  Missing a repository? Install the app on it
                 </a>
               ) : null}
               {manualAction ? (

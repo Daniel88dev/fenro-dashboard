@@ -56,7 +56,7 @@ export function SignInPanel({
         >
           {hero
             ? "Open pull requests, issues and tasks for the repositories you follow."
-            : "Fenro reads pull requests, issues and checks with your own GitHub account, so it sees exactly what you can see, private repositories included."}
+            : "Fenro only reads pull requests, issues and checks, in the repositories you install its GitHub App on, private ones included. It never writes to GitHub."}
         </p>
       </div>
 

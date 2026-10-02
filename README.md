@@ -38,23 +38,45 @@ probe.
 
 ### Signing in with GitHub
 
-GitHub is the only way to sign in, through a GitHub OAuth app you own:
+GitHub is the only way to sign in, through a GitHub App you own. A GitHub App
+rather than an OAuth app, because its access can be read-only and limited to
+the repositories it is installed on; an OAuth app needs the `repo` scope,
+"Full control of private repositories", to read a private repository at all.
 
-1. Open [GitHub → Settings → Developer settings → OAuth Apps → New OAuth
-   App](https://github.com/settings/applications/new).
-2. **Homepage URL**: `http://localhost:3000`. **Authorization callback URL**:
+1. Open [GitHub → Settings → Developer settings → GitHub Apps → New GitHub
+   App](https://github.com/settings/apps/new).
+2. **Homepage URL**: `http://localhost:3000`. **Callback URL**:
    `http://localhost:3000/api/auth/callback/github`. Both must match `APP_URL`.
-3. Register it, then **Generate a new client secret**.
-4. Put the client id and secret in `.env.local` as `GITHUB_CLIENT_ID` and
-   `GITHUB_CLIENT_SECRET`, and set `BETTER_AUTH_SECRET` to the output of
+   Keep **Expire user authorization tokens** ticked, and leave **Request user
+   authorization (OAuth) during installation** unticked: sign-in starts from
+   the app, which is what Better Auth checks the callback against.
+3. **Setup URL** (optional): `http://localhost:3000/repositories`, with
+   **Redirect on update** ticked, so installing on more repositories comes
+   back to the dashboard.
+4. **Webhook**: untick **Active**. The app does not take webhooks.
+5. **Permissions**, all **Read-only**:
+   - Repository: **Metadata** (GitHub requires it), **Pull requests**,
+     **Issues**, **Checks**, **Commit statuses**.
+   - Account: **Email addresses**, for the email every user needs.
+6. **Where can this GitHub App be installed?** **Any account**, so
+   organizations can install it too.
+7. Create it, then **Generate a new client secret**. Put the **Client ID** and
+   secret in `.env.local` as `GITHUB_CLIENT_ID` and `GITHUB_CLIENT_SECRET`, the
+   app's URL name (the last part of `github.com/apps/<slug>`) as
+   `GITHUB_APP_SLUG`, and set `BETTER_AUTH_SECRET` to the output of
    `openssl rand -base64 32`.
+8. Install the app (**Install App** in its settings) on your account, and on
+   any organization, choosing the repositories the dashboard should read.
 
-An OAuth app has exactly one callback URL, so use one app for local development
-and a second one for production.
+Use one GitHub App for local development and a second one for production.
 
-The app asks GitHub for `user:email` and `repo`, and not for `read:user` (the
-public profile needs no scope). `repo` is what lets it read pull requests and
-issues in private repositories; OAuth apps have no read-only form of it.
+Sign-in sends no OAuth scopes: a GitHub App's user token carries the app's own
+permissions, and the consent screen lists only those. The token reaches only
+repositories the app is installed on, so **Add repositories** lists only those,
+and links to the page that installs the app on more. An organization that does
+not allow the app can still be watched by adding its repositories manually.
+The token expires after eight hours and Better Auth refreshes it when it is
+read; a refused refresh asks the user to sign in again.
 
 ### Scripts
 
@@ -134,11 +156,10 @@ and a failure is not retried on its own for five minutes. The rules live in
 `SyncState` in `src/modules/github-insights/domain/`.
 
 A failed sync shows GitHub's own message on the row and logs it on the server
-as `[github] <code>: <message>`. Repositories of an organization with OAuth app
-access restrictions stay hidden until an owner approves the app; **Add
-repositories** links to the GitHub page where you ask. The sign-in asks for
-`repo` and nothing more, so queries must not select `Team` fields, which need
-`read:org`.
+as `[github] <code>: <message>`. A repository the GitHub App is not installed
+on reads as not found, and its row says to install the app there. The app has
+no organization permissions, so queries must not select `Team` fields, which
+need the organization **Members** permission.
 
 ## Tasks for AI agents
 
@@ -219,10 +240,12 @@ Settings → Environment Variables, with `APP_URL` set to the production origin.
   deploying a change that adds one. The build does not run them.
 - **Pictures.** Set `UPLOADTHING_TOKEN` on Production and Preview. One
   UploadThing app can serve both.
-- **GitHub OAuth app.** A second app for production, with the callback URL
-  `https://<your-domain>/api/auth/callback/github`.
-- **Sign-in on previews.** Previews get new URLs, which the OAuth app cannot
-  list, so they sign in through production. Set `OAUTH_PROXY_URL` (the
+- **GitHub App.** A second app for production, set up as above with the
+  callback URL `https://<your-domain>/api/auth/callback/github`, and its
+  `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET` and `GITHUB_APP_SLUG` set on
+  Production and Preview.
+- **Sign-in on previews.** Previews get new URLs, which the GitHub App's
+  callback URLs cannot list, so they sign in through production. Set `OAUTH_PROXY_URL` (the
   production origin) and one shared `OAUTH_PROXY_SECRET` on both Production
   and Preview. Give Preview its own `BETTER_AUTH_SECRET`, the same GitHub
   client id and secret, and no `APP_URL`: the app then uses the preview's
@@ -260,7 +283,7 @@ What would change:
   instead, write a second adapter for the `PictureStorage` port
   (`src/modules/tasks/application/ports/picture-storage.ts`); nothing else
   knows where pictures live.
-- **Sign-in.** Point the production GitHub OAuth app's callback at the new
+- **Sign-in.** Point the production GitHub App's callback at the new
   origin and update `APP_URL`. Sessions and tokens live in Postgres, so they
   survive the move as long as `BETTER_AUTH_SECRET` stays the same.
 

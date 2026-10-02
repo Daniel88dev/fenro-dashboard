@@ -55,7 +55,7 @@ function renderPicker(
     <AddRepositories
       source="/api/github/repositories"
       action={action}
-      accessSettingsUrl="https://github.com/settings/connections/applications/abc"
+      installUrl="https://github.com/apps/fenro-dashboard/installations/new"
     />,
   );
   return action;
@@ -139,6 +139,24 @@ describe("AddRepositories", () => {
     ).not.toBeInTheDocument();
   });
 
+  it("points at the install page when the app reads no repository yet", async () => {
+    answering({ repositories: [] });
+    renderPicker();
+
+    await open();
+
+    expect(
+      screen.getByText(
+        "The app is not installed on any of your repositories yet.",
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", {
+        name: "Missing a repository? Install the app on it",
+      }),
+    ).toBeInTheDocument();
+  });
+
   it("says why the list is missing, and offers to try again", async () => {
     const fetchMock = answering({ error: "GitHub refused access." });
     renderPicker();
@@ -152,10 +170,12 @@ describe("AddRepositories", () => {
     });
     expect(fetchMock).toHaveBeenCalledTimes(2);
     expect(
-      screen.getByRole("link", { name: /Grant access on GitHub/ }),
+      screen.getByRole("link", {
+        name: "Missing a repository? Install the app on it",
+      }),
     ).toHaveAttribute(
       "href",
-      "https://github.com/settings/connections/applications/abc",
+      "https://github.com/apps/fenro-dashboard/installations/new",
     );
   });
 
@@ -168,7 +188,7 @@ describe("AddRepositories", () => {
           source="/api/github/repositories"
           action={vi.fn<AddAction>()}
           manualAction={manualAction}
-          accessSettingsUrl={null}
+          installUrl={null}
         />,
       );
       return manualAction;

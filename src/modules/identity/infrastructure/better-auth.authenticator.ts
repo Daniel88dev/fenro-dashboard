@@ -33,14 +33,12 @@ export function toSignedInUser(user: SessionUser): SignedInUser | null {
 }
 
 /**
- * An organization with OAuth app access restrictions hides its repositories
- * from this app until an owner approves it; this page is where a member asks.
+ * The GitHub App reads only the repositories it is installed on. This page is
+ * where a user picks more, or asks an organization's owner to install it.
  */
-export function gitHubAccessSettingsUrl(
-  clientId: string | undefined,
-): string | null {
-  return clientId
-    ? `https://github.com/settings/connections/applications/${encodeURIComponent(clientId)}`
+export function gitHubAppInstallUrl(slug: string | undefined): string | null {
+  return slug
+    ? `https://github.com/apps/${encodeURIComponent(slug)}/installations/new`
     : null;
 }
 
@@ -70,11 +68,19 @@ export class BetterAuthAuthenticator implements Authenticator {
     const github = accounts.find((account) => account.providerId === "github");
     if (!github) return null;
 
-    const token = await this.auth().api.getAccessToken({
-      body: { accountId: github.id },
-      headers: requestHeaders,
-    });
-    return token.accessToken || null;
+    // Reading the token refreshes it when it has expired. A refused refresh
+    // (revoked, expired, or spent by a parallel request) means no token, so
+    // the page asks for sign-in instead of failing.
+    try {
+      const token = await this.auth().api.getAccessToken({
+        body: { accountId: github.id },
+        headers: requestHeaders,
+      });
+      return token.accessToken || null;
+    } catch (error) {
+      console.warn("[github] could not get a valid access token", error);
+      return null;
+    }
   });
 
   constructor(private readonly auth: () => Auth) {}
@@ -113,7 +119,7 @@ export class BetterAuthAuthenticator implements Authenticator {
     await this.auth().api.signOut({ headers: requestHeaders });
   }
 
-  gitHubAccessSettingsUrl(): string | null {
-    return gitHubAccessSettingsUrl(getEnv().GITHUB_CLIENT_ID);
+  gitHubAppInstallUrl(): string | null {
+    return gitHubAppInstallUrl(getEnv().GITHUB_APP_SLUG);
   }
 }

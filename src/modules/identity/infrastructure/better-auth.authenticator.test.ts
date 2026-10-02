@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  gitHubAccessSettingsUrl,
+  gitHubAppInstallUrl,
   toSignedInUser,
 } from "./better-auth.authenticator";
 
@@ -27,11 +27,11 @@ describe("toSignedInUser", () => {
   });
 });
 
-describe("gitHubAccessSettingsUrl", () => {
-  it("points at the OAuth app's page in the user's GitHub settings", () => {
-    expect(gitHubAccessSettingsUrl("Iv1.abc")).toBe(
-      "https://github.com/settings/connections/applications/Iv1.abc",
+describe("gitHubAppInstallUrl", () => {
+  it("points at the GitHub App's install page", () => {
+    expect(gitHubAppInstallUrl("fenro-dashboard")).toBe(
+      "https://github.com/apps/fenro-dashboard/installations/new",
     );
-    expect(gitHubAccessSettingsUrl(undefined)).toBeNull();
+    expect(gitHubAppInstallUrl(undefined)).toBeNull();
   });
 });

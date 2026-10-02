@@ -24,7 +24,7 @@ const envSchema = z.object({
   APP_URL: z.string().url().default("http://localhost:3000"),
   /**
    * Optional fallback token. Sign-in is the normal path: GitHub is read with
-   * the signed-in viewer's own OAuth token.
+   * the signed-in viewer's own token.
    */
   GITHUB_TOKEN: optional(z.string()),
   /** Postgres connection string, e.g. postgres://user:pass@host:5432/fenro. */
@@ -43,13 +43,18 @@ const envSchema = z.object({
   BETTER_AUTH_SECRET: optional(
     z.string().min(32, "must be at least 32 characters"),
   ),
-  /** The GitHub OAuth app that "Sign in with GitHub" goes through. */
+  /** The GitHub App that "Sign in with GitHub" goes through. */
   GITHUB_CLIENT_ID: optional(z.string()),
   GITHUB_CLIENT_SECRET: optional(z.string()),
   /**
-   * The origin that owns the GitHub OAuth app's callback URL, normally
-   * production. Deployments on any other origin (previews) send the GitHub
-   * round trip through it, so one OAuth app serves them all. Set it on
+   * The GitHub App's URL name (github.com/apps/<slug>), for the link that
+   * installs it on more repositories. Unset, the link is not shown.
+   */
+  GITHUB_APP_SLUG: optional(z.string()),
+  /**
+   * The origin that owns the GitHub App's callback URL, normally production.
+   * Deployments on any other origin (previews) send the GitHub round trip
+   * through it, so one GitHub App serves them all. Set it on
    * production too, which has to finish the round trip for them.
    */
   OAUTH_PROXY_URL: optional(z.string().url()),
@@ -105,7 +110,7 @@ type Present<K extends keyof Env> = { [P in K]-?: NonNullable<Env[P]> };
 
 /**
  * Settings are optional in the schema so the app builds and its tests run
- * without a database or an OAuth app. Code that needs them asks here, so a
+ * without a database or a GitHub App. Code that needs them asks here, so a
  * missing one fails with its name rather than somewhere inside a driver.
  */
 export function requireEnv<K extends keyof Env>(

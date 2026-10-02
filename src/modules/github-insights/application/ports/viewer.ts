@@ -12,7 +12,7 @@ export type Viewer = {
   readonly id: string;
   readonly login: string;
   /**
-   * The viewer's GitHub OAuth token. Only an adapter that calls GitHub reads
+   * The viewer's GitHub user token. Only an adapter that calls GitHub reads
    * it; keep it out of commands, queries, read models, props and anything
    * cached.
    */

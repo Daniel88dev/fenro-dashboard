@@ -6,18 +6,18 @@ import { oAuthProxy } from "better-auth/plugins";
 import { getEnv, requireEnv } from "@/shared/config/env";
 import type { Database } from "@/shared/infrastructure/database/client";
 
+import { refreshGitHubToken } from "./github-token-refresh";
 import { identitySchema } from "./persistence/schema";
 
 /**
- * Everything the dashboard asks GitHub for. Better Auth's defaults are turned
- * off because `read:user` ("Read all user profile data") reaches private
- * profile fields nothing here reads: the public profile (`GET /user`) needs no
- * scope, and `user:email` is enough for the email every user needs. `repo` is
- * the only OAuth-app scope that can read private repositories' pull requests,
- * issues and checks; there is no read-only variant of it. A GitHub App with
- * fine-grained read permissions would be narrower.
+ * "Sign in with GitHub" goes through a GitHub App, not an OAuth app. A GitHub
+ * App's user token carries the app's own permissions (read-only: metadata,
+ * pull requests, issues, checks, commit statuses and email addresses) and only
+ * reaches repositories the app is installed on, so OAuth scopes mean nothing
+ * to it. None are sent, Better Auth's `read:user` and `user:email` defaults
+ * included, so the consent screen lists only what the app was given.
  */
-export const GITHUB_SCOPES = ["user:email", "repo"] as const;
+export const GITHUB_SCOPES = [] as const;
 
 export type AuthSettings = {
   readonly baseUrl: string;
@@ -45,6 +45,12 @@ export function authOptions(settings: AuthSettings, db: Database) {
         clientSecret: settings.github.clientSecret,
         disableDefaultScope: true,
         scope: [...GITHUB_SCOPES],
+        // A GitHub App's user token expires after eight hours and comes with a
+        // single-use refresh token, which Better Auth trades in when the token
+        // is read. GitHub reports a refused refresh with a 200, which Better
+        // Auth's default refresh would store as a token.
+        refreshAccessToken: (refreshToken) =>
+          refreshGitHubToken(refreshToken, settings.github),
         // GitHub usernames can change; keep ours in step on every sign-in.
         overrideUserInfoOnSignIn: true,
         mapProfileToUser: (profile) => ({ githubLogin: profile.login }),
@@ -71,8 +77,8 @@ export function authOptions(settings: AuthSettings, db: Database) {
       cookieCache: { enabled: true, maxAge: 5 * 60 },
     },
     plugins: [
-      // A GitHub OAuth app has one callback URL, so a preview signs in through
-      // the production origin, which finishes the code exchange and hands the
+      // Previews get a new URL each time, which the GitHub App's callback URLs
+      // cannot list, so a preview signs in through the production origin, which finishes the code exchange and hands the
       // encrypted result back. Without a proxy URL, this deployment counts as
       // production and the plugin only ever answers for others. `currentURL`
       // is pinned because a server action has no request URL to infer it
@@ -99,7 +105,7 @@ let instance: Auth | undefined;
 
 /**
  * Built on first use rather than at import, so `next build` and the tests run
- * without the OAuth app or the database configured.
+ * without the GitHub App or the database configured.
  */
 export function getAuth(db: () => Database): Auth {
   if (instance) return instance;

@@ -20,10 +20,10 @@ describe("authOptions", () => {
     expect(options().emailAndPassword.enabled).toBe(false);
   });
 
-  it("asks GitHub for repository access and the email, nothing more", () => {
+  it("sends no OAuth scopes: the GitHub App's permissions decide", () => {
     expect(options().socialProviders.github.disableDefaultScope).toBe(true);
     expect(options().socialProviders.github.scope).toEqual([...GITHUB_SCOPES]);
-    expect(GITHUB_SCOPES).toContain("repo");
+    expect(GITHUB_SCOPES).toEqual([]);
   });
 
   it("keeps the GitHub login, and refreshes it on every sign-in", async () => {
@@ -65,13 +65,10 @@ async function gitHubAuthorizationUrl(overrides: Partial<AuthSettings> = {}) {
 }
 
 describe("the GitHub consent screen", () => {
-  it("asks only for the email and repository access", async () => {
+  it("asks for no OAuth scope, not even Better Auth's profile defaults", async () => {
     const url = await gitHubAuthorizationUrl();
 
-    expect(url.searchParams.get("scope")?.split(" ")).toEqual([
-      "user:email",
-      "repo",
-    ]);
+    expect(url.searchParams.get("scope") ?? "").toBe("");
   });
 });
 
