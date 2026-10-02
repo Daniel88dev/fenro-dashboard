@@ -16,6 +16,10 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 
 import { Chip } from "@/modules/github-insights/ui/chip";
+import {
+  formatAbsolute,
+  formatRelativeTime,
+} from "@/modules/github-insights/ui/format";
 import { Menu } from "@/modules/github-insights/ui/menu";
 import type {
   JournalItem,
@@ -739,6 +743,7 @@ export function TaskDetail({
   repositories = [],
   parents = [],
   picturesEnabled = false,
+  now = new Date(),
 }: {
   task: TaskBrief;
   actions: TaskActions;
@@ -750,6 +755,8 @@ export function TaskDetail({
   parents?: readonly ParentOption[];
   /** Whether this Fenro has somewhere to keep pictures. */
   picturesEnabled?: boolean;
+  /** The render's clock, for "3 d ago". */
+  now?: Date;
 }) {
   const { key } = task;
   const open = isOpen(task);
@@ -975,8 +982,39 @@ export function TaskDetail({
               }
             />
           </div>
+
+          <dl className="border-hairline m-0 flex flex-col gap-1.5 border-t pt-4">
+            <TaskDate term="Created" iso={task.createdAt} now={now} />
+            <TaskDate term="Last updated" iso={task.updatedAt} now={now} />
+          </dl>
         </aside>
       </div>
+    </div>
+  );
+}
+
+function TaskDate({
+  term,
+  iso,
+  now,
+}: {
+  term: string;
+  iso: string;
+  now: Date;
+}) {
+  const date = new Date(iso);
+  return (
+    <div className="flex items-baseline gap-2">
+      <dt className="text-ink-muted w-[92px] shrink-0 text-[12px]">{term}</dt>
+      <dd className="m-0 min-w-0 text-[12.5px]">
+        <time dateTime={iso} className="text-ink">
+          {formatAbsolute(date)} UTC
+        </time>
+        <span className="text-ink-muted">
+          {" "}
+          · {formatRelativeTime(date, now)}
+        </span>
+      </dd>
     </div>
   );
 }

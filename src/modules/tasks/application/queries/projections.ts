@@ -314,8 +314,19 @@ export function brief(
     journalEntries: journal.length,
     pictures: detail.pictures.map(pictureItem),
     createdAt: detail.createdAt.toISOString(),
-    updatedAt: detail.updatedAt.toISOString(),
+    updatedAt: lastChange(detail).toISOString(),
   };
+}
+
+/**
+ * Pictures are their own aggregate, so adding one leaves the task row alone;
+ * to a reader it is still a change to the task.
+ */
+function lastChange(detail: TaskDetailRecord): Date {
+  return detail.pictures.reduce(
+    (latest, picture) => (picture.addedAt > latest ? picture.addedAt : latest),
+    detail.updatedAt,
+  );
 }
 
 export function pictureItem(record: PictureRecord): PictureItem {
