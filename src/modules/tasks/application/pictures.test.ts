@@ -88,6 +88,20 @@ describe("adding a picture", () => {
     expect(storage.files.size).toBe(2);
   });
 
+  it("counts as a change to the task, though the task itself is untouched", async () => {
+    now = new Date("2026-09-26T11:30:00Z");
+    await add();
+
+    const brief = await new TaskBriefHandler(store, clock).handle(
+      taskBriefQuery(OWNER, "T-1"),
+    );
+    if (!brief.ok) throw new Error(brief.error.message);
+    expect(brief.value).toMatchObject({
+      createdAt: "2026-09-26T10:00:00.000Z",
+      updatedAt: "2026-09-26T11:30:00.000Z",
+    });
+  });
+
   it("notes the session when the adder is working on the task", async () => {
     await new StartTaskHandler(store, clock).handle({
       type: "tasks.start-task",

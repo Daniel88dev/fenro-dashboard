@@ -351,6 +351,34 @@ describe("TaskDetail", () => {
   });
 });
 
+describe("task dates", () => {
+  it("shows when the task was made and last changed on the full page", () => {
+    render(
+      <TaskDetail
+        task={brief}
+        actions={actions()}
+        now={new Date("2026-09-26T09:00:00Z")}
+      />,
+    );
+
+    const created = screen.getByText("Created").nextElementSibling!;
+    expect(created).toHaveTextContent("24 Sept 2026, 07:00 UTC · 2 d ago");
+    expect(within(created as HTMLElement).getByText(/UTC/)).toHaveAttribute(
+      "dateTime",
+      "2026-09-24T07:00:00.000Z",
+    );
+    expect(
+      screen.getByText("Last updated").nextElementSibling,
+    ).toHaveTextContent("24 Sept 2026, 09:00 UTC · 2 d ago");
+  });
+
+  it("leaves them off the dialog", () => {
+    render(<TaskDialogContent task={brief} actions={actions()} />);
+
+    expect(screen.queryByText("Last updated")).not.toBeInTheDocument();
+  });
+});
+
 describe("labels on a task", () => {
   it("saves as soon as a label is ticked, and makes new ones from what is typed", async () => {
     const labels = vi.fn(async () => ({ error: null, saved: 1 }));

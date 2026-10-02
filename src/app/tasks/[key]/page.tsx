@@ -44,8 +44,9 @@ async function TaskScreen({
   params: PageProps<"/tasks/[key]">["params"];
 }) {
   const { key } = await params;
+  const now = new Date();
   const { container, ownerId, repositoryOptions, parentOptions } =
-    await tasksContext();
+    await tasksContext(now);
   if (!ownerId) {
     return (
       <SignInPanel
@@ -72,6 +73,7 @@ async function TaskScreen({
       repositories={repositories}
       parents={parents}
       picturesEnabled={Boolean(getEnv().UPLOADTHING_TOKEN)}
+      now={now}
     />
   );
 }
