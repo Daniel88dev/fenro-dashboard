@@ -116,17 +116,33 @@ import {
   type CreateLabelCommand,
 } from "@/modules/tasks/application/commands/create-label";
 import {
+  CreateSkillHandler,
+  type CreateSkillCommand,
+} from "@/modules/tasks/application/commands/create-skill";
+import {
   CreateTaskHandler,
   type CreateTaskCommand,
 } from "@/modules/tasks/application/commands/create-task";
+import {
+  DeleteSkillHandler,
+  type DeleteSkillCommand,
+} from "@/modules/tasks/application/commands/delete-skill";
 import {
   FinishSessionHandler,
   type FinishSessionCommand,
 } from "@/modules/tasks/application/commands/finish-session";
 import {
+  LinkSkillHandler,
+  type LinkSkillCommand,
+} from "@/modules/tasks/application/commands/link-skill";
+import {
   LinkTasksHandler,
   type LinkTasksCommand,
 } from "@/modules/tasks/application/commands/link-tasks";
+import {
+  RecolourLabelHandler,
+  type RecolourLabelCommand,
+} from "@/modules/tasks/application/commands/recolour-label";
 import {
   RecordNoteHandler,
   type RecordNoteCommand,
@@ -136,9 +152,25 @@ import {
   type RemovePictureCommand,
 } from "@/modules/tasks/application/commands/remove-picture";
 import {
+  RenameLabelHandler,
+  type RenameLabelCommand,
+} from "@/modules/tasks/application/commands/rename-label";
+import {
+  RestoreSkillHandler,
+  type RestoreSkillCommand,
+} from "@/modules/tasks/application/commands/restore-skill";
+import {
+  ReviseSkillHandler,
+  type ReviseSkillCommand,
+} from "@/modules/tasks/application/commands/revise-skill";
+import {
   StartTaskHandler,
   type StartTaskCommand,
 } from "@/modules/tasks/application/commands/start-task";
+import {
+  UnlinkSkillHandler,
+  type UnlinkSkillCommand,
+} from "@/modules/tasks/application/commands/unlink-skill";
 import {
   UpdateTaskHandler,
   type UpdateTaskCommand,
@@ -150,6 +182,10 @@ import {
   ListLabelsHandler,
   type ListLabelsQuery,
 } from "@/modules/tasks/application/queries/list-labels";
+import {
+  ListSkillsHandler,
+  type ListSkillsQuery,
+} from "@/modules/tasks/application/queries/list-skills";
 import {
   ListTaskRepositoriesHandler,
   type ListTaskRepositoriesQuery,
@@ -174,10 +210,16 @@ import {
 import type {
   LabelItem,
   RepositoryTasks,
+  SkillItem,
   TaskCountsByRepository,
   TaskList,
   TaskRepositoryItem,
 } from "@/modules/tasks/application/queries/read-models";
+import {
+  SkillHandler,
+  type SkillQuery,
+  type SkillResult,
+} from "@/modules/tasks/application/queries/skill";
 import {
   TaskBriefHandler,
   type TaskBriefQuery,
@@ -194,10 +236,12 @@ import {
 import type {
   LabelRepository,
   PictureRepository,
+  SkillRepository,
   TaskRepository,
 } from "@/modules/tasks/domain";
 import { DrizzleLabelRepository } from "@/modules/tasks/infrastructure/drizzle-label.repository";
 import { DrizzlePictureRepository } from "@/modules/tasks/infrastructure/drizzle-picture.repository";
+import { DrizzleSkillRepository } from "@/modules/tasks/infrastructure/drizzle-skill.repository";
 import { DrizzleTaskReadStore } from "@/modules/tasks/infrastructure/drizzle-task.read-store";
 import { DrizzleTaskRepository } from "@/modules/tasks/infrastructure/drizzle-task.repository";
 import { HmacUploadTickets } from "@/modules/tasks/infrastructure/hmac-upload-tickets";
@@ -231,6 +275,7 @@ export type ContainerParts = {
   readonly gitHub: GitHubGateway;
   readonly tasks: TaskRepository;
   readonly labels: LabelRepository;
+  readonly skills: SkillRepository;
   readonly pictures: PictureRepository;
   readonly pictureStorage: PictureStorage;
   readonly uploadTickets: UploadTickets;
@@ -320,6 +365,7 @@ function registerTasks(
   {
     tasks,
     labels,
+    skills,
     pictures,
     pictureStorage,
     uploadTickets,
@@ -338,6 +384,38 @@ function registerTasks(
   commandBus.register<CreateLabelCommand>(
     "tasks.create-label",
     new CreateLabelHandler(labels, clock),
+  );
+  commandBus.register<RecolourLabelCommand>(
+    "tasks.recolour-label",
+    new RecolourLabelHandler(labels, clock),
+  );
+  commandBus.register<RenameLabelCommand>(
+    "tasks.rename-label",
+    new RenameLabelHandler(labels, clock),
+  );
+  commandBus.register<CreateSkillCommand>(
+    "tasks.create-skill",
+    new CreateSkillHandler(skills, labels, clock),
+  );
+  commandBus.register<ReviseSkillCommand>(
+    "tasks.revise-skill",
+    new ReviseSkillHandler(skills, clock),
+  );
+  commandBus.register<RestoreSkillCommand>(
+    "tasks.restore-skill",
+    new RestoreSkillHandler(skills, clock),
+  );
+  commandBus.register<LinkSkillCommand>(
+    "tasks.link-skill",
+    new LinkSkillHandler(skills, labels, clock),
+  );
+  commandBus.register<UnlinkSkillCommand>(
+    "tasks.unlink-skill",
+    new UnlinkSkillHandler(skills, clock),
+  );
+  commandBus.register<DeleteSkillCommand>(
+    "tasks.delete-skill",
+    new DeleteSkillHandler(skills, clock),
   );
   commandBus.register<StartTaskCommand>(
     "tasks.start-task",
@@ -386,6 +464,14 @@ function registerTasks(
   queryBus.register<ListLabelsQuery, LabelItem[]>(
     "tasks.list-labels",
     new ListLabelsHandler(taskReads),
+  );
+  queryBus.register<ListSkillsQuery, SkillItem[]>(
+    "tasks.list-skills",
+    new ListSkillsHandler(taskReads, clock),
+  );
+  queryBus.register<SkillQuery, SkillResult>(
+    "tasks.skill",
+    new SkillHandler(taskReads, clock),
   );
   queryBus.register<ListTaskRepositoriesQuery, TaskRepositoryItem[]>(
     "tasks.list-task-repositories",
@@ -500,6 +586,7 @@ function containerFor(
     gitHub: new GitHubGraphqlGateway(gitHubToken),
     tasks: new DrizzleTaskRepository(db),
     labels: new DrizzleLabelRepository(db),
+    skills: new DrizzleSkillRepository(db),
     pictures: new DrizzlePictureRepository(db),
     pictureStorage: pictureStorage(),
     uploadTickets: uploadTickets(),

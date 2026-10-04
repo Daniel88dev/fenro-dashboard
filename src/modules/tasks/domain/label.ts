@@ -1,7 +1,7 @@
 import { AggregateRoot, err, ok, UniqueId, type Result } from "@/shared/domain";
 
 import { taskError, type TaskError } from "./errors";
-import { LabelCreated } from "./events";
+import { LabelCreated, LabelRecoloured, LabelRenamed } from "./events";
 
 /**
  * The colours a label can take: a fixed set of tokens, not free hex, so every
@@ -85,8 +85,8 @@ export function pickLabelColour(
 
 type Props = {
   readonly ownerId: string;
-  readonly name: string;
-  readonly colour: LabelColour;
+  name: string;
+  colour: LabelColour;
   readonly createdAt: Date;
 };
 
@@ -152,6 +152,34 @@ export class Label extends AggregateRoot<Props> {
   get createdAt(): Date {
     return this.props.createdAt;
   }
+
+  recolour(colour: LabelColour, now: Date): void {
+    if (colour === this.props.colour) return;
+    this.props.colour = colour;
+    this.record(new LabelRecoloured(this.id.value, colour, now));
+  }
+
+  /**
+   * Give the label a new name. Tasks and skills carry the old one, so the
+   * store renames it there too, in the same transaction as the label; that a
+   * name is not already taken is the store's to check, as on create.
+   */
+  rename(raw: string, now: Date): Result<void, TaskError> {
+    const name = parseLabelName(raw);
+    if (!name.ok) return name;
+    if (name.value === this.props.name) return ok(undefined);
+    const from = this.props.name;
+    this.props.name = name.value;
+    this.record(new LabelRenamed(this.id.value, from, name.value, now));
+    return ok(undefined);
+  }
+}
+
+export function labelNotFound(name: string): TaskError {
+  return taskError(
+    "label-not-found",
+    `There is no label "${name}". List labels to see their names.`,
+  );
 }
 
 export function labelExists(name: string): TaskError {

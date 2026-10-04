@@ -57,6 +57,13 @@
       "when": 1790702836453,
       "tag": "0007_manual_repositories",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1791137399008,
+      "tag": "0008_task_skills",
+      "breakpoints": true
     }
   ]
 }

@@ -44,6 +44,63 @@ export type LabelItem = {
   readonly openTasks: number;
   /** All tasks carrying it, closed ones too. */
   readonly tasks: number;
+  /** Names of the skills it brings to the tasks carrying it, by name. */
+  readonly skills: readonly string[];
+};
+
+// --- Skills -------------------------------------------------------------------
+
+/** One of the owner's skills in a list: enough to choose it, not its text. */
+export type SkillItem = {
+  readonly id: string;
+  readonly name: string;
+  /** When to use it. */
+  readonly description: string;
+  /** The labels it applies through, by name. */
+  readonly labels: readonly string[];
+  /** Counts changes to the name, description or instructions. */
+  readonly revision: number;
+  /** Open tasks carrying one of its labels: the ones it applies to now. */
+  readonly openTasks: number;
+  readonly updatedBy: string;
+  readonly updatedByKind: "agent" | "human";
+  readonly updatedAt: string;
+};
+
+/** The text a skill had at one revision, and who wrote it. */
+export type SkillRevisionItem = {
+  readonly revision: number;
+  readonly name: string;
+  readonly description: string;
+  readonly instructions: string;
+  readonly by: string;
+  readonly byKind: "agent" | "human";
+  readonly at: string;
+};
+
+export type SkillDetail = SkillItem & {
+  /** Markdown. */
+  readonly instructions: string;
+  readonly createdBy: string;
+  readonly createdByKind: "agent" | "human";
+  readonly createdAt: string;
+  /** The latest revisions, newest first; the first is the current text. */
+  readonly revisions: readonly SkillRevisionItem[];
+};
+
+/**
+ * A skill that applies to a task because the task carries one of its labels.
+ * `instructions` is the Markdown to follow, or null when the brief was asked
+ * for without it, or when the brief's budget for instructions ran out: then
+ * fetch the skill by name.
+ */
+export type BriefSkill = {
+  readonly name: string;
+  readonly description: string;
+  /** The task's labels that brought it in. */
+  readonly via: readonly string[];
+  readonly revision: number;
+  readonly instructions: string | null;
 };
 
 /** A repository the owner's tasks name, offered as a filter. */
@@ -163,6 +220,11 @@ export type TaskBrief = {
   readonly journalEntries: number;
   /** Oldest first: designs, screenshots, anything someone showed. */
   readonly pictures: readonly PictureItem[];
+  /**
+   * The skills linked to the task's own labels, each once, by name. Follow
+   * them while working the task; the task's own words win where they differ.
+   */
+  readonly skills: readonly BriefSkill[];
   readonly createdAt: string;
   readonly updatedAt: string;
 };

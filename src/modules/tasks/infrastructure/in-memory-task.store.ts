@@ -2,6 +2,9 @@ import type {
   LabelRecord,
   PictureRecord,
   SessionRecord,
+  SkillDetailRecord,
+  SkillRecord,
+  SkillTextRecord,
   TaskDetailRecord,
   TaskReadStore,
   TaskRecord,
@@ -9,6 +12,9 @@ import type {
 import {
   Label,
   labelExists,
+  LabelRenamed,
+  Skill,
+  skillExists,
   Task,
   TaskGraph,
   taskError,
@@ -16,12 +22,32 @@ import {
   type LabelRepository,
   type Picture,
   type PictureRepository,
+  type LabelColour,
   type Session,
+  type SkillRepository,
+  type SkillRevision,
+  type SkillState,
   type TaskError,
   type TaskRepository,
   type TaskState,
 } from "@/modules/tasks/domain";
 import { err, ok, UniqueId, type Result } from "@/shared/domain";
+
+type StoredLabel = {
+  readonly id: string;
+  readonly ownerId: string;
+  readonly name: string;
+  readonly colour: LabelColour;
+  readonly createdAt: Date;
+};
+
+type StoredSkill = {
+  readonly id: string;
+  readonly ownerId: string;
+  readonly state: SkillState;
+  readonly version: number;
+  readonly revisions: readonly SkillRevision[];
+};
 
 type Stored = {
   readonly id: string;
@@ -42,7 +68,9 @@ export class InMemoryTaskStore
   implements TaskRepository, TaskReadStore, LabelRepository, PictureRepository
 {
   readonly #tasks = new Map<string, Stored>();
-  readonly #labels: Label[] = [];
+  #labels: StoredLabel[] = [];
+  readonly #skills = new Map<string, StoredSkill>();
+  readonly #loadedSkillVersions = new WeakMap<Skill, number>();
   readonly #pictures: Picture[] = [];
   readonly #journal: (JournalEntry & { taskId: string })[] = [];
   readonly #loadedVersions = new WeakMap<Task, number>();
@@ -126,7 +154,72 @@ export class InMemoryTaskStore
   // --- LabelRepository ---------------------------------------------------------
 
   async all(ownerId: string): Promise<Label[]> {
-    return this.#labels.filter((label) => label.ownerId === ownerId);
+    return this.#labels
+      .filter((label) => label.ownerId === ownerId)
+      .map(restoreLabel);
+  }
+
+  async findByName(ownerId: string, name: string): Promise<Label | undefined> {
+    const stored = this.#labels.find(
+      (label) => label.ownerId === ownerId && label.name === name,
+    );
+    return stored ? restoreLabel(stored) : undefined;
+  }
+
+  async inUse(ownerId: string, name: string): Promise<boolean> {
+    return (
+      this.#owned(ownerId).some((task) => task.state.labels.includes(name)) ||
+      [...this.#skills.values()].some(
+        (skill) =>
+          skill.ownerId === ownerId && skill.state.labels.includes(name),
+      )
+    );
+  }
+
+  async update(label: Label): Promise<Result<void, TaskError>> {
+    if (
+      this.#labels.some(
+        (other) =>
+          other.ownerId === label.ownerId &&
+          other.name === label.name &&
+          other.id !== label.id.value,
+      )
+    ) {
+      return err(labelExists(label.name));
+    }
+    this.#labels = this.#labels.map((other) =>
+      other.id === label.id.value ? storedLabel(label) : other,
+    );
+    for (const event of label.pullDomainEvents()) {
+      if (event instanceof LabelRenamed) {
+        this.#renameEverywhere(label.ownerId, event.from, event.to);
+      }
+    }
+    return ok(undefined);
+  }
+
+  #renameEverywhere(ownerId: string, from: string, to: string): void {
+    const rename = (labels: readonly string[]) => [
+      ...new Set(labels.map((name) => (name === from ? to : name))),
+    ];
+    for (const task of this.#owned(ownerId)) {
+      if (!task.state.labels.includes(from)) continue;
+      this.#tasks.set(task.id, {
+        ...task,
+        state: { ...task.state, labels: rename(task.state.labels) },
+        version: task.version + 1,
+      });
+    }
+    for (const skill of this.#skills.values()) {
+      if (skill.ownerId !== ownerId || !skill.state.labels.includes(from)) {
+        continue;
+      }
+      this.#skills.set(skill.id, {
+        ...skill,
+        state: { ...skill.state, labels: rename(skill.state.labels).sort() },
+        version: skill.version + 1,
+      });
+    }
   }
 
   async save(label: Label): Promise<Result<void, TaskError>>;
@@ -143,9 +236,84 @@ export class InMemoryTaskStore
     ) {
       return err(labelExists(label.name));
     }
-    this.#labels.push(label);
+    this.#labels.push(storedLabel(label));
     label.pullDomainEvents();
     return ok(undefined);
+  }
+
+  // --- SkillRepository ---------------------------------------------------------
+
+  /** The skill side, sharing this store's tasks and labels. */
+  readonly skillRepository: SkillRepository = {
+    findById: async (ownerId, id) => {
+      const stored = this.#skills.get(id);
+      return stored?.ownerId === ownerId
+        ? this.#restoreSkill(stored)
+        : undefined;
+    },
+    findByName: async (ownerId, name) => {
+      const stored = this.#skillNamed(ownerId, name);
+      return stored ? this.#restoreSkill(stored) : undefined;
+    },
+    revision: async (ownerId, skillId, revision) => {
+      const stored = this.#skills.get(skillId);
+      if (stored?.ownerId !== ownerId) return undefined;
+      return stored.revisions.find((kept) => kept.revision === revision);
+    },
+    save: async (skill) => this.#saveSkill(skill),
+    remove: async (skill) => {
+      if (this.#skills.get(skill.id.value)?.ownerId === skill.ownerId) {
+        this.#skills.delete(skill.id.value);
+      }
+      skill.pullDomainEvents();
+    },
+  };
+
+  #saveSkill(skill: Skill): Result<void, TaskError> {
+    const loaded = this.#loadedSkillVersions.get(skill);
+    const current = this.#skills.get(skill.id.value);
+    if (
+      (loaded === undefined && current) ||
+      (loaded !== undefined && current?.version !== loaded)
+    ) {
+      return err(
+        taskError(
+          "concurrent-modification",
+          `Skill "${skill.name}" changed while this was being saved. Read it again and retry.`,
+        ),
+      );
+    }
+    const named = this.#skillNamed(skill.ownerId, skill.name);
+    if (named && named.id !== skill.id.value)
+      return err(skillExists(skill.name));
+
+    const version = (loaded ?? 0) + 1;
+    this.#skills.set(skill.id.value, {
+      id: skill.id.value,
+      ownerId: skill.ownerId,
+      state: skill.state,
+      version,
+      revisions: [...(current?.revisions ?? []), ...skill.pullNewRevisions()],
+    });
+    this.#loadedSkillVersions.set(skill, version);
+    skill.pullDomainEvents();
+    return ok(undefined);
+  }
+
+  #skillNamed(ownerId: string, name: string): StoredSkill | undefined {
+    return [...this.#skills.values()].find(
+      (skill) => skill.ownerId === ownerId && skill.state.name === name,
+    );
+  }
+
+  #restoreSkill(stored: StoredSkill): Skill {
+    const skill = Skill.restore(
+      UniqueId.create(stored.id),
+      stored.ownerId,
+      stored.state,
+    );
+    this.#loadedSkillVersions.set(skill, stored.version);
+    return skill;
   }
 
   // --- PictureRepository -------------------------------------------------------
@@ -185,6 +353,57 @@ export class InMemoryTaskStore
       .filter((label) => label.ownerId === ownerId)
       .map((label) => ({ name: label.name, colour: label.colour }))
       .sort((a, b) => a.name.localeCompare(b.name));
+  }
+
+  async skills(ownerId: string): Promise<SkillRecord[]> {
+    return [...this.#skills.values()]
+      .filter((skill) => skill.ownerId === ownerId)
+      .sort((a, b) => a.state.name.localeCompare(b.state.name))
+      .map(skillRecord);
+  }
+
+  async skill(
+    ownerId: string,
+    reference: { readonly id: string } | { readonly name: string },
+    revisions: number,
+  ): Promise<SkillDetailRecord | undefined> {
+    const stored =
+      "id" in reference
+        ? this.#skills.get(reference.id)
+        : this.#skillNamed(ownerId, reference.name);
+    if (stored?.ownerId !== ownerId) return undefined;
+    return {
+      ...skillRecord(stored),
+      instructions: stored.state.instructions,
+      revisions: [...stored.revisions]
+        .reverse()
+        .slice(0, revisions)
+        .map((kept) => ({
+          revision: kept.revision,
+          name: kept.name,
+          description: kept.description,
+          instructions: kept.instructions,
+          byKind: kept.by.kind,
+          byName: kept.by.name,
+          at: kept.at,
+        })),
+    };
+  }
+
+  async skillsLinkedTo(
+    ownerId: string,
+    labels: readonly string[],
+  ): Promise<SkillTextRecord[]> {
+    return [...this.#skills.values()]
+      .filter(
+        (skill) =>
+          skill.ownerId === ownerId &&
+          skill.state.labels.some((label) => labels.includes(label)),
+      )
+      .map((skill) => ({
+        ...skillRecord(skill),
+        instructions: skill.state.instructions,
+      }));
   }
 
   async records(ownerId: string): Promise<TaskRecord[]> {
@@ -302,6 +521,37 @@ export class InMemoryTaskStore
       updatedAt: state.updatedAt,
     };
   }
+}
+
+function storedLabel(label: Label): StoredLabel {
+  return {
+    id: label.id.value,
+    ownerId: label.ownerId,
+    name: label.name,
+    colour: label.colour,
+    createdAt: label.createdAt,
+  };
+}
+
+function restoreLabel(stored: StoredLabel): Label {
+  return Label.restore(UniqueId.create(stored.id), stored);
+}
+
+function skillRecord(stored: StoredSkill): SkillRecord {
+  const { state } = stored;
+  return {
+    id: stored.id,
+    name: state.name,
+    description: state.description,
+    labels: state.labels,
+    revision: state.revision,
+    createdByKind: state.createdBy.kind,
+    createdByName: state.createdBy.name,
+    createdAt: state.createdAt,
+    updatedByKind: state.updatedBy.kind,
+    updatedByName: state.updatedBy.name,
+    updatedAt: state.updatedAt,
+  };
 }
 
 function blockedBy(state: TaskState): string[] {
