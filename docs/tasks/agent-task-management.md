@@ -178,11 +178,15 @@ key to identity tables, same as github-insights.
 | Tool              | What it does                                                                                                                                    |
 | ----------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
 | `list_tasks`      | Filter by status, repository, labels (any of), parent, text; `ready: true` gives the ready queue ordered by priority then age                   |
-| `list_labels`     | The owner's labels with colour and open-task counts                                                                                             |
+| `list_labels`     | The owner's labels with colour, open-task counts and the skills each brings                                                                     |
 | `create_label`    | Add a label ahead of use, optionally in a chosen colour                                                                                         |
-| `get_task`        | The full handoff brief for one task                                                                                                             |
+| `save_label`      | Create a label, or rename or recolour an existing one; no delete                                                                                |
+| `list_skills`     | The owner's skills: name, description, labels, revision; filter by `label` or `text`                                                            |
+| `get_skill`       | One skill in full with its revision history; `revision` adds the text an earlier revision had                                                   |
+| `save_skill`      | Create a skill, or change its text (needs the `revision` read), `restore` an earlier revision, and link or unlink labels                        |
+| `get_task`        | The full handoff brief for one task; its skills by name and description only                                                                    |
 | `save_task`       | Create or update: title, description, priority, labels (or `add_labels`/`remove_labels`), repository, parent, criteria, links, `discoveredFrom` |
-| `start_task`      | Claim a ready task and open a session; returns the brief                                                                                        |
+| `start_task`      | Claim a ready task and open a session; returns the brief with the full instructions of every skill its labels bring                             |
 | `add_note`        | Append a journal entry (note, decision, discovery, question)                                                                                    |
 | `attach_picture`  | Add a picture to a task: returns an upload link and a `curl -T` command, or takes `data_base64` (up to 3 MB) when there is no shell             |
 | `get_picture`     | Show one of a task's pictures (ids come from `get_task`) as an image the agent can see                                                          |
@@ -260,6 +264,33 @@ from prototyping). Decisions:
   description (drop, paste or pick; newest last), a strip of the newest three
   in the task dialog, each batch of pictures as a line in the journal, and a
   full-screen viewer with arrow-key stepping, Open original and Remove.
+
+### Skills for agents _(2026-10-04)_
+
+A skill is a named block of Markdown instructions linked to labels; the full
+design is in `/mnt/project-files/skills-and-labels/research.md`. On the MCP
+side:
+
+- **`start_task` carries every linked skill in full**, because starting is
+  when the agent commits to the work and each skill there applies. Only the
+  task's own labels count, not its parent's. Past a 60 000-character budget
+  a skill comes with `instructions: null`, and the agent reads it with
+  `get_skill`.
+- **`get_task` carries name, description, `via` (the labels that brought
+  it) and revision only**, since agents call it to look around many tasks.
+  This is Claude Code's own progressive disclosure: summary always, body when
+  the work starts.
+- **Agents may create and change skills** with `save_skill`. Changing the
+  text needs the revision the agent read, so it never overwrites an edit it
+  has not seen (`stale-skill`), and every change keeps the text it replaced,
+  so a person can restore it. `restore` brings back an earlier revision as a
+  new one. Deleting a skill is for people, in the app.
+- **Precedence is in the server instructions and the `work_on_next_task`
+  prompt**: the person's own words in the session win, then the task's
+  description and acceptance criteria, then the skills. A skill that looks
+  wrong gets an `add_note`, and is changed only when the agent is asked to.
+- Read-only tokens get `list_skills` and `get_skill`; `save_skill` and
+  `save_label` need a token that can write.
 
 ## 5. Agent access (auth)
 
