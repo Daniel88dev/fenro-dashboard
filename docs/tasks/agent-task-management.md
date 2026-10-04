@@ -132,8 +132,7 @@ by, and create, both in the app and over MCP.
 - **Tasks keep carrying names, not label ids.** The name is what agents,
   URLs (`/tasks?labels=bug,docs`) and the filter use, and it keeps the task
   aggregate free of a reference it would have to resolve. The cost: renaming
-  a label would have to rewrite the tasks carrying it, and nothing renames
-  yet.
+  a label rewrites the tasks carrying it (see below).
 - **Saving a task with an unknown name adds it to the catalogue** first, in
   the colour the owner's other labels use least, so an agent labels in one
   call. The two aggregates are saved separately; a failed task save can at
@@ -144,6 +143,51 @@ by, and create, both in the app and over MCP.
 - In the app a label shows as its name on the neutral chip with a coloured
   dot; the accents keep their meaning. The task page, the task dialog and
   the New task form have one picker; on a task it saves on each tick.
+
+- **Recolour and rename** _(2026-10-04)_: `tasks.recolour-label` and
+  `tasks.rename-label`, by name. A rename replaces the name on every task
+  and skill link carrying it in the same transaction as the label (a task or
+  skill already carrying the new name keeps it once), and bumps their
+  versions so a copy loaded before cannot save the old name back. Renaming
+  onto another label's name is refused with `label-exists`. A name tasks
+  carry but the catalogue lacks gets its catalogue entry first. There is no
+  delete.
+
+### Skills _(2026-10-04)_
+
+Research and decisions: the "Skills & labels" thread
+(`/mnt/project-files/skills-and-labels/research.md`); Daniel took every
+recommended option.
+
+- **`Skill` is its own aggregate** in this context, one library per owner,
+  shaped like an Agent Skills `SKILL.md`: `name` (lower-case words joined by
+  hyphens, ≤ 64, unique per owner), `description` ("when to use this",
+  ≤ 1024), `instructions` (Markdown, ≤ 20 000 characters), and up to 20
+  label **names** it applies to. Links live on the skill; "which skills does
+  label X bring" is a read model.
+- **Revisions.** `revision` counts changes to the text (links do not make
+  one). `tasks.revise-skill` names the revision its editor read and is
+  refused with `stale-skill` when the skill moved on; every revision's text
+  and author (agent or person) is kept in `task_skill_revision`, and
+  `tasks.restore-skill` brings an old text back as a new revision. Agents
+  and people edit through the same commands.
+- **Commands**: `tasks.create-skill`, `tasks.revise-skill`,
+  `tasks.restore-skill`, `tasks.link-skill` / `tasks.unlink-skill` (linking
+  an unknown label name adds it to the catalogue, as saving a task does),
+  `tasks.delete-skill` (links and revisions go with it; tasks keep their
+  labels). A skill is named by name or id.
+- **Queries**: `tasks.list-skills` (optionally by label or words, with the
+  open tasks each applies to), `tasks.skill` (in full, with the latest
+  revisions newest first), `tasks.list-labels` items carry `skills`.
+- **The brief.** `tasks.task-brief` carries `skills`: every skill linked to
+  any of the task's **own** labels (not its parent's), once, ordered by name,
+  with `via` (the task's labels that brought it). Instructions come only when
+  the query asks for them (`skillInstructions: true`, meant for
+  `start_task`); `get_task` gets the summary, and the agent fetches a body by
+  name. A brief carries at most 60 000 characters of instructions; skills
+  past that budget come with `instructions: null`. Nothing is copied onto
+  tasks, so linking or unlinking applies to every task carrying the label at
+  once.
 
 ### Filtering the list by repository _(2026-09-25)_
 
@@ -163,6 +207,11 @@ blocking task, kind), `task_external_reference`, `task_acceptance_criterion`,
 `task_session`, `task_journal_entry`, and a per-owner key counter. Optimistic
 concurrency with a `version` column, as `WatchedRepository` does. No foreign
 key to identity tables, same as github-insights.
+
+Skills (migration 0008) add `task_skill` (unique per owner and name, with
+its own `version`), `task_skill_label` (skill, owner, label name; indexed by
+owner and label name) and the append-only `task_skill_revision`; links and
+revisions are deleted with their skill.
 
 ## 4. The MCP server
 
