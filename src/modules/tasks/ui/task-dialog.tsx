@@ -18,6 +18,7 @@ import type { TaskActions } from "./task-forms";
 import { PictureStrip } from "./pictures";
 import { CloseDialogButton } from "./route-dialog";
 import { taskHref } from "./task-state";
+import { TaskSkillsLine } from "./task-skills";
 
 /**
  * A task opened over the list it was clicked in: the handoff, the criteria,
@@ -87,7 +88,10 @@ export function TaskDialogContent({
             moreHref={fullPage}
           />
         </div>
-        <TaskProperties task={task} />
+        <div className="flex min-w-0 flex-col gap-3">
+          <TaskProperties task={task} />
+          <TaskSkillsLine skills={task.skills} />
+        </div>
       </div>
 
       <div className="border-hairline-soft bg-surface-raised flex flex-col gap-3 border-t px-5 py-3.5 sm:flex-row sm:items-center sm:justify-between sm:px-[22px]">

@@ -1,4 +1,9 @@
-import { FolderSimple, Gear, ListChecks } from "@phosphor-icons/react/ssr";
+import {
+  BookOpenText,
+  FolderSimple,
+  Gear,
+  ListChecks,
+} from "@phosphor-icons/react/ssr";
 import type { Icon } from "@phosphor-icons/react";
 import Link from "next/link";
 import type { ReactNode } from "react";
@@ -6,7 +11,7 @@ import type { ReactNode } from "react";
 import { FenroMark } from "./fenro-mark";
 import { SavedThemeToggle } from "./saved-theme-toggle";
 
-type Screen = "repositories" | "tasks" | "settings";
+type Screen = "repositories" | "tasks" | "skills" | "settings";
 
 const SCREENS: readonly {
   screen: Screen;
@@ -21,13 +26,19 @@ const SCREENS: readonly {
     icon: FolderSimple,
   },
   { screen: "tasks", label: "Tasks", href: "/tasks", icon: ListChecks },
+  {
+    screen: "skills",
+    label: "Skills & labels",
+    href: "/skills",
+    icon: BookOpenText,
+  },
   { screen: "settings", label: "Settings", href: "/settings", icon: Gear },
 ];
 
 /**
  * The near-black bar from the design.
  *
- * At phone width the nav drops below the bar as a row of three buttons, so the
+ * At phone width the nav drops below the bar as a row of four buttons, so the
  * bar itself only has to fit the brand, the colour scheme toggle and the
  * account menu.
  *
@@ -52,7 +63,7 @@ export function DashboardChrome({
         </span>
         <nav
           aria-label="Main"
-          className="order-last grid w-full grid-cols-3 gap-1 pb-2 sm:order-none sm:flex sm:w-auto sm:gap-0.5 sm:pb-0"
+          className="order-last grid w-full grid-cols-4 gap-1 pb-2 sm:order-none sm:flex sm:w-auto sm:gap-0.5 sm:pb-0"
         >
           {SCREENS.map(({ screen, label, href, icon: ScreenIcon }) => {
             const here = screen === current;
