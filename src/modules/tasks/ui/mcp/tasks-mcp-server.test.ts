@@ -24,6 +24,10 @@ import {
   type CreateLabelCommand,
 } from "@/modules/tasks/application/commands/create-label";
 import {
+  CreateSkillHandler,
+  type CreateSkillCommand,
+} from "@/modules/tasks/application/commands/create-skill";
+import {
   CreateTaskHandler,
   type CreateTaskCommand,
 } from "@/modules/tasks/application/commands/create-task";
@@ -32,17 +36,41 @@ import {
   type FinishSessionCommand,
 } from "@/modules/tasks/application/commands/finish-session";
 import {
+  LinkSkillHandler,
+  type LinkSkillCommand,
+} from "@/modules/tasks/application/commands/link-skill";
+import {
   LinkTasksHandler,
   type LinkTasksCommand,
 } from "@/modules/tasks/application/commands/link-tasks";
+import {
+  RecolourLabelHandler,
+  type RecolourLabelCommand,
+} from "@/modules/tasks/application/commands/recolour-label";
 import {
   RecordNoteHandler,
   type RecordNoteCommand,
 } from "@/modules/tasks/application/commands/record-note";
 import {
+  RenameLabelHandler,
+  type RenameLabelCommand,
+} from "@/modules/tasks/application/commands/rename-label";
+import {
+  RestoreSkillHandler,
+  type RestoreSkillCommand,
+} from "@/modules/tasks/application/commands/restore-skill";
+import {
+  ReviseSkillHandler,
+  type ReviseSkillCommand,
+} from "@/modules/tasks/application/commands/revise-skill";
+import {
   StartTaskHandler,
   type StartTaskCommand,
 } from "@/modules/tasks/application/commands/start-task";
+import {
+  UnlinkSkillHandler,
+  type UnlinkSkillCommand,
+} from "@/modules/tasks/application/commands/unlink-skill";
 import {
   UpdateTaskHandler,
   type UpdateTaskCommand,
@@ -62,14 +90,24 @@ import {
   type ListLabelsQuery,
 } from "@/modules/tasks/application/queries/list-labels";
 import {
+  ListSkillsHandler,
+  type ListSkillsQuery,
+} from "@/modules/tasks/application/queries/list-skills";
+import {
   ListTasksHandler,
   type ListTasksQuery,
 } from "@/modules/tasks/application/queries/list-tasks";
 import type {
   LabelItem,
+  SkillItem,
   TaskBrief,
   TaskList,
 } from "@/modules/tasks/application/queries/read-models";
+import {
+  SkillHandler,
+  type SkillQuery,
+  type SkillResult,
+} from "@/modules/tasks/application/queries/skill";
 import {
   TaskBriefHandler,
   type TaskBriefQuery,
@@ -128,6 +166,34 @@ function buses() {
     "tasks.create-label",
     new CreateLabelHandler(store, clock),
   );
+  commandBus.register<RecolourLabelCommand>(
+    "tasks.recolour-label",
+    new RecolourLabelHandler(store, clock),
+  );
+  commandBus.register<RenameLabelCommand>(
+    "tasks.rename-label",
+    new RenameLabelHandler(store, clock),
+  );
+  commandBus.register<CreateSkillCommand>(
+    "tasks.create-skill",
+    new CreateSkillHandler(store.skillRepository, store, clock),
+  );
+  commandBus.register<ReviseSkillCommand>(
+    "tasks.revise-skill",
+    new ReviseSkillHandler(store.skillRepository, clock),
+  );
+  commandBus.register<RestoreSkillCommand>(
+    "tasks.restore-skill",
+    new RestoreSkillHandler(store.skillRepository, clock),
+  );
+  commandBus.register<LinkSkillCommand>(
+    "tasks.link-skill",
+    new LinkSkillHandler(store.skillRepository, store, clock),
+  );
+  commandBus.register<UnlinkSkillCommand>(
+    "tasks.unlink-skill",
+    new UnlinkSkillHandler(store.skillRepository, clock),
+  );
   const addPicture = new AddPictureHandler(store, store, storage, clock);
   commandBus.register<AddPictureCommand>("tasks.add-picture", addPicture);
   commandBus.register<UploadPictureCommand>(
@@ -146,6 +212,14 @@ function buses() {
   queryBus.register<ListLabelsQuery, LabelItem[]>(
     "tasks.list-labels",
     new ListLabelsHandler(store),
+  );
+  queryBus.register<ListSkillsQuery, SkillItem[]>(
+    "tasks.list-skills",
+    new ListSkillsHandler(store, clock),
+  );
+  queryBus.register<SkillQuery, SkillResult>(
+    "tasks.skill",
+    new SkillHandler(store, clock),
   );
   queryBus.register<ListTasksQuery, TaskList>(
     "tasks.list-tasks",
@@ -330,6 +404,8 @@ describe("the tasks MCP server", () => {
       "list_tasks",
       "get_task",
       "list_labels",
+      "list_skills",
+      "get_skill",
       "get_picture",
     ]);
   });
@@ -584,6 +660,178 @@ describe("the tasks MCP server", () => {
     expect(task.pictures).toMatchObject([
       { id: offer.picture, name: "direction-b.png", addedBy: "Agent designer" },
     ]);
+  });
+
+  it("hands a task's skills in full on start_task and by name on get_task", async () => {
+    const lead = await connect(agent("lead"));
+    parse(
+      await lead.call("save_skill", {
+        name: "frontend-conventions",
+        description: "Use when building or changing UI.",
+        instructions: "## Tokens\n\nUse colour tokens, never `dark:` classes.",
+        labels: ["frontend", "ui"],
+      }),
+    );
+    parse(
+      await lead.call("save_skill", {
+        name: "migrations",
+        description: "Use when changing the schema.",
+        instructions: "Run `pnpm db:generate`.",
+        labels: ["database"],
+      }),
+    );
+    parse(await lead.call("save_task", { title: "Top bar", labels: ["ui"] }));
+
+    const looked = parse<TaskBrief>(
+      await lead.call("get_task", { task: "T-1" }),
+    );
+    expect(looked.skills).toEqual([
+      {
+        name: "frontend-conventions",
+        description: "Use when building or changing UI.",
+        via: ["ui"],
+        revision: 1,
+      },
+    ]);
+
+    const started = parse<TaskBrief>(
+      await lead.call("start_task", { task: "T-1" }),
+    );
+    expect(started.skills).toEqual([
+      expect.objectContaining({
+        name: "frontend-conventions",
+        instructions: expect.stringContaining("never `dark:` classes"),
+      }),
+    ]);
+  });
+
+  it("lets an agent find, read, change and restore a skill", async () => {
+    const author = await connect(agent("author"));
+    parse(
+      await author.call("save_skill", {
+        name: "Reviews",
+        description: "Use when reviewing a pull request.",
+        instructions: "Read the diff twice.",
+      }),
+    );
+    const missing = await author.call("save_skill", { name: "half-done" });
+    expect(missing.isError).toBe(true);
+
+    // Changing the text without saying which revision was read is refused,
+    // and so is a revision someone else has moved past.
+    const blind = await author.call("save_skill", {
+      skill: "reviews",
+      instructions: "Read the diff once.",
+    });
+    expect(blind.text).toMatch(/^stale-skill:/);
+    const revised = parse<{ revision: number; labels: string[] }>(
+      await author.call("save_skill", {
+        skill: "reviews",
+        revision: 1,
+        name: "code-reviews",
+        instructions: "Read the diff, then run it.",
+        add_labels: ["Review"],
+      }),
+    );
+    expect(revised).toMatchObject({ revision: 2, labels: ["review"] });
+    const stale = await author.call("save_skill", {
+      skill: "code-reviews",
+      revision: 1,
+      description: "Older view.",
+    });
+    expect(stale.text).toMatch(/^stale-skill:/);
+
+    const reader = await connect(agent("reader", false));
+    expect(
+      parse<{ name: string }[]>(
+        await reader.call("list_skills", { label: "review" }),
+      ).map((skill) => skill.name),
+    ).toEqual(["code-reviews"]);
+    expect(
+      parse<unknown[]>(await reader.call("list_skills", { text: "deploy" })),
+    ).toEqual([]);
+    const read = parse<{
+      instructions: string;
+      revisions: { revision: number; by: string }[];
+      requested_revision: { instructions: string };
+    }>(await reader.call("get_skill", { skill: "code-reviews", revision: 1 }));
+    expect(read.instructions).toBe("Read the diff, then run it.");
+    expect(read.revisions.map((revision) => revision.revision)).toEqual([2, 1]);
+    expect(read.requested_revision.instructions).toBe("Read the diff twice.");
+
+    const restored = parse<{ name: string; revision: number }>(
+      await author.call("save_skill", {
+        skill: "code-reviews",
+        revision: 2,
+        restore: 1,
+      }),
+    );
+    expect(restored).toMatchObject({ name: "reviews", revision: 3 });
+
+    const relabelled = parse<{ labels: string[] }>(
+      await author.call("save_skill", {
+        skill: "reviews",
+        labels: ["pr", "docs"],
+      }),
+    );
+    expect(relabelled.labels).toEqual(["docs", "pr"]);
+    const labels = parse<{ name: string; skills: string[] }[]>(
+      await author.call("list_labels"),
+    );
+    expect(labels.find((label) => label.name === "pr")?.skills).toEqual([
+      "reviews",
+    ]);
+
+    const unknown = await reader.call("get_skill", { skill: "nope" });
+    expect(unknown.text).toMatch(/^skill-not-found:/);
+  });
+
+  it("lets an agent create, recolour and rename a label", async () => {
+    const agentSide = await connect(agent("labeller"));
+    parse(await agentSide.call("save_task", { title: "Fix", labels: ["bug"] }));
+    parse(
+      await agentSide.call("save_skill", {
+        name: "bug-fixing",
+        description: "Use when fixing a bug.",
+        instructions: "Write the failing test first.",
+        labels: ["bug"],
+      }),
+    );
+
+    expect(
+      parse(
+        await agentSide.call("save_label", { name: "Docs", colour: "teal" }),
+      ),
+    ).toMatchObject({ name: "docs", colour: "teal" });
+
+    const renamed = parse<{ name: string; colour: string; skills: string[] }>(
+      await agentSide.call("save_label", {
+        name: "bug",
+        new_name: "defect",
+        colour: "red",
+      }),
+    );
+    expect(renamed).toMatchObject({
+      name: "defect",
+      colour: "red",
+      skills: ["bug-fixing"],
+    });
+    const task = parse<TaskBrief>(
+      await agentSide.call("get_task", { task: "T-1" }),
+    );
+    expect(task.labels).toEqual(["defect"]);
+    expect(task.skills.map((skill) => skill.name)).toEqual(["bug-fixing"]);
+
+    const nothing = await agentSide.call("save_label", {
+      name: "ghost",
+      new_name: "spirit",
+    });
+    expect(nothing.text).toMatch(/^label-not-found:/);
+    const clash = await agentSide.call("save_label", {
+      name: "docs",
+      new_name: "defect",
+    });
+    expect(clash.text).toMatch(/^label-exists:/);
   });
 
   it("refuses a file that is not a picture", async () => {

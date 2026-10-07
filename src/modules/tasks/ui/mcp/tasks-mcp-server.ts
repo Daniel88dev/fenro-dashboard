@@ -5,20 +5,32 @@ import type { AddPictureCommand } from "@/modules/tasks/application/commands/add
 import type { ChangeStatusCommand } from "@/modules/tasks/application/commands/change-status";
 import type { CreateLabelCommand } from "@/modules/tasks/application/commands/create-label";
 import type { CheckCriterionCommand } from "@/modules/tasks/application/commands/check-criterion";
+import type { CreateSkillCommand } from "@/modules/tasks/application/commands/create-skill";
 import type { CreateTaskCommand } from "@/modules/tasks/application/commands/create-task";
 import type { FinishSessionCommand } from "@/modules/tasks/application/commands/finish-session";
+import type { LinkSkillCommand } from "@/modules/tasks/application/commands/link-skill";
 import type { LinkTasksCommand } from "@/modules/tasks/application/commands/link-tasks";
+import type { RecolourLabelCommand } from "@/modules/tasks/application/commands/recolour-label";
 import type { RecordNoteCommand } from "@/modules/tasks/application/commands/record-note";
+import type { RenameLabelCommand } from "@/modules/tasks/application/commands/rename-label";
+import type { RestoreSkillCommand } from "@/modules/tasks/application/commands/restore-skill";
+import type { ReviseSkillCommand } from "@/modules/tasks/application/commands/revise-skill";
 import type { StartTaskCommand } from "@/modules/tasks/application/commands/start-task";
+import type { UnlinkSkillCommand } from "@/modules/tasks/application/commands/unlink-skill";
 import type { UpdateTaskCommand } from "@/modules/tasks/application/commands/update-task";
 import { listLabelsQuery } from "@/modules/tasks/application/queries/list-labels";
+import { listSkillsQuery } from "@/modules/tasks/application/queries/list-skills";
 import { listTasksQuery } from "@/modules/tasks/application/queries/list-tasks";
 import { pictureContentQuery } from "@/modules/tasks/application/queries/picture";
 import type { PictureUploadTicketQuery } from "@/modules/tasks/application/queries/picture-upload-ticket";
 import type {
+  BriefSkill,
   LabelItem,
+  SkillDetail,
+  SkillItem,
   TaskBrief,
 } from "@/modules/tasks/application/queries/read-models";
+import { skillQuery } from "@/modules/tasks/application/queries/skill";
 import { taskBriefQuery } from "@/modules/tasks/application/queries/task-brief";
 import {
   LABEL_COLOURS,
@@ -32,7 +44,7 @@ import {
   type TaskError,
 } from "@/modules/tasks/domain";
 import type { CommandBus, QueryBus } from "@/shared/application";
-import type { Result } from "@/shared/domain";
+import { ok, type Result } from "@/shared/domain";
 
 /** Who is calling and what they may do, from the token they presented. */
 export type AgentAccess = {
@@ -57,6 +69,13 @@ const MARKDOWN = "GitHub-flavoured Markdown, rendered for people";
  */
 export const PICTURES = `Pictures: a task can carry PNG, JPEG, WebP or GIF pictures up to 4 MB, such as a design from a prototype or a screenshot of a bug. attach_picture adds one: it returns an upload link, and you send the file with the curl command it gives. get_task lists a task's pictures, and get_picture shows you one.`;
 
+/**
+ * Skills are prompts a person wrote for a kind of work, so the agent is told
+ * plainly where they rank: below the person and the task, which are specific,
+ * above its own habits.
+ */
+export const SKILLS = `Skills: a skill is a set of instructions a person linked to labels, such as how frontend work is done here. start_task returns every skill linked to the task's own labels in full: follow them while you work the task. When they conflict, the person's own words in this session win, then the task's description and acceptance criteria, then the skills. A skill whose instructions come back null did not fit in the brief: read it with get_skill. get_task lists the skills by name only; get_skill reads one, and list_skills lists them all. If a skill is wrong or out of date, say so with add_note, and change it with save_skill only when asked to; every change is kept and can be restored.`;
+
 export const INSTRUCTIONS = `Fenro is the task list you work from. Tasks carry context between sessions, so record what you learn as you go.
 
 The loop:
@@ -69,6 +88,8 @@ The loop:
 A task is not done while it has open sub-tasks or unmet criteria. Tasks are named by key, like T-12; a person may paste a task's link instead (…/tasks/T-12), which works wherever a key does. A task can sit under a parent, like an epic: get_task shows its parent and sub-tasks, save_task with parent moves it, and list_tasks with parent lists a parent's sub-tasks.
 
 Labels group tasks, and the person filters their list by them. Reuse the labels list_labels returns before inventing new ones; a name that does not exist yet is created when a task is saved with it.
+
+${SKILLS}
 
 ${FORMATTING}
 
@@ -100,8 +121,14 @@ export function createTasksMcpServer(
     { instructions: INSTRUCTIONS },
   );
 
-  const brief = async (task: string, journalLimit?: number) =>
-    queryBus.ask(taskBriefQuery(ownerId, task, journalLimit));
+  const brief = async (
+    task: string,
+    journalLimit?: number,
+    skillInstructions = false,
+  ) =>
+    queryBus.ask(
+      taskBriefQuery(ownerId, task, journalLimit, { skillInstructions }),
+    );
   const url = (key: string) => ({ url: links.task(key) });
 
   /** After a change, answer with where the task now stands. */
@@ -114,6 +141,16 @@ export function createTasksMcpServer(
     return found.ok
       ? json({ ...standingOf(found.value), ...url(found.value.key) })
       : refused(found.error);
+  };
+
+  /** After a skill changes, answer with where it now stands, without its text. */
+  const savedSkill = async (
+    skill: string,
+    outcome: Result<void, TaskError>,
+  ): Promise<CallToolResult> => {
+    if (!outcome.ok) return refused(outcome.error);
+    const found = await queryBus.ask(skillQuery(ownerId, skill, 1));
+    return found.ok ? json(skillOf(found.value)) : refused(found.error);
   };
 
   server.registerTool(
@@ -159,7 +196,7 @@ export function createTasksMcpServer(
     {
       title: "Read a task",
       description:
-        "The full brief for one task: description, acceptance criteria, its parent, blockers, sub-tasks, links, the latest handoff, every decision, the recent journal, the task's pictures and its url to share with people.",
+        "The full brief for one task: description, acceptance criteria, its parent, blockers, sub-tasks, links, the latest handoff, every decision, the recent journal, the task's pictures, the skills its labels bring (by name; start_task gives their text) and its url to share with people.",
       inputSchema: z.object({
         task: z.string().describe("Key, e.g. T-12, or the task's link"),
         journal_limit: z.number().int().min(0).max(200).optional(),
@@ -169,7 +206,11 @@ export function createTasksMcpServer(
     async ({ task, journal_limit }) => {
       const found = await brief(task, journal_limit);
       return found.ok
-        ? json({ ...found.value, ...url(found.value.key) })
+        ? json({
+            ...found.value,
+            skills: found.value.skills.map(skillSummaryOf),
+            ...url(found.value.key),
+          })
         : refused(found.error);
     },
   );
@@ -179,12 +220,95 @@ export function createTasksMcpServer(
     {
       title: "List labels",
       description:
-        "The labels tasks can carry, with each one's colour and how many open tasks carry it. Reuse these names in save_task and list_tasks.",
+        "The labels tasks can carry, with each one's colour, how many open tasks carry it and the skills it brings. Reuse these names in save_task and list_tasks.",
       inputSchema: z.object({}),
       annotations: { readOnlyHint: true, openWorldHint: false },
     },
     async () =>
       json((await queryBus.ask(listLabelsQuery(ownerId))).map(labelOf)),
+  );
+
+  server.registerTool(
+    "list_skills",
+    {
+      title: "List skills",
+      description:
+        "The skills: instructions a person linked to labels, which tasks carrying those labels bring. Name, description (when to use it), labels and revision; get_skill reads one in full.",
+      inputSchema: z.object({
+        label: z
+          .string()
+          .optional()
+          .describe("Only skills linked to this label"),
+        text: z
+          .string()
+          .optional()
+          .describe("Words in the name or description"),
+      }),
+      annotations: { readOnlyHint: true, openWorldHint: false },
+    },
+    async (input) =>
+      json(
+        (
+          await queryBus.ask(
+            listSkillsQuery(ownerId, { label: input.label, text: input.text }),
+          )
+        ).map(skillOf),
+      ),
+  );
+
+  server.registerTool(
+    "get_skill",
+    {
+      title: "Read a skill",
+      description:
+        "One skill in full: its instructions (Markdown) and who changed it when. Give revision to also read the text it had at an earlier revision.",
+      inputSchema: z.object({
+        skill: z
+          .string()
+          .describe("The skill's name, e.g. frontend-conventions"),
+        revision: z
+          .number()
+          .int()
+          .min(1)
+          .optional()
+          .describe("An earlier revision whose text to include"),
+      }),
+      annotations: { readOnlyHint: true, openWorldHint: false },
+    },
+    async ({ skill, revision }) => {
+      const found = await queryBus.ask(skillQuery(ownerId, skill));
+      if (!found.ok) return refused(found.error);
+      const detail = found.value;
+      if (revision === undefined) return json(skillDetailOf(detail));
+
+      // The history is newest first, so reaching back to a revision means
+      // asking for as many as lie between it and the current one.
+      const reach = detail.revision - revision + 1;
+      const history =
+        reach > detail.revisions.length
+          ? await queryBus.ask(skillQuery(ownerId, detail.id, reach))
+          : found;
+      const old = history.ok
+        ? history.value.revisions.find((item) => item.revision === revision)
+        : undefined;
+      if (!old) {
+        return text(
+          `invalid-skill: Skill "${detail.name}" has no revision ${revision}; it is at revision ${detail.revision}.`,
+          true,
+        );
+      }
+      return json({
+        ...skillDetailOf(detail),
+        requested_revision: {
+          revision: old.revision,
+          name: old.name,
+          description: old.description,
+          instructions: old.instructions,
+          by: old.by,
+          at: old.at,
+        },
+      });
+    },
   );
 
   server.registerTool(
@@ -398,11 +522,240 @@ export function createTasksMcpServer(
   );
 
   server.registerTool(
+    "save_label",
+    {
+      title: "Create, rename or recolour a label",
+      description:
+        "With a name no label has, creates it. With an existing label's name, new_name renames it everywhere (tasks and skills keep it) and colour recolours it. Labels cannot be deleted.",
+      inputSchema: z.object({
+        name: z.string().describe("The label's name, or the new label's"),
+        new_name: z.string().optional().describe("Rename an existing label"),
+        colour: z.enum(LABEL_COLOURS).optional(),
+      }),
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: true,
+      },
+    },
+    async (input) => {
+      const current = normaliseLabelName(input.name);
+      const exists = (await queryBus.ask(listLabelsQuery(ownerId))).some(
+        (label) => label.name === current,
+      );
+
+      if (!exists) {
+        if (input.new_name !== undefined) {
+          return text(
+            `label-not-found: There is no label "${current}" to rename. List labels to see their names, or leave new_name out to create it.`,
+            true,
+          );
+        }
+        const command: CreateLabelCommand = {
+          type: "tasks.create-label",
+          ownerId,
+          actor,
+          labelId: crypto.randomUUID(),
+          name: input.name,
+          colour: input.colour,
+        };
+        const created = await commandBus.dispatch(command);
+        if (!created.ok) return refused(created.error);
+      }
+
+      if (exists && input.colour) {
+        const command: RecolourLabelCommand = {
+          type: "tasks.recolour-label",
+          ownerId,
+          actor,
+          label: current,
+          colour: input.colour,
+        };
+        const recoloured = await commandBus.dispatch(command);
+        if (!recoloured.ok) return refused(recoloured.error);
+      }
+
+      let name = current;
+      if (exists && input.new_name !== undefined) {
+        const command: RenameLabelCommand = {
+          type: "tasks.rename-label",
+          ownerId,
+          actor,
+          label: current,
+          name: input.new_name,
+        };
+        const renamed = await commandBus.dispatch(command);
+        if (!renamed.ok) return refused(renamed.error);
+        name = normaliseLabelName(input.new_name);
+      }
+
+      const label = (await queryBus.ask(listLabelsQuery(ownerId))).find(
+        (candidate) => candidate.name === name,
+      );
+      return json(label ? labelOf(label) : { name });
+    },
+  );
+
+  server.registerTool(
+    "save_skill",
+    {
+      title: "Create or change a skill",
+      description:
+        "Without skill, creates one: name, description and instructions are required. With skill, changes only what is given; changing the name, description or instructions, or restoring an earlier revision, needs the revision you read, so you never overwrite a change you have not seen. Every change is kept as a revision a person can restore. Linking a label applies the skill to every task carrying it.",
+      inputSchema: z.object({
+        skill: z
+          .string()
+          .optional()
+          .describe("Name of the skill to change; left out, one is created"),
+        name: z
+          .string()
+          .optional()
+          .describe(
+            "Lower-case words joined by hyphens, e.g. frontend-conventions",
+          ),
+        description: z
+          .string()
+          .optional()
+          .describe("When to use it, in a sentence or two"),
+        instructions: z.string().optional().describe(MARKDOWN),
+        revision: z
+          .number()
+          .int()
+          .optional()
+          .describe("On change: the revision you read with get_skill"),
+        restore: z
+          .number()
+          .int()
+          .optional()
+          .describe("On change: an earlier revision whose text comes back"),
+        labels: z
+          .array(z.string())
+          .optional()
+          .describe(
+            "Replaces the labels it applies through; new names are created",
+          ),
+        add_labels: z
+          .array(z.string())
+          .optional()
+          .describe("Labels to link, keeping the rest"),
+        remove_labels: z
+          .array(z.string())
+          .optional()
+          .describe("On change: labels to unlink"),
+      }),
+      annotations: { readOnlyHint: false, destructiveHint: false },
+    },
+    async (input) => {
+      if (!input.skill) {
+        if (!input.name || !input.description || !input.instructions) {
+          return text(
+            "Give name, description and instructions to create a skill, or a skill's name to change one.",
+            true,
+          );
+        }
+        const skillId = crypto.randomUUID();
+        const command: CreateSkillCommand = {
+          type: "tasks.create-skill",
+          ownerId,
+          actor,
+          skillId,
+          name: input.name,
+          description: input.description,
+          instructions: input.instructions,
+          labels: [...(input.labels ?? []), ...(input.add_labels ?? [])],
+        };
+        return savedSkill(skillId, await commandBus.dispatch(command));
+      }
+
+      // Every change goes by id, so a rename in the same call does not lose
+      // the skill for the steps after it.
+      const found = await queryBus.ask(skillQuery(ownerId, input.skill, 1));
+      if (!found.ok) return refused(found.error);
+      const skill = found.value.id;
+
+      const rewrites =
+        input.name !== undefined ||
+        input.description !== undefined ||
+        input.instructions !== undefined;
+      if (rewrites || input.restore !== undefined) {
+        if (input.revision === undefined) {
+          return text(
+            `stale-skill: Give the revision you read (get_skill says ${found.value.revision}) to change a skill's text, so you never overwrite a change you have not seen.`,
+            true,
+          );
+        }
+        if (rewrites && input.restore !== undefined) {
+          return text(
+            "invalid-skill: Restore an earlier revision or give new text, not both in one call.",
+            true,
+          );
+        }
+        const command: ReviseSkillCommand | RestoreSkillCommand =
+          input.restore !== undefined
+            ? {
+                type: "tasks.restore-skill",
+                ownerId,
+                actor,
+                skill,
+                revision: input.restore,
+                expectedRevision: input.revision,
+              }
+            : {
+                type: "tasks.revise-skill",
+                ownerId,
+                actor,
+                skill,
+                expectedRevision: input.revision,
+                name: input.name,
+                description: input.description,
+                instructions: input.instructions,
+              };
+        const revised = await commandBus.dispatch(command);
+        if (!revised.ok) return refused(revised.error);
+      }
+
+      const linked = new Set(found.value.labels);
+      const wanted = input.labels?.map(normaliseLabelName);
+      const link = [
+        ...(wanted ?? []).filter((name) => !linked.has(name)),
+        ...(input.add_labels ?? []),
+      ];
+      const unlink = [
+        ...(wanted ? [...linked].filter((name) => !wanted.includes(name)) : []),
+        ...(input.remove_labels ?? []),
+      ];
+      if (link.length > 0) {
+        const command: LinkSkillCommand = {
+          type: "tasks.link-skill",
+          ownerId,
+          actor,
+          skill,
+          labels: link,
+        };
+        const done = await commandBus.dispatch(command);
+        if (!done.ok) return refused(done.error);
+      }
+      if (unlink.length > 0) {
+        const command: UnlinkSkillCommand = {
+          type: "tasks.unlink-skill",
+          ownerId,
+          actor,
+          skill,
+          labels: unlink,
+        };
+        const done = await commandBus.dispatch(command);
+        if (!done.ok) return refused(done.error);
+      }
+      return savedSkill(skill, ok(undefined));
+    },
+  );
+
+  server.registerTool(
     "start_task",
     {
       title: "Start working on a task",
       description:
-        "Claims a task for you and returns its brief. Without task, takes the top ready one. Starting a task you already hold resumes your session.",
+        "Claims a task for you and returns its brief, with the full instructions of every skill its labels bring: follow them while you work it. Without task, takes the top ready one. Starting a task you already hold resumes your session.",
       inputSchema: z.object({ task: z.string().optional() }),
       annotations: {
         readOnlyHint: false,
@@ -432,7 +785,7 @@ export function createTasksMcpServer(
         };
         const started = await commandBus.dispatch(command);
         if (started.ok) {
-          const found = await brief(candidate);
+          const found = await brief(candidate, undefined, true);
           return found.ok
             ? json({ ...found.value, ...url(found.value.key) })
             : refused(found.error);
@@ -672,7 +1025,7 @@ function workOnNextTask(repository: string | undefined): string {
   return `Work on the next task from fenro.
 
 1. ${pick}
-2. Read the brief it returns: the latest handoff and the decisions first, then the acceptance criteria.
+2. Read the brief it returns: the latest handoff and the decisions first, then the acceptance criteria, then its skills. Follow the skills while you work; where they conflict, what the person said wins, then the task's description and criteria, then the skills.
 3. Do the work. Record decisions, discoveries and open questions with add_note as you go, and file new work you find with save_task and discovered_from instead of doing it now.
 4. check_criterion for each acceptance criterion you meet, with its evidence.
 5. finish_session with a handoff summary and an outcome: done, in_review, paused, blocked (say on what) or released.`;
@@ -707,6 +1060,45 @@ function labelOf(label: LabelItem) {
     colour: label.colour,
     open_tasks: label.openTasks,
     tasks: label.tasks,
+    skills: label.skills,
+  };
+}
+
+/** A skill on a task the agent is only looking at: enough to know it is there. */
+function skillSummaryOf(skill: BriefSkill) {
+  return {
+    name: skill.name,
+    description: skill.description,
+    via: skill.via,
+    revision: skill.revision,
+  };
+}
+
+function skillOf(skill: SkillItem) {
+  return {
+    name: skill.name,
+    description: skill.description,
+    labels: skill.labels,
+    revision: skill.revision,
+    open_tasks: skill.openTasks,
+    updated_by: skill.updatedBy,
+    updated_at: skill.updatedAt,
+  };
+}
+
+function skillDetailOf(skill: SkillDetail) {
+  return {
+    ...skillOf(skill),
+    instructions: skill.instructions,
+    created_by: skill.createdBy,
+    created_at: skill.createdAt,
+    revisions: skill.revisions.map((revision) => ({
+      revision: revision.revision,
+      name: revision.name,
+      by: revision.by,
+      by_kind: revision.byKind,
+      at: revision.at,
+    })),
   };
 }
 
