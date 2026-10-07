@@ -189,3 +189,74 @@ export const taskPicture = pgTable(
   },
   (table) => [index("task_picture_task_idx").on(table.taskId, table.addedAt)],
 );
+
+/**
+ * Each person's skills: Markdown instructions that apply to tasks through
+ * their labels. `revision` counts changes to the text; `version` is bumped on
+ * every save, links included, so a save over someone else's fails.
+ */
+export const taskSkill = pgTable(
+  "task_skill",
+  {
+    id: text("id").primaryKey(),
+    ownerId: text("owner_id").notNull(),
+    name: text("name").notNull(),
+    description: text("description").notNull(),
+    instructions: text("instructions").notNull(),
+    revision: integer("revision").notNull(),
+    createdByKind: text("created_by_kind").notNull(),
+    createdById: text("created_by_id").notNull(),
+    createdByName: text("created_by_name").notNull(),
+    updatedByKind: text("updated_by_kind").notNull(),
+    updatedById: text("updated_by_id").notNull(),
+    updatedByName: text("updated_by_name").notNull(),
+    createdAt: instant("created_at").notNull(),
+    updatedAt: instant("updated_at").notNull(),
+    version: integer("version").notNull(),
+  },
+  (table) => [
+    uniqueIndex("task_skill_owner_name_idx").on(table.ownerId, table.name),
+  ],
+);
+
+const skillId = () =>
+  text("skill_id")
+    .notNull()
+    .references(() => taskSkill.id, { onDelete: "cascade" });
+
+/**
+ * The labels a skill applies through, by name as tasks carry them. The owner
+ * rides along so "which skills does this label bring" is one index lookup.
+ */
+export const taskSkillLabel = pgTable(
+  "task_skill_label",
+  {
+    skillId: skillId(),
+    ownerId: text("owner_id").notNull(),
+    labelName: text("label_name").notNull(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.skillId, table.labelName] }),
+    index("task_skill_label_owner_label_idx").on(
+      table.ownerId,
+      table.labelName,
+    ),
+  ],
+);
+
+/** Append-only: the text of every revision, so any can be read or restored. */
+export const taskSkillRevision = pgTable(
+  "task_skill_revision",
+  {
+    skillId: skillId(),
+    revision: integer("revision").notNull(),
+    name: text("name").notNull(),
+    description: text("description").notNull(),
+    instructions: text("instructions").notNull(),
+    byKind: text("by_kind").notNull(),
+    byId: text("by_id").notNull(),
+    byName: text("by_name").notNull(),
+    at: instant("at").notNull(),
+  },
+  (table) => [primaryKey({ columns: [table.skillId, table.revision] })],
+);

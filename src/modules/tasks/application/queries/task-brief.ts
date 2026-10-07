@@ -7,7 +7,7 @@ import type { Query, QueryHandler } from "@/shared/application";
 import { err, ok, type Result } from "@/shared/domain";
 
 import type { TaskReadStore } from "../ports/task-read-store";
-import { brief, TaskIndex } from "./projections";
+import { brief, briefSkills, TaskIndex } from "./projections";
 import type { TaskBrief } from "./read-models";
 
 export type TaskBriefResult = Result<TaskBrief, TaskError>;
@@ -18,14 +18,27 @@ export type TaskBriefQuery = Query<"tasks.task-brief", TaskBriefResult> & {
   readonly task: string;
   /** How many of the latest journal entries to include. */
   readonly journalLimit?: number;
+  /**
+   * Whether the skills that apply carry their instructions, or only their
+   * name, description and labels. Starting work wants them; looking around
+   * does not. Off unless asked for.
+   */
+  readonly skillInstructions?: boolean;
 };
 
 export function taskBriefQuery(
   ownerId: string,
   task: string,
   journalLimit?: number,
+  options: { readonly skillInstructions?: boolean } = {},
 ): TaskBriefQuery {
-  return { type: "tasks.task-brief", ownerId, task, journalLimit };
+  return {
+    type: "tasks.task-brief",
+    ownerId,
+    task,
+    journalLimit,
+    skillInstructions: options.skillInstructions,
+  };
 }
 
 export class TaskBriefHandler implements QueryHandler<
@@ -52,6 +65,18 @@ export class TaskBriefHandler implements QueryHandler<
 
     const detail = id ? await this.tasks.detail(query.ownerId, id) : undefined;
     if (!detail) return err(taskNotFound(reference));
-    return ok(brief(detail, index, now, query.journalLimit));
+    const skills =
+      detail.labels.length > 0
+        ? await this.tasks.skillsLinkedTo(query.ownerId, detail.labels)
+        : [];
+    return ok(
+      brief(
+        detail,
+        index,
+        now,
+        query.journalLimit,
+        briefSkills(detail.labels, skills, query.skillInstructions ?? false),
+      ),
+    );
   }
 }

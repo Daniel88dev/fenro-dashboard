@@ -10,6 +10,8 @@ export * from "./picture";
 export * from "./picture.repository";
 export * from "./repository-reference";
 export * from "./session";
+export * from "./skill";
+export * from "./skill.repository";
 export * from "./task";
 export * from "./task-graph";
 export * from "./task-key";

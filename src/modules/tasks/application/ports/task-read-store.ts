@@ -23,7 +23,52 @@ export interface TaskReadStore {
   labels(ownerId: string): Promise<LabelRecord[]>;
   /** One picture, wherever it is. */
   picture(ownerId: string, id: string): Promise<PictureRecord | undefined>;
+  /** Every one of the owner's skills with its labels, without the text. */
+  skills(ownerId: string): Promise<SkillRecord[]>;
+  /** One skill in full, found by id or by name, with its latest revisions. */
+  skill(
+    ownerId: string,
+    reference: { readonly id: string } | { readonly name: string },
+    revisions: number,
+  ): Promise<SkillDetailRecord | undefined>;
+  /** The skills linked to any of these labels, with their instructions. */
+  skillsLinkedTo(
+    ownerId: string,
+    labels: readonly string[],
+  ): Promise<SkillTextRecord[]>;
 }
+
+export type SkillRecord = {
+  readonly id: string;
+  readonly name: string;
+  readonly description: string;
+  /** Label names, as linked. */
+  readonly labels: readonly string[];
+  readonly revision: number;
+  readonly createdByKind: "agent" | "human";
+  readonly createdByName: string;
+  readonly createdAt: Date;
+  readonly updatedByKind: "agent" | "human";
+  readonly updatedByName: string;
+  readonly updatedAt: Date;
+};
+
+export type SkillTextRecord = SkillRecord & { readonly instructions: string };
+
+export type SkillRevisionRecord = {
+  readonly revision: number;
+  readonly name: string;
+  readonly description: string;
+  readonly instructions: string;
+  readonly byKind: "agent" | "human";
+  readonly byName: string;
+  readonly at: Date;
+};
+
+export type SkillDetailRecord = SkillTextRecord & {
+  /** Newest first. */
+  readonly revisions: readonly SkillRevisionRecord[];
+};
 
 export type PictureRecord = {
   readonly id: string;

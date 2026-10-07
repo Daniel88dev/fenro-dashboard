@@ -4,6 +4,9 @@ import type {
   LabelRecord,
   PictureRecord,
   SessionRecord,
+  SkillDetailRecord,
+  SkillRecord,
+  SkillTextRecord,
   TaskDetailRecord,
   TaskReadStore,
   TaskRecord,
@@ -28,11 +31,15 @@ import {
   taskLink,
   taskPicture,
   taskSession,
+  taskSkill,
+  taskSkillLabel,
+  taskSkillRevision,
 } from "./persistence/schema";
 
 type TaskRow = typeof taskTable.$inferSelect;
 type SessionRow = typeof taskSession.$inferSelect;
 type PictureRow = typeof taskPicture.$inferSelect;
+type SkillRow = typeof taskSkill.$inferSelect;
 
 /**
  * The tasks read side, straight from the tables: no aggregate is loaded to
@@ -167,6 +174,116 @@ export class DrizzleTaskReadStore implements TaskReadStore {
     return rows.map((row) => ({
       name: row.name,
       colour: isLabelColour(row.colour) ? row.colour : "gray",
+    }));
+  }
+
+  async skills(ownerId: string): Promise<SkillRecord[]> {
+    const rows = await this.db
+      .select()
+      .from(taskSkill)
+      .where(eq(taskSkill.ownerId, ownerId))
+      .orderBy(asc(taskSkill.name));
+    return this.#skillRecords(rows);
+  }
+
+  async skill(
+    ownerId: string,
+    reference: { readonly id: string } | { readonly name: string },
+    revisions: number,
+  ): Promise<SkillDetailRecord | undefined> {
+    const [row] = await this.db
+      .select()
+      .from(taskSkill)
+      .where(
+        and(
+          eq(taskSkill.ownerId, ownerId),
+          "id" in reference
+            ? eq(taskSkill.id, reference.id)
+            : eq(taskSkill.name, reference.name),
+        ),
+      );
+    if (!row) return undefined;
+    const [[record], kept] = await Promise.all([
+      this.#skillRecords([row]),
+      this.db
+        .select()
+        .from(taskSkillRevision)
+        .where(eq(taskSkillRevision.skillId, row.id))
+        .orderBy(desc(taskSkillRevision.revision))
+        .limit(revisions),
+    ]);
+    return {
+      ...record!,
+      instructions: row.instructions,
+      revisions: kept.map((revision) => ({
+        revision: revision.revision,
+        name: revision.name,
+        description: revision.description,
+        instructions: revision.instructions,
+        byKind: revision.byKind === "agent" ? "agent" : "human",
+        byName: revision.byName,
+        at: revision.at,
+      })),
+    };
+  }
+
+  async skillsLinkedTo(
+    ownerId: string,
+    labels: readonly string[],
+  ): Promise<SkillTextRecord[]> {
+    if (labels.length === 0) return [];
+    const rows = await this.db
+      .selectDistinct({ skill: taskSkill })
+      .from(taskSkill)
+      .innerJoin(taskSkillLabel, eq(taskSkillLabel.skillId, taskSkill.id))
+      .where(
+        and(
+          eq(taskSkillLabel.ownerId, ownerId),
+          inArray(taskSkillLabel.labelName, [...labels]),
+        ),
+      );
+    const skills = rows.map((row) => row.skill);
+    const records = await this.#skillRecords(skills);
+    return records.map((record, position) => ({
+      ...record,
+      instructions: skills[position]!.instructions,
+    }));
+  }
+
+  async #skillRecords(rows: readonly SkillRow[]): Promise<SkillRecord[]> {
+    if (rows.length === 0) return [];
+    const links = await this.db
+      .select({
+        skillId: taskSkillLabel.skillId,
+        name: taskSkillLabel.labelName,
+      })
+      .from(taskSkillLabel)
+      .where(
+        inArray(
+          taskSkillLabel.skillId,
+          rows.map((row) => row.id),
+        ),
+      )
+      .orderBy(asc(taskSkillLabel.labelName));
+    const labels = new Map<string, string[]>();
+    for (const link of links) {
+      labels.set(link.skillId, [
+        ...(labels.get(link.skillId) ?? []),
+        link.name,
+      ]);
+    }
+    return rows.map((row) => ({
+      id: row.id,
+      name: row.name,
+      description: row.description,
+      labels: labels.get(row.id) ?? [],
+      revision: row.revision,
+      createdByKind: row.createdByKind === "agent" ? "agent" : "human",
+      createdByName: row.createdByName,
+      createdAt: row.createdAt,
+      updatedByKind: row.updatedByKind === "agent" ? "agent" : "human",
+      updatedByName: row.updatedByName,
+      updatedAt: row.updatedAt,
     }));
   }
 

@@ -11,13 +11,19 @@ import {
 import type {
   PictureRecord,
   SessionRecord,
+  SkillRecord,
+  SkillRevisionRecord,
+  SkillTextRecord,
   TaskDetailRecord,
   TaskRecord,
 } from "../ports/task-read-store";
 import type {
+  BriefSkill,
   JournalItem,
   PictureItem,
   RepositoryTasks,
+  SkillItem,
+  SkillRevisionItem,
   TaskBrief,
   TaskCountsByRepository,
   TaskList,
@@ -245,6 +251,7 @@ export function brief(
   index: TaskIndex,
   now: Date,
   journalLimit = DEFAULT_JOURNAL_LIMIT,
+  skills: readonly BriefSkill[] = [],
 ): TaskBrief {
   const mentions = (ids: readonly string[]) =>
     ids
@@ -313,6 +320,7 @@ export function brief(
     recentJournal: journal.slice(-journalLimit),
     journalEntries: journal.length,
     pictures: detail.pictures.map(pictureItem),
+    skills,
     createdAt: detail.createdAt.toISOString(),
     updatedAt: lastChange(detail).toISOString(),
   };
@@ -339,6 +347,82 @@ export function pictureItem(record: PictureRecord): PictureItem {
     addedByKind: record.addedByKind,
     session: record.sessionNumber,
     addedAt: record.addedAt.toISOString(),
+  };
+}
+
+// --- Skills -----------------------------------------------------------------
+
+/**
+ * How many characters of skill instructions one brief carries. Past it, the
+ * remaining skills come by name only, so many labels with long skills cannot
+ * crowd out the task itself.
+ */
+export const BRIEF_INSTRUCTIONS_BUDGET = 60_000;
+
+/**
+ * The skills that apply to a task: those linked to any of the task's own
+ * labels, each once, by name, with the labels that brought it in.
+ */
+export function briefSkills(
+  labels: readonly string[],
+  skills: readonly SkillTextRecord[],
+  withInstructions: boolean,
+): BriefSkill[] {
+  let budget = BRIEF_INSTRUCTIONS_BUDGET;
+  return skills
+    .map((skill) => ({
+      skill,
+      via: labels.filter((label) => skill.labels.includes(label)),
+    }))
+    .filter(({ via }) => via.length > 0)
+    .sort((a, b) => a.skill.name.localeCompare(b.skill.name))
+    .map(({ skill, via }) => {
+      let instructions: string | null = null;
+      if (withInstructions && skill.instructions.length <= budget) {
+        instructions = skill.instructions;
+        budget -= skill.instructions.length;
+      }
+      return {
+        name: skill.name,
+        description: skill.description,
+        via,
+        revision: skill.revision,
+        instructions,
+      };
+    });
+}
+
+/** A skill in a list, with the open tasks it applies to now. */
+export function skillItem(skill: SkillRecord, index: TaskIndex): SkillItem {
+  const labels = new Set(skill.labels);
+  return {
+    id: skill.id,
+    name: skill.name,
+    description: skill.description,
+    labels: skill.labels,
+    revision: skill.revision,
+    openTasks: index.records.filter(
+      (record) =>
+        isOpen(record.status) &&
+        record.labels.some((label) => labels.has(label)),
+    ).length,
+    updatedBy: skill.updatedByName,
+    updatedByKind: skill.updatedByKind,
+    updatedAt: skill.updatedAt.toISOString(),
+  };
+}
+
+export function skillRevisionItem(
+  record: SkillRevisionRecord,
+): SkillRevisionItem {
+  return {
+    revision: record.revision,
+    name: record.name,
+    description: record.description,
+    instructions: record.instructions,
+    by: record.byName,
+    byKind: record.byKind,
+    at: record.at.toISOString(),
   };
 }
 

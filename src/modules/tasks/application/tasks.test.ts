@@ -283,7 +283,13 @@ describe("labels", () => {
     // Carrying it later does not change its colour.
     await create({ title: "Session expiry", labels: ["area:auth"] });
     expect(await labels()).toEqual([
-      { name: "area:auth", colour: "blue", openTasks: 1, tasks: 1 },
+      {
+        name: "area:auth",
+        colour: "blue",
+        openTasks: 1,
+        tasks: 1,
+        skills: [],
+      },
     ]);
   });
 
