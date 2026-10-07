@@ -13,6 +13,11 @@ const DOTS: Record<LabelColour, string> = {
   pink: "bg-label-pink",
 };
 
+/** The fill for a colour, for anything larger than a dot: a swatch. */
+export function labelFill(colour: LabelColour): string {
+  return DOTS[colour];
+}
+
 export type LabelOption = {
   readonly name: string;
   readonly colour: LabelColour;

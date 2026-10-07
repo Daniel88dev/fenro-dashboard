@@ -72,3 +72,4 @@ disagree:
 | 2026-09-24 | Whole-app redesign, 2 directions | [canvas](https://claude.ai/artifact/Uj2hLnvUy6X9dYrzzAdDgr), [notes](./redesign-2026-09.md) | A picked                      |
 | 2026-09-26 | Pictures on tasks, 2 directions  | [canvas](https://claude.ai/artifact/35XeAhrc4aQRGTHxQWp1YA)                                 | A picked, plus a large viewer |
 | 2026-09-28 | App logo, 2 marks                | [page](https://claude.ai/artifact/N6VV6A8ZvUkGGSp5KfSpHK)                                   | B (Task rows) picked, PR #31  |
+| 2026-10-04 | Skills & labels, 2 directions    | [canvas](https://claude.ai/artifact/SBLLj8uitB3xpX8WhbeR79)                                 | A (side by side) picked       |

@@ -44,6 +44,7 @@ import type { RepositoryOption } from "./repository-select";
 import { LiveDot } from "./task-list";
 import { InlineMarkdown, Markdown } from "./markdown";
 import { PictureThumbs, PicturesSection } from "./pictures";
+import { TaskSkills } from "./task-skills";
 import { STATE_TONES, taskHref } from "./task-state";
 
 const DATE = new Intl.DateTimeFormat("en", {
@@ -876,6 +877,10 @@ export function TaskDetail({
           <div className="flex flex-col gap-1.5">
             <h2 className="text-ink text-[13px] font-semibold">Agent</h2>
             <AgentLine task={task} />
+          </div>
+
+          <div className="border-hairline border-t pt-4">
+            <TaskSkills skills={task.skills} labels={labels} />
           </div>
 
           <div className="border-hairline border-t pt-1.5">
