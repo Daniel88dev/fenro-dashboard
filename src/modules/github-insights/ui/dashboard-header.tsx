@@ -37,7 +37,7 @@ export function DashboardHeader({
   addAction,
   addManuallyAction,
   repositoriesSource,
-  accessSettingsUrl,
+  installUrl,
 }: {
   totals: DashboardTotals;
   openTasks: number;
@@ -52,14 +52,14 @@ export function DashboardHeader({
     formData: FormData,
   ) => Promise<AddRepositoriesState>;
   repositoriesSource: string;
-  accessSettingsUrl: string | null;
+  installUrl: string | null;
 }) {
   const add = (
     <AddRepositories
       source={repositoriesSource}
       action={addAction}
       manualAction={addManuallyAction}
-      accessSettingsUrl={accessSettingsUrl}
+      installUrl={installUrl}
     />
   );
 

@@ -19,7 +19,7 @@ export interface Authenticator {
   signedInUser(): Promise<SignedInUser | null>;
 
   /**
-   * The signed-in user's GitHub OAuth token, for reading GitHub on their
+   * The signed-in user's GitHub token, for reading GitHub on their
    * behalf. `null` when nobody is signed in. A grant revoked on GitHub still
    * returns the stored token; GitHub's 401 is what reports it.
    */
@@ -38,8 +38,8 @@ export interface Authenticator {
   signOut(): Promise<void>;
 
   /**
-   * GitHub's page where the user reviews what this app may read, and asks an
-   * organization to let it in. `null` when no OAuth app is configured.
+   * GitHub's page where the user installs the GitHub App on more repositories,
+   * or asks an organization to. `null` when the app's slug is not configured.
    */
-  gitHubAccessSettingsUrl(): string | null;
+  gitHubAppInstallUrl(): string | null;
 }

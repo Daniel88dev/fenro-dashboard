@@ -280,7 +280,7 @@ export async function RepositoriesScreen({
         addAction={addRepositoriesAction}
         addManuallyAction={addRepositoryManuallyAction}
         repositoriesSource="/api/github/repositories"
-        accessSettingsUrl={getAuthenticator().gitHubAccessSettingsUrl()}
+        installUrl={getAuthenticator().gitHubAppInstallUrl()}
       />
       <RepositoryTable
         rows={views}
@@ -293,7 +293,7 @@ export async function RepositoriesScreen({
             source="/api/github/repositories"
             action={addRepositoriesAction}
             manualAction={addRepositoryManuallyAction}
-            accessSettingsUrl={getAuthenticator().gitHubAccessSettingsUrl()}
+            installUrl={getAuthenticator().gitHubAppInstallUrl()}
           />
         }
       />

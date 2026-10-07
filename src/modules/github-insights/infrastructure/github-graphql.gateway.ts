@@ -45,9 +45,10 @@ export const SNAPSHOT_LIMITS = {
  * head commit, and the open issues. GraphQL's `issues` excludes pull requests,
  * unlike REST's, so the issue count is not inflated.
  *
- * No field of `Team` is selected: GitHub checks scopes against the query text,
- * and any Team field needs `read:org`, which the sign-in does not ask for. With
- * one in the query every sync is refused, team review request or not.
+ * No field of `Team` is selected: GitHub checks permissions against the query
+ * text, and any Team field needs the organization Members permission, which
+ * the GitHub App does not have. With one in the query every sync is refused,
+ * team review request or not.
  */
 const SNAPSHOT_QUERY = /* GraphQL */ `
   query RepositorySnapshot($owner: String!, $name: String!) {
@@ -266,7 +267,7 @@ const graphQlResponse = z.object({
 type Fetch = typeof fetch;
 
 /**
- * GitHub's GraphQL API, read with one viewer's OAuth token. The token is bound
+ * GitHub's GraphQL API, read with one viewer's GitHub App user token. The token is bound
  * here by the composition root and never leaves this class.
  */
 export class GitHubGraphqlGateway implements GitHubGateway {
@@ -510,10 +511,14 @@ function rateLimited(): GitHubFailure {
   );
 }
 
+/**
+ * The GitHub App reads only where it is installed, so a repository the viewer
+ * can open on GitHub can still be missing here; the row says which fix to try.
+ */
 function notFound(coordinates: RepositoryCoordinates): GitHubFailure {
   return gitHubFailure(
     "github-not-found",
-    `GitHub has no repository ${coordinates.fullName} that you can see.`,
+    `GitHub has no repository ${coordinates.fullName} that you can see, or the app is not installed on it. Install it there from Add repositories.`,
   );
 }
 

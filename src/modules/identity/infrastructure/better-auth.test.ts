@@ -20,9 +20,10 @@ describe("authOptions", () => {
     expect(options().emailAndPassword.enabled).toBe(false);
   });
 
-  it("asks GitHub for repository access, on top of the profile defaults", () => {
+  it("sends no OAuth scopes: the GitHub App's permissions decide", () => {
+    expect(options().socialProviders.github.disableDefaultScope).toBe(true);
     expect(options().socialProviders.github.scope).toEqual([...GITHUB_SCOPES]);
-    expect(GITHUB_SCOPES).toContain("repo");
+    expect(GITHUB_SCOPES).toEqual([]);
   });
 
   it("keeps the GitHub login, and refreshes it on every sign-in", async () => {
@@ -47,25 +48,33 @@ describe("authOptions", () => {
   });
 });
 
+async function gitHubAuthorizationUrl(overrides: Partial<AuthSettings> = {}) {
+  const auth = betterAuth({
+    ...authOptions({ ...settings, ...overrides }, drizzle.mock()),
+    database: memoryAdapter({
+      user: [],
+      session: [],
+      account: [],
+      verification: [],
+    }),
+  });
+  const { url } = await auth.api.signInSocial({
+    body: { provider: "github", callbackURL: "/repositories" },
+  });
+  return new URL(url!);
+}
+
+describe("the GitHub consent screen", () => {
+  it("asks for no OAuth scope, not even Better Auth's profile defaults", async () => {
+    const url = await gitHubAuthorizationUrl();
+
+    expect(url.searchParams.get("scope") ?? "").toBe("");
+  });
+});
+
 describe("signing in from a preview", () => {
   const PRODUCTION = "https://fenro.example";
   const PREVIEW = "https://fenro-git-branch.example";
-
-  async function gitHubAuthorizationUrl(overrides: Partial<AuthSettings>) {
-    const auth = betterAuth({
-      ...authOptions({ ...settings, ...overrides }, drizzle.mock()),
-      database: memoryAdapter({
-        user: [],
-        session: [],
-        account: [],
-        verification: [],
-      }),
-    });
-    const { url } = await auth.api.signInSocial({
-      body: { provider: "github", callbackURL: "/repositories" },
-    });
-    return new URL(url!);
-  }
 
   it("sends GitHub back to the production origin, which owns the callback", async () => {
     const url = await gitHubAuthorizationUrl({
