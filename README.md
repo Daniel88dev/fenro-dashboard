@@ -297,7 +297,6 @@ Claude Code gets `/mattpocock-skills:to-spec`,
 without installing anything. Trust the folder when Claude Code asks, and the
 plugin registers itself.
 
-
 [CLAUDE.md](./CLAUDE.md) carries the layout and conventions an agent needs.
 
 ## License
