@@ -1,6 +1,9 @@
-import type {
-  RepositorySnapshot,
-  RepositorySnapshotStore,
+import {
+  ALL_PARTS,
+  type RepositorySnapshot,
+  type RepositorySnapshotStore,
+  type SnapshotCounts,
+  type SnapshotParts,
 } from "@/modules/github-insights/application/ports/repository-snapshot";
 
 /** Snapshots for the life of the process: the Postgres store's twin in tests. */
@@ -20,14 +23,31 @@ export class InMemoryRepositorySnapshotStore implements RepositorySnapshotStore 
 
   load(
     repositoryIds: readonly string[],
+    parts: SnapshotParts = ALL_PARTS,
   ): Promise<ReadonlyMap<string, RepositorySnapshot>> {
     return Promise.resolve(
       new Map(
         repositoryIds.flatMap((id) => {
           const snapshot = this.#byId.get(id);
-          return snapshot ? [[id, snapshot] as const] : [];
+          if (!snapshot) return [];
+          return [
+            [
+              id,
+              {
+                ...snapshot,
+                pullRequests: parts.pullRequests ? snapshot.pullRequests : [],
+                issues: parts.issues ? snapshot.issues : [],
+              },
+            ] as const,
+          ];
         }),
       ),
     );
+  }
+
+  loadCounts(
+    repositoryIds: readonly string[],
+  ): Promise<ReadonlyMap<string, SnapshotCounts>> {
+    return this.load(repositoryIds);
   }
 }

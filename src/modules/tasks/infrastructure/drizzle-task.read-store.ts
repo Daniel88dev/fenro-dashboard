@@ -1,4 +1,13 @@
-import { and, asc, count, desc, eq, inArray } from "drizzle-orm";
+import {
+  and,
+  asc,
+  count,
+  desc,
+  eq,
+  getTableColumns,
+  inArray,
+  sql,
+} from "drizzle-orm";
 
 import type {
   LabelRecord,
@@ -36,10 +45,38 @@ import {
   taskSkillRevision,
 } from "./persistence/schema";
 
-type TaskRow = typeof taskTable.$inferSelect;
 type SessionRow = typeof taskSession.$inferSelect;
 type PictureRow = typeof taskPicture.$inferSelect;
-type SkillRow = typeof taskSkill.$inferSelect;
+
+// Lists never show a task's description, its criteria's text or a skill's
+// instructions, and those are the long columns: leaving them out keeps what
+// the database sends for a list to a few hundred bytes a row.
+function without<T extends object, K extends keyof T>(
+  columns: T,
+  ...keys: K[]
+): Omit<T, K> {
+  const kept = { ...columns };
+  for (const key of keys) delete kept[key];
+  return kept;
+}
+
+const listedTask = {
+  ...without(getTableColumns(taskTable), "description", "criteria"),
+  criteriaTotal: sql<number>`jsonb_array_length(${taskTable.criteria})`.mapWith(
+    Number,
+  ),
+  criteriaMet: sql<number>`(
+    select count(*) from jsonb_array_elements(${taskTable.criteria}) as criterion
+    where criterion ->> 'metAt' is not null
+  )`.mapWith(Number),
+};
+type ListedTaskRow = Omit<
+  typeof taskTable.$inferSelect,
+  "description" | "criteria"
+> & { readonly criteriaTotal: number; readonly criteriaMet: number };
+
+const listedSkill = without(getTableColumns(taskSkill), "instructions");
+type ListedSkillRow = Omit<typeof taskSkill.$inferSelect, "instructions">;
 
 /**
  * The tasks read side, straight from the tables: no aggregate is loaded to
@@ -51,7 +88,7 @@ export class DrizzleTaskReadStore implements TaskReadStore {
 
   async records(ownerId: string): Promise<TaskRecord[]> {
     const rows = await this.db
-      .select()
+      .select(listedTask)
       .from(taskTable)
       .where(eq(taskTable.ownerId, ownerId));
     if (rows.length === 0) return [];
@@ -70,7 +107,14 @@ export class DrizzleTaskReadStore implements TaskReadStore {
 
     const [[record], links, incoming, references, sessions, journal, pictures] =
       await Promise.all([
-        this.#records([row]),
+        this.#records([
+          {
+            ...row,
+            criteriaTotal: row.criteria.length,
+            criteriaMet: row.criteria.filter((criterion) => criterion.metAt)
+              .length,
+          },
+        ]),
         this.db
           .select({ kind: taskLink.kind, taskId: taskLink.targetId })
           .from(taskLink)
@@ -179,7 +223,7 @@ export class DrizzleTaskReadStore implements TaskReadStore {
 
   async skills(ownerId: string): Promise<SkillRecord[]> {
     const rows = await this.db
-      .select()
+      .select(listedSkill)
       .from(taskSkill)
       .where(eq(taskSkill.ownerId, ownerId))
       .orderBy(asc(taskSkill.name));
@@ -250,7 +294,7 @@ export class DrizzleTaskReadStore implements TaskReadStore {
     }));
   }
 
-  async #skillRecords(rows: readonly SkillRow[]): Promise<SkillRecord[]> {
+  async #skillRecords(rows: readonly ListedSkillRow[]): Promise<SkillRecord[]> {
     if (rows.length === 0) return [];
     const links = await this.db
       .select({
@@ -287,7 +331,7 @@ export class DrizzleTaskReadStore implements TaskReadStore {
     }));
   }
 
-  async #records(rows: readonly TaskRow[]): Promise<TaskRecord[]> {
+  async #records(rows: readonly ListedTaskRow[]): Promise<TaskRecord[]> {
     const ids = rows.map((row) => row.id);
     const [links, sessions, journalCounts] = await Promise.all([
       this.db
@@ -342,8 +386,8 @@ export class DrizzleTaskReadStore implements TaskReadStore {
           ? { reason: row.holdReason, since: row.holdSince }
           : null,
       latestSession: latestSession.get(row.id) ?? null,
-      criteriaMet: row.criteria.filter((criterion) => criterion.metAt).length,
-      criteriaTotal: row.criteria.length,
+      criteriaMet: row.criteriaMet,
+      criteriaTotal: row.criteriaTotal,
       journalEntries: entries.get(row.id) ?? 0,
       createdAt: row.createdAt,
       updatedAt: row.updatedAt,
