@@ -1,6 +1,6 @@
 import { Suspense, type ReactNode } from "react";
 
-import { dashboardTotalsQuery } from "@/modules/github-insights/application/queries/dashboard-totals";
+import { totalsOf } from "@/modules/github-insights/application/queries/dashboard-totals";
 import { openIssuesQuery } from "@/modules/github-insights/application/queries/open-issues";
 import { openPullRequestsQuery } from "@/modules/github-insights/application/queries/open-pull-requests";
 import { pullRequestChecksQuery } from "@/modules/github-insights/application/queries/pull-request-checks";
@@ -124,16 +124,13 @@ export async function RepositoriesScreen({
   }
   const watcher: Watcher = { id: user.id, login: user.githubLogin };
 
-  const [rows, totals, taskCounts] = await Promise.all([
+  const [rows, taskCounts] = await Promise.all([
     queryBus.ask(repositoryRowsQuery(watcher)),
-    queryBus.ask(dashboardTotalsQuery(watcher)),
     queryBus.ask(taskCountsByRepositoryQuery(user.id)),
   ]);
 
-  if (isErr(rows) || isErr(totals)) {
-    const message = isErr(rows)
-      ? rows.error.message
-      : "Counts are unavailable.";
+  if (isErr(rows)) {
+    const message = rows.error.message;
     return (
       <>
         <PanelError
@@ -273,7 +270,8 @@ export async function RepositoriesScreen({
       dueIds={rows.value.filter((row) => row.needsSync).map((row) => row.id)}
     >
       <DashboardHeader
-        totals={totals.value}
+        // Summed from the rows already read, rather than asking for them twice.
+        totals={totalsOf(rows.value)}
         openTasks={openTasks}
         filter={state.filter}
         now={now}

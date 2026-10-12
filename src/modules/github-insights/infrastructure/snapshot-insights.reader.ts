@@ -11,6 +11,7 @@ import type {
 import type {
   RepositorySnapshot,
   RepositorySnapshotStore,
+  SnapshotParts,
 } from "@/modules/github-insights/application/ports/repository-snapshot";
 import type { Watcher } from "@/modules/github-insights/application/ports/viewer";
 import type {
@@ -30,6 +31,9 @@ const EMPTY: RepositorySnapshot = {
   issues: [],
 };
 
+const PULL_REQUESTS: SnapshotParts = { pullRequests: true, issues: false };
+const ISSUES: SnapshotParts = { pullRequests: false, issues: true };
+
 /**
  * Ticket 05's answer behind the reader port: the screen reads what the last
  * sync stored, never GitHub. A page view therefore costs no rate limit and
@@ -45,7 +49,7 @@ export class SnapshotInsightsReader implements RepositoryInsightsReader {
     watcher: Watcher,
     repositoryIds: readonly string[],
   ): Promise<Result<RepositoryCounts[], InsightsUnavailable>> {
-    const snapshots = await this.snapshots.load(repositoryIds);
+    const snapshots = await this.snapshots.loadCounts(repositoryIds);
     return ok(
       [...snapshots].map(([id, snapshot]) => countsFrom(id, snapshot, watcher)),
     );
@@ -55,7 +59,12 @@ export class SnapshotInsightsReader implements RepositoryInsightsReader {
     watcher: Watcher,
     repositoryId: string,
   ): Promise<Result<OpenPullRequests, InsightsUnavailable>> {
-    return ok(openPullRequestsFrom(await this.#one(repositoryId), watcher));
+    return ok(
+      openPullRequestsFrom(
+        await this.#one(repositoryId, PULL_REQUESTS),
+        watcher,
+      ),
+    );
   }
 
   async pullRequestChecks(
@@ -63,9 +72,9 @@ export class SnapshotInsightsReader implements RepositoryInsightsReader {
     repositoryId: string,
     number: number,
   ): Promise<Result<PullRequestChecks | null, InsightsUnavailable>> {
-    const pullRequest = (await this.#one(repositoryId)).pullRequests.find(
-      (one) => one.number === number,
-    );
+    const pullRequest = (
+      await this.#one(repositoryId, PULL_REQUESTS)
+    ).pullRequests.find((one) => one.number === number);
     return ok(
       pullRequest
         ? pullRequestChecksFrom(pullRequest, watcher, this.clock())
@@ -78,12 +87,18 @@ export class SnapshotInsightsReader implements RepositoryInsightsReader {
     repositoryId: string,
     filter: IssueFilter,
   ): Promise<Result<OpenIssues, InsightsUnavailable>> {
-    return ok(openIssuesFrom(await this.#one(repositoryId), watcher, filter));
+    return ok(
+      openIssuesFrom(await this.#one(repositoryId, ISSUES), watcher, filter),
+    );
   }
 
-  async #one(repositoryId: string): Promise<RepositorySnapshot> {
+  async #one(
+    repositoryId: string,
+    parts: SnapshotParts,
+  ): Promise<RepositorySnapshot> {
     return (
-      (await this.snapshots.load([repositoryId])).get(repositoryId) ?? EMPTY
+      (await this.snapshots.load([repositoryId], parts)).get(repositoryId) ??
+      EMPTY
     );
   }
 }

@@ -59,12 +59,45 @@ export type RepositorySnapshot = {
   readonly issues: readonly IssueRecord[];
 };
 
+/**
+ * Just enough of a snapshot to fill the repository table: the totals, and the
+ * few fields that say whether an item needs the viewer. The table is rendered
+ * far more often than any panel, and the database is billed by the byte it
+ * sends, so it never carries titles or checks.
+ */
+export type SnapshotCounts = {
+  readonly openPullRequests: number;
+  readonly openIssues: number;
+  readonly lastActivityAt: Date | null;
+  readonly pullRequests: readonly Pick<
+    PullRequestRecord,
+    "isDraft" | "requestedReviewers"
+  >[];
+  readonly issues: readonly Pick<IssueRecord, "assignees">[];
+};
+
+/** Which lists a load brings back; a panel needs one of the two. */
+export type SnapshotParts = {
+  readonly pullRequests: boolean;
+  readonly issues: boolean;
+};
+
+export const ALL_PARTS: SnapshotParts = { pullRequests: true, issues: true };
+
 /** Where synced snapshots are kept, keyed by the watched repository's id. */
 export interface RepositorySnapshotStore {
   /** Swap the stored snapshot for a fresh one, all or nothing. */
   replace(repositoryId: string, snapshot: RepositorySnapshot): Promise<void>;
-  /** Repositories never synced are simply missing from the map. */
+  /**
+   * Repositories never synced are simply missing from the map. A list left out
+   * of `parts` comes back empty.
+   */
   load(
     repositoryIds: readonly string[],
+    parts?: SnapshotParts,
   ): Promise<ReadonlyMap<string, RepositorySnapshot>>;
+  /** What the table shows; never-synced repositories are missing here too. */
+  loadCounts(
+    repositoryIds: readonly string[],
+  ): Promise<ReadonlyMap<string, SnapshotCounts>>;
 }

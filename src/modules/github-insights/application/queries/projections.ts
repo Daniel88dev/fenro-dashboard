@@ -3,6 +3,7 @@ import type {
   IssueRecord,
   PullRequestRecord,
   RepositorySnapshot,
+  SnapshotCounts,
 } from "../ports/repository-snapshot";
 import type { Watcher } from "../ports/viewer";
 import {
@@ -45,11 +46,7 @@ export function reviewStateFor(
   watcher: Watcher,
 ): ReviewState {
   if (pullRequest.isDraft) return "draft";
-  if (
-    pullRequest.requestedReviewers.some((login) => isViewer(login, watcher))
-  ) {
-    return "your-review";
-  }
+  if (needsViewer(pullRequest, watcher)) return "your-review";
   if (
     pullRequest.reviewDecision === "changes-requested" ||
     pullRequest.changesRequestedBy.length > 0
@@ -101,17 +98,27 @@ function checkSummaryFor(pullRequest: PullRequestRecord): string {
   }
 }
 
-function needsViewer(pullRequest: PullRequestRecord, watcher: Watcher) {
-  return reviewStateFor(pullRequest, watcher) === "your-review";
+/** A ready pull request that asks the viewer for a review. */
+function needsViewer(
+  pullRequest: Pick<PullRequestRecord, "isDraft" | "requestedReviewers">,
+  watcher: Watcher,
+): boolean {
+  return (
+    !pullRequest.isDraft &&
+    pullRequest.requestedReviewers.some((login) => isViewer(login, watcher))
+  );
 }
 
-function isAssignedTo(issue: IssueRecord, watcher: Watcher): boolean {
+function isAssignedTo(
+  issue: Pick<IssueRecord, "assignees">,
+  watcher: Watcher,
+): boolean {
   return issue.assignees.some((login) => isViewer(login, watcher));
 }
 
 export function countsFrom(
   repositoryId: string,
-  snapshot: RepositorySnapshot,
+  snapshot: SnapshotCounts,
   watcher: Watcher,
 ): RepositoryCounts {
   const needYou = snapshot.pullRequests.filter((pullRequest) =>

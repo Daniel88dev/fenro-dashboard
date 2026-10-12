@@ -213,6 +213,57 @@ describe.skipIf(!url)("Postgres adapters", () => {
       expect(loaded).toEqual(snapshot);
     });
 
+    it("reads only the fields the table counts with", async () => {
+      const id = await watchedId();
+      const store = new DrizzleRepositorySnapshotStore(db, () => t0);
+      await store.replace(
+        id,
+        aSnapshot({
+          openPullRequests: 12,
+          openIssues: 38,
+          lastActivityAt: t0,
+          pullRequests: [
+            aPullRequest({ isDraft: true, requestedReviewers: ["mira"] }),
+          ],
+          issues: [anIssue({ assignees: ["mira"] })],
+        }),
+      );
+
+      expect((await store.loadCounts([id])).get(id)).toEqual({
+        openPullRequests: 12,
+        openIssues: 38,
+        lastActivityAt: t0,
+        pullRequests: [{ isDraft: true, requestedReviewers: ["mira"] }],
+        issues: [{ assignees: ["mira"] }],
+      });
+    });
+
+    it("leaves out the list a load does not ask for", async () => {
+      const id = await watchedId();
+      const store = new DrizzleRepositorySnapshotStore(db, () => t0);
+      await store.replace(
+        id,
+        aSnapshot({
+          pullRequests: [aPullRequest({ number: 7 })],
+          issues: [anIssue({ number: 9 })],
+        }),
+      );
+
+      const pullRequestsOnly = (
+        await store.load([id], { pullRequests: true, issues: false })
+      ).get(id);
+      const issuesOnly = (
+        await store.load([id], { pullRequests: false, issues: true })
+      ).get(id);
+
+      expect(pullRequestsOnly?.pullRequests.map((pr) => pr.number)).toEqual([
+        7,
+      ]);
+      expect(pullRequestsOnly?.issues).toEqual([]);
+      expect(issuesOnly?.pullRequests).toEqual([]);
+      expect(issuesOnly?.issues.map((one) => one.number)).toEqual([9]);
+    });
+
     it("replaces everything the last sync stored", async () => {
       const id = await watchedId();
       const store = new DrizzleRepositorySnapshotStore(db, () => t0);
