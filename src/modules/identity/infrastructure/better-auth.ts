@@ -1,9 +1,8 @@
 import { betterAuth, type BetterAuthOptions } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { nextCookies } from "better-auth/next-js";
-import { oAuthProxy } from "better-auth/plugins";
 
-import { getEnv, requireEnv } from "@/shared/config/env";
+import { requireEnv } from "@/shared/config/env";
 import type { Database } from "@/shared/infrastructure/database/client";
 
 import { refreshGitHubToken } from "./github-token-refresh";
@@ -23,8 +22,6 @@ export type AuthSettings = {
   readonly baseUrl: string;
   readonly secret: string;
   readonly github: { readonly clientId: string; readonly clientSecret: string };
-  /** Where GitHub's callback lands when this deployment is not that origin. */
-  readonly oauthProxy?: { readonly url: string; readonly secret?: string };
 };
 
 /**
@@ -77,17 +74,6 @@ export function authOptions(settings: AuthSettings, db: Database) {
       cookieCache: { enabled: true, maxAge: 5 * 60 },
     },
     plugins: [
-      // Previews get a new URL each time, which the GitHub App's callback URLs
-      // cannot list, so a preview signs in through the production origin, which finishes the code exchange and hands the
-      // encrypted result back. Without a proxy URL, this deployment counts as
-      // production and the plugin only ever answers for others. `currentURL`
-      // is pinned because a server action has no request URL to infer it
-      // from, and the platform URL it would fall back to is per-deployment.
-      oAuthProxy({
-        productionURL: settings.oauthProxy?.url ?? settings.baseUrl,
-        currentURL: settings.baseUrl,
-        secret: settings.oauthProxy?.secret,
-      }),
       // Lets server actions set the cookies a sign-in or sign-out produces.
       // Better Auth wants it last.
       nextCookies(),
@@ -110,7 +96,6 @@ let instance: Auth | undefined;
 export function getAuth(db: () => Database): Auth {
   if (instance) return instance;
 
-  const { OAUTH_PROXY_URL, OAUTH_PROXY_SECRET } = getEnv();
   const env = requireEnv([
     "APP_URL",
     "BETTER_AUTH_SECRET",
@@ -125,9 +110,6 @@ export function getAuth(db: () => Database): Auth {
         clientId: env.GITHUB_CLIENT_ID,
         clientSecret: env.GITHUB_CLIENT_SECRET,
       },
-      oauthProxy: OAUTH_PROXY_URL
-        ? { url: OAUTH_PROXY_URL, secret: OAUTH_PROXY_SECRET }
-        : undefined,
     },
     db(),
   );

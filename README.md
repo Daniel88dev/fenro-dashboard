@@ -298,16 +298,10 @@ Settings → Environment Variables, with `APP_URL` set to the production origin.
 - **GitHub App.** A second app for production, set up as above with the
   callback URL `https://<your-domain>/api/auth/callback/github`, and its
   `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET` and `GITHUB_APP_SLUG` set on
-  Production and Preview.
-- **Sign-in on previews.** Previews get new URLs, which the GitHub App's
-  callback URLs cannot list, so they sign in through production. Set `OAUTH_PROXY_URL` (the
-  production origin) and one shared `OAUTH_PROXY_SECRET` on both Production
-  and Preview. Give Preview its own `BETTER_AUTH_SECRET`, the same GitHub
-  client id and secret, and no `APP_URL`: the app then uses the preview's
-  branch URL, so open previews through that link. Give previews their own
-  database branch (Neon's preview branching does this), or a preview sign-in
-  would overwrite production's stored GitHub token with one production cannot
-  decrypt.
+  Production.
+- **Previews.** Preview deployments cannot sign in: GitHub sends sign-in back
+  only to the callback URLs the GitHub App lists, and a preview's URL is new
+  every time.
 
 ### Moving to AWS later
 
