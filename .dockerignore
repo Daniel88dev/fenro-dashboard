@@ -1,0 +1,27 @@
+# Keep the build context to what `next build` reads, and keep secrets out.
+.git
+.github
+.claude
+.scratch
+.idea
+.vscode
+.DS_Store
+node_modules
+.next
+out
+build
+coverage
+*.tsbuildinfo
+next-env.d.ts
+.env*
+!.env.example
+*.pem
+npm-debug.log*
+.pnpm-debug.log*
+Dockerfile
+.dockerignore
+compose.yaml
+docs
+drizzle
+README.md
+LICENSE

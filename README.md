@@ -262,12 +262,11 @@ and no configuration outside standard environment variables.
 
 What would change:
 
-- **Output mode.** Set `output: "standalone"` in `next.config.ts` and deploy
-  the `.next/standalone` server behind ECS/Fargate or App Runner. That is a
-  one-line change; it is left off for now because Vercel does not need it.
-- **Images.** Next.js image optimisation is handled by Vercel today. On AWS,
-  either run the built-in optimiser in the standalone server or point
-  `images.loader` at CloudFront.
+- **Output mode.** Done: `next.config.ts` builds `output: "standalone"`, and
+  the `Dockerfile` runs that server. Vercel ignores the setting.
+- **Images.** No page uses `next/image`, and `images.unoptimized` is on, so
+  nothing depends on Vercel's optimiser. Turn it back on (the standalone
+  server runs it) or point `images.loader` at CloudFront if that changes.
 - **Caching and ISR.** The default filesystem cache is per-instance. With more
   than one instance, wire up a shared cache handler
   (`cacheHandler` in `next.config.ts`) backed by Redis or S3.
@@ -278,7 +277,7 @@ What would change:
   `DATABASE_URL`: the app uses the plain `pg` driver, no vendor SDK. Each
   instance keeps its own pool (`pg`'s default of 10 connections), so size the
   database's connection limit, or put RDS Proxy in front, for the number of
-  instances. Run `pnpm db:migrate` as a one-off task in the deploy pipeline.
+  instances. Migrations are applied by hand, see below.
 - **Pictures.** UploadThing keeps working unchanged. To keep the files in S3
   instead, write a second adapter for the `PictureStorage` port
   (`src/modules/tasks/application/ports/picture-storage.ts`); nothing else
@@ -286,6 +285,47 @@ What would change:
 - **Sign-in.** Point the production GitHub App's callback at the new
   origin and update `APP_URL`. Sessions and tokens live in Postgres, so they
   survive the move as long as `BETTER_AUTH_SECRET` stays the same.
+
+### AWS App Runner
+
+The `Dockerfile` builds the standalone server on Node 24 (`node:24-alpine`,
+non-root, about 74 MB compressed). It holds no configuration: every variable
+in `.env.example` is read when the container starts. It listens on port 3000,
+answers `/api/health`, and trusts Amazon's RDS certificate authority, so a
+`DATABASE_URL` ending in `?sslmode=verify-full` verifies RDS.
+
+```bash
+docker build -t fenro-dashboard .
+docker run --rm -p 3000:3000 --env-file .env.local fenro-dashboard
+```
+
+`.github/workflows/release.yml` ships `main`. When CI passes on a push to
+`main`, it builds the image, pushes it to ECR as `:<commit sha>` and
+`:latest`, starts an App Runner deployment of `:latest`, and fails if App
+Runner rolls it back. Run it from the Actions tab to redeploy by hand. It
+signs in to AWS through GitHub's OIDC provider and needs these repository
+variables (Settings → Secrets and variables → Actions → Variables), all of
+which Terraform outputs:
+
+| Variable                 | Value                                                                             |
+| ------------------------ | --------------------------------------------------------------------------------- |
+| `AWS_REGION`             | The region of the ECR repository and the service                                  |
+| `AWS_ROLE_ARN`           | The deploy role; it trusts `repo:Daniel88dev/fenro-dashboard:ref:refs/heads/main` |
+| `ECR_REPOSITORY`         | The ECR repository name                                                           |
+| `APP_RUNNER_SERVICE_ARN` | The service; leave unset to push images without deploying                         |
+
+The deploy role needs ECR push to that repository (`ecr:GetAuthorizationToken`,
+`ecr:BatchCheckLayerAvailability`, `ecr:InitiateLayerUpload`,
+`ecr:UploadLayerPart`, `ecr:CompleteLayerUpload`, `ecr:PutImage`,
+`ecr:BatchGetImage`) and `apprunner:StartDeployment` and
+`apprunner:ListOperations` on the service. The service watches the `latest`
+tag with automatic deployments **off**, because the workflow starts each
+deployment itself and would otherwise collide with App Runner's own.
+
+Migrations are not part of the release, as on flexi-day-be: apply them by
+hand against RDS before merging a change that adds one, and keep each
+migration compatible with the code already running, since the merge deploys
+on its own.
 
 ## Working with Claude Code
 
