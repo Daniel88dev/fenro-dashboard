@@ -257,8 +257,12 @@ and records the baseline, in one transaction, and refuses on any other
 database. A plain migrate on such a database stops with a message that says
 so.
 
+Back up a production database first; it is the only write the move makes to
+Neon:
+
 ```bash
 ./scripts/db-migrate.sh local --adopt                         # your docker compose database
+pg_dump '<Neon direct string>' --format=custom --no-owner --no-privileges -f "neon-before-adopt-$(date +%Y%m%d-%H%M).dump"
 DATABASE_URL='<Neon direct string>' ./scripts/db-migrate.sh url --adopt
 ```
 
