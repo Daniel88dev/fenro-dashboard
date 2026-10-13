@@ -79,7 +79,7 @@ run "dns" {
     error_message = "validation records / params"
   }
   assert {
-    condition     = jsondecode(aws_iam_role.github_deploy.assume_role_policy).Statement[0].Condition.StringLike["token.actions.githubusercontent.com:sub"][0] == "repo:Daniel88dev/fenro-dashboard:ref:refs/heads/main"
+    condition     = join(",", jsondecode(aws_iam_role.github_deploy.assume_role_policy).Statement[0].Condition.StringLike["token.actions.githubusercontent.com:sub"]) == "repo:Daniel88dev/fenro-dashboard:ref:refs/heads/main,repo:Daniel88dev@64728456/fenro-dashboard@1377254182:ref:refs/heads/main"
     error_message = "oidc subject"
   }
   assert {
