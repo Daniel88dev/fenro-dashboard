@@ -1,1 +1,0 @@
-ALTER TABLE "github_watched_repository" ADD COLUMN "source" text DEFAULT 'github' NOT NULL;

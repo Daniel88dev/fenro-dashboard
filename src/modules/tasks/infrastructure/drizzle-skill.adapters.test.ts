@@ -19,6 +19,7 @@ import { DrizzleLabelRepository } from "./drizzle-label.repository";
 import { DrizzleSkillRepository } from "./drizzle-skill.repository";
 import { DrizzleTaskReadStore } from "./drizzle-task.read-store";
 import { DrizzleTaskRepository } from "./drizzle-task.repository";
+import { task, taskLabel, taskSkill } from "./persistence/schema";
 
 /**
  * Against a real Postgres, because what the skill adapters promise — the
@@ -62,7 +63,7 @@ describe.skipIf(!url)("Postgres skill adapters", () => {
   });
 
   beforeEach(async () => {
-    await db.execute(sql`truncate task, task_label, task_skill cascade`);
+    await db.execute(sql`truncate ${task}, ${taskLabel}, ${taskSkill} cascade`);
     skills = new DrizzleSkillRepository(db);
     labels = new DrizzleLabelRepository(db);
     tasks = new DrizzleTaskRepository(db);

@@ -19,6 +19,7 @@ import type { Database } from "@/shared/infrastructure/database/client";
 
 import { DrizzleRepositorySnapshotStore } from "./drizzle-repository-snapshot.store";
 import { DrizzleWatchedRepositoryRepository } from "./drizzle-watched-repository.repository";
+import { watchedRepository } from "./persistence/schema";
 
 /**
  * Runs against a real Postgres, because what these adapters promise — the
@@ -41,7 +42,7 @@ describe.skipIf(!url)("Postgres adapters", () => {
   });
 
   beforeEach(async () => {
-    await db.execute(sql`truncate github_watched_repository cascade`);
+    await db.execute(sql`truncate ${watchedRepository} cascade`);
   });
 
   afterAll(async () => {

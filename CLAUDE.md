@@ -65,10 +65,18 @@ that implements it belongs in `infrastructure/`.
 command or ask a query, map the result to a response. No business logic.
 
 **Tables live with their context.** Each context that persists keeps its
-Drizzle tables in `infrastructure/persistence/schema.ts`. Change the schema,
-then run `pnpm db:generate` and commit the migration it writes to `drizzle/`;
-never edit a generated migration by hand. Adapters receive the database from
-the composition root rather than importing the client.
+Drizzle tables in `infrastructure/persistence/schema.ts`, declared with
+`fenro.table(...)` from `src/shared/infrastructure/database/schema.ts`, never
+`pgTable`: production shares its database with another app, and `public` is
+that app's. Change the schema, then run `pnpm db:generate` and commit the
+migration it writes to `drizzle/`; never edit a generated migration by hand.
+Adapters receive the database from the composition root rather than importing
+the client.
+
+**Apply migrations locally; hand production ones to Daniel.** `pnpm db:migrate`
+is yours to run. `pnpm db:migrate:prod` and `scripts/db-migrate.sh url` are
+not: give him the exact command and stop. The script refuses them without a
+terminal anyway.
 
 **Configuration is environment variables only.** Add a key to the schema in
 `src/shared/config/env.ts` and to `.env.example`, then read it through
