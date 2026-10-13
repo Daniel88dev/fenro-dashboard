@@ -3,12 +3,13 @@ import {
   boolean,
   integer,
   jsonb,
-  pgTable,
   primaryKey,
   text,
   timestamp,
   uniqueIndex,
 } from "drizzle-orm/pg-core";
+
+import { fenro } from "@/shared/infrastructure/database/schema";
 
 /**
  * github-insights keeps two kinds of table. `github_watched_repository` is the
@@ -21,7 +22,7 @@ import {
  */
 const instant = (name: string) => timestamp(name, { withTimezone: true });
 
-export const watchedRepository = pgTable(
+export const watchedRepository = fenro.table(
   "github_watched_repository",
   {
     id: text("id").primaryKey(),
@@ -68,7 +69,7 @@ const repositoryId = () =>
     .notNull()
     .references(() => watchedRepository.id, { onDelete: "cascade" });
 
-export const repositorySnapshot = pgTable("github_repository_snapshot", {
+export const repositorySnapshot = fenro.table("github_repository_snapshot", {
   repositoryId: repositoryId().primaryKey(),
   openPullRequests: integer("open_pull_requests").notNull(),
   openIssues: integer("open_issues").notNull(),
@@ -84,7 +85,7 @@ export type StoredCheck = {
   readonly completedAt: string | null;
 };
 
-export const pullRequest = pgTable(
+export const pullRequest = fenro.table(
   "github_pull_request",
   {
     repositoryId: repositoryId(),
@@ -108,7 +109,7 @@ export const pullRequest = pgTable(
   (table) => [primaryKey({ columns: [table.repositoryId, table.number] })],
 );
 
-export const issue = pgTable(
+export const issue = fenro.table(
   "github_issue",
   {
     repositoryId: repositoryId(),

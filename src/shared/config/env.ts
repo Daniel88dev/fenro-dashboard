@@ -14,7 +14,7 @@ function optional<T extends z.ZodType>(schema: T) {
 
 /**
  * Every setting the app reads comes from a plain environment variable, so the
- * same build runs on Vercel, on a container, or on a laptop.
+ * same build runs on a container or on a laptop.
  */
 const envSchema = z.object({
   NODE_ENV: z
@@ -52,21 +52,6 @@ const envSchema = z.object({
    */
   GITHUB_APP_SLUG: optional(z.string()),
   /**
-   * The origin that owns the GitHub App's callback URL, normally production.
-   * Deployments on any other origin (previews) send the GitHub round trip
-   * through it, so one GitHub App serves them all. Set it on
-   * production too, which has to finish the round trip for them.
-   */
-  OAUTH_PROXY_URL: optional(z.string().url()),
-  /**
-   * Encrypts what production hands back to a preview after sign-in. Every
-   * deployment taking part must share it; unset, BETTER_AUTH_SECRET is used,
-   * which would mean sharing that instead.
-   */
-  OAUTH_PROXY_SECRET: optional(
-    z.string().min(32, "must be at least 32 characters"),
-  ),
-  /**
    * The UploadThing app pictures on tasks are stored in (its dashboard, API
    * Keys). Unset, tasks show no pictures and nothing can be added.
    */
@@ -79,22 +64,10 @@ let cached: Env | undefined;
 
 type EnvSource = Record<string, string | undefined>;
 
-/**
- * A preview deployment's URL is only known once it is built, so no fixed
- * APP_URL fits previews. On Vercel, fall back to the branch URL it gives each
- * preview (stable across pushes to one branch), then the deployment URL.
- * Anywhere else, set APP_URL.
- */
-function withPlatformDefaults(env: EnvSource): EnvSource {
-  if (env.APP_URL) return env;
-  const host = env.VERCEL_BRANCH_URL || env.VERCEL_URL;
-  return host ? { ...env, APP_URL: `https://${host}` } : env;
-}
-
 export function getEnv(env: EnvSource = process.env): Env {
   if (cached && env === process.env) return cached;
 
-  const parsed = envSchema.safeParse(withPlatformDefaults(env));
+  const parsed = envSchema.safeParse(env);
   if (!parsed.success) {
     const details = parsed.error.issues
       .map((issue) => `  ${issue.path.join(".") || "(root)"}: ${issue.message}`)
