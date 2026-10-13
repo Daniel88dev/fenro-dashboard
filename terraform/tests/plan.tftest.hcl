@@ -25,7 +25,7 @@ run "bootstrap" {
     error_message = "database url shape"
   }
   assert {
-    condition     = strcontains(output.database_bootstrap_command, "\\i scripts/rds-create-fenro-role.sql") && strcontains(output.database_bootstrap_command, "--name /fenro/production/database-password")
+    condition     = strcontains(output.database_bootstrap_command, "-f scripts/rds-create-fenro-role.sql") && strcontains(output.database_bootstrap_command, "--name /fenro/production/database-password")
     error_message = "bootstrap sql"
   }
 }
