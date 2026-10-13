@@ -70,20 +70,21 @@ output "database_host" {
   value       = data.aws_db_instance.shared.address
 }
 
-# One-off, run by a person before the first migration. It connects as
-# flexi-day-be's master user (its Secrets Manager entry) and creates Fenro's
-# role and schema with the password generated in ssm.tf. psql's \getenv keeps
-# the password off the command line. The CA bundle path is flexi-day-be's
-# (scripts/db-migrate.sh downloads it there).
+# One-off, run by a person before the first migration, from the repository
+# root. It connects as flexi-day-be's master user (its Secrets Manager entry)
+# and runs scripts/rds-create-fenro-role.sql with the password generated in
+# ssm.tf. psql's \getenv keeps the password off the command line. The CA
+# bundle path is the one scripts/db-migrate.sh uses. The fenro schema itself
+# is created by the first migration, which the role owns.
 output "database_bootstrap_command" {
-  description = "Creates the fenro role and schema on the shared instance (run once, by hand)"
+  description = "Creates the fenro role on the shared instance (run once, by hand, from the repository root)"
   value       = <<-EOT
+    mkdir -p "$HOME/.cache/fenro"
+    [ -s "$HOME/.cache/fenro/rds-global-bundle.pem" ] || curl -fsS -o "$HOME/.cache/fenro/rds-global-bundle.pem" https://truststore.pki.rds.amazonaws.com/global/global-bundle.pem
     export FENRO_DB_PASSWORD="$(aws ssm get-parameter --name ${aws_ssm_parameter.database_password.name} --with-decryption --query Parameter.Value --output text --region ${var.aws_region})"
-    psql "$(aws secretsmanager get-secret-value --secret-id flexi-day-be-production-database-url --region ${var.aws_region} --query SecretString --output text)?sslmode=verify-full&sslrootcert=$HOME/.cache/flexi-day/rds-global-bundle.pem" -v ON_ERROR_STOP=1 <<'SQL'
+    psql "$(aws secretsmanager get-secret-value --secret-id flexi-day-be-production-database-url --region ${var.aws_region} --query SecretString --output text)?sslmode=verify-full&sslrootcert=$HOME/.cache/fenro/rds-global-bundle.pem" <<'SQL'
     \getenv fenro_password FENRO_DB_PASSWORD
-    create role ${var.db_role} login password :'fenro_password' connection limit 10;
-    create schema ${var.db_role} authorization ${var.db_role};
-    alter role ${var.db_role} set search_path = ${var.db_role};
+    \i scripts/rds-create-fenro-role.sql
     SQL
     unset FENRO_DB_PASSWORD
   EOT

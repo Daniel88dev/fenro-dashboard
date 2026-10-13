@@ -121,13 +121,13 @@ variable "rds_instance_identifier" {
 }
 
 variable "db_name" {
-  description = "Database on that instance holding the fenro schema"
+  description = "Database on that instance holding the fenro schema; must match scripts/rds-create-fenro-role.sql"
   type        = string
   default     = "flexiday"
 }
 
 variable "db_role" {
-  description = "Fenro's own login role, owner of the fenro schema. Its password is generated here."
+  description = "Fenro's own login role, owner of the fenro schema. Its password is generated here; the name must match scripts/rds-create-fenro-role.sql."
   type        = string
   default     = "fenro"
 }

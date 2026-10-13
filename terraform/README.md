@@ -18,9 +18,11 @@ each a month.
   flexi-day-be, App Runner reaches RDS on its public endpoint over TLS, so
   there is no VPC connector and no NAT gateway.
 - **The fenro role, schema and migrations.** Terraform generates the role's
-  password and builds `DATABASE_URL` from it. Creating the role and schema is
-  a one-off by hand (`database_bootstrap_command` output); migrations run with
-  `pnpm db:migrate:prod`.
+  password and builds `DATABASE_URL` from it. Creating the role is a one-off
+  by hand: the `database_bootstrap_command` output runs
+  `scripts/rds-create-fenro-role.sql` with that password. The first migration
+  (`pnpm db:migrate:prod`, which reads `DATABASE_URL` from SSM) creates the
+  `fenro` schema and its ledger.
 - **The release workflow.** It lives in `.github/workflows/` and uses the
   outputs below.
 
@@ -44,12 +46,12 @@ Use the AWS profile of the account flexi-day-be runs in.
 3. **First apply.** `terraform apply` with `create_service = false` creates
    the ECR repository, the IAM roles, the database password and the
    `DATABASE_URL` parameter.
-4. **Create the database role and schema.** Run the commands printed by
-   `terraform output -raw database_bootstrap_command` (they connect as
-   flexi-day-be's master user and expect the RDS CA bundle where
-   flexi-day-be's migrate script keeps it,
-   `~/.cache/flexi-day/rds-global-bundle.pem`), then `pnpm db:migrate:prod`
-   from the repository root.
+4. **Create the database role, then migrate.** From the repository root, run
+   the commands printed by `terraform output -raw database_bootstrap_command`.
+   They download the RDS CA bundle if needed, connect as flexi-day-be's master
+   user and run `scripts/rds-create-fenro-role.sql` with the generated
+   password. Then run `pnpm db:migrate:prod`, which creates the `fenro`
+   schema and its ledger.
 5. **Hand the pipeline its variables.** Run the commands printed by
    `terraform output -raw github_actions_variables_commands`, then let the
    release workflow push the first image to ECR. Its deploy step fails until
