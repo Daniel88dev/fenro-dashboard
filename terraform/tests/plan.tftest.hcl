@@ -50,7 +50,7 @@ run "service" {
     error_message = "secrets injected"
   }
   assert {
-    condition     = aws_apprunner_service.app[0].source_configuration[0].image_repository[0].image_configuration[0].runtime_environment_variables["APP_URL"] == "https://www.fenro-dashboard.com" && aws_apprunner_service.app[0].source_configuration[0].image_repository[0].image_configuration[0].port == "8080"
+    condition     = aws_apprunner_service.app[0].source_configuration[0].image_repository[0].image_configuration[0].runtime_environment_variables["APP_URL"] == "https://www.fenro-dashboard.com" && aws_apprunner_service.app[0].source_configuration[0].image_repository[0].image_configuration[0].port == "3000"
     error_message = "app url / port"
   }
   assert {
@@ -83,7 +83,7 @@ run "dns" {
     error_message = "oidc subject"
   }
   assert {
-    condition     = strcontains(output.github_actions_variables_commands, "APPRUNNER_SERVICE_ARN")
+    condition     = strcontains(output.github_actions_variables_commands, "APP_RUNNER_SERVICE_ARN")
     error_message = "service arn variable"
   }
 }

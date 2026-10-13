@@ -15,8 +15,8 @@ manage_dns_validation_records = false
 
 # ECR and App Runner
 ecr_repository_name      = "daniel88dev/fenro-dashboard"
-docker_image_tag         = "main"
-app_port                 = 8080
+docker_image_tag         = "latest"
+app_port                 = 3000
 apprunner_cpu            = "256" # 0.25 vCPU, the smallest size
 apprunner_memory         = "512" # 0.5 GB, the smallest size
 apprunner_max_size       = 1     # raise only with a shared Next.js cache handler

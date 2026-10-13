@@ -46,14 +46,14 @@ variable "ecr_keep_images" {
 variable "docker_image_tag" {
   description = "Tag App Runner deploys. The pipeline moves it to the newest image, then starts a deployment."
   type        = string
-  default     = "main"
+  default     = "latest"
 }
 
 # App Runner
 variable "app_port" {
   description = "Port the container listens on (PORT in the Dockerfile)"
   type        = number
-  default     = 8080
+  default     = 3000
 }
 
 variable "apprunner_cpu" {

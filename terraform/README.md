@@ -66,7 +66,7 @@ Use the AWS profile of the account flexi-day-be runs in.
    and apply again. Those records only exist once step 7 has run (see
    `dns.tf`). Wait until `terraform output custom_domain_status` reads
    `active`, then run the `github_actions_variables_commands` output again; it
-   now also sets `APPRUNNER_SERVICE_ARN`.
+   now also sets `APP_RUNNER_SERVICE_ARN`.
 
 After that every change is a normal `terraform apply`.
 
@@ -92,10 +92,10 @@ maps in `ssm.tf` (secrets).
 
 The release workflow assumes `github_deploy_role_arn` through GitHub OIDC
 (only from `main`, see `github_deploy_subjects`), pushes the image with its
-commit SHA as the tag, moves the `main` tag onto it and runs
+commit SHA as the tag, moves the `latest` tag onto it and runs
 `aws apprunner start-deployment`. Automatic deployments on a tag push are off:
 they cost $1 a month and the workflow already starts them. To roll back, point
-`main` at an older SHA tag and start a deployment; the ECR lifecycle policy
+`latest` at an older SHA tag and start a deployment; the ECR lifecycle policy
 keeps the newest 5 images.
 
 ## Domain

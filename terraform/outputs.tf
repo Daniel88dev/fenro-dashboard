@@ -33,7 +33,7 @@ output "github_actions_variables_commands" {
       "gh variable set ECR_REPOSITORY --body ${aws_ecr_repository.app.name} -R ${var.github_repository}",
     ],
     var.create_service ? [
-      "gh variable set APPRUNNER_SERVICE_ARN --body ${aws_apprunner_service.app[0].arn} -R ${var.github_repository}",
+      "gh variable set APP_RUNNER_SERVICE_ARN --body ${aws_apprunner_service.app[0].arn} -R ${var.github_repository}",
     ] : []
   ))
 }
