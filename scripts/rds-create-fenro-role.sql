@@ -1,14 +1,14 @@
 -- Creates the database role Fenro runs as on the RDS instance it shares with
 -- Flexi Day. Run once, as the RDS master user, connected to Flexi Day's
--- database (`flexiday`):
+-- database (`flexiday`), with the role's password in FENRO_DB_PASSWORD so it
+-- never appears on a command line. Terraform generates that password and its
+-- `database_bootstrap_command` output runs this file with it:
 --
---   psql "<master connection string>?sslmode=verify-full&sslrootcert=$HOME/.cache/fenro/rds-global-bundle.pem" \
---     -v fenro_password="$(openssl rand -hex 32)" \
+--   FENRO_DB_PASSWORD=... psql "<master connection string>?sslmode=verify-full&sslrootcert=..." \
 --     -f scripts/rds-create-fenro-role.sql
 --
--- Keep the password: it goes into the `fenro-dashboard-production-database-url`
--- secret as postgresql://fenro:<password>@<rds address>:5432/flexiday. A hex
--- password needs no URL encoding.
+-- Do not create the `fenro` schema here: the first migration creates it, and
+-- fails if it already exists.
 --
 -- Why a role of its own rather than the master user Flexi Day uses: Fenro's
 -- credentials then cannot read, change or drop anything of Flexi Day's, and a
@@ -25,13 +25,18 @@
 --     there either; Flexi Day's tables grant nothing to PUBLIC, so it cannot
 --     read them.
 --   * A connection limit, so Fenro's pools leave room for Flexi Day on the
---     instance's small max_connections.
+--     instance's small max_connections. 20 rather than 10: one instance's pool
+--     is 10, and a deploy briefly runs the old and new instance side by side,
+--     while a migration needs one more.
 --   * search_path `fenro`, so a hand-typed query in psql lands in Fenro's
 --     schema. The app does not rely on it: every query names the schema.
 --   * Membership for the master user, so it can inspect and repair Fenro's
 --     objects (RDS's master is not a true superuser).
 
 \set ON_ERROR_STOP on
+-- Unset, :'fenro_password' stays literal text, the CREATE ROLE is a syntax
+-- error, and ON_ERROR_STOP ends the run before anything is created.
+\getenv fenro_password FENRO_DB_PASSWORD
 
 create role fenro with login password :'fenro_password' connection limit 20;
 alter role fenro set search_path = fenro;

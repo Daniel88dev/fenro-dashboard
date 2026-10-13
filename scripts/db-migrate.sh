@@ -4,7 +4,7 @@
 # same name, because production shares its RDS instance.
 #
 #   scripts/db-migrate.sh local           the DATABASE_URL in the environment or .env.local
-#   scripts/db-migrate.sh prod            RDS, connection string from Secrets Manager
+#   scripts/db-migrate.sh prod            RDS, connection string from SSM Parameter Store
 #   scripts/db-migrate.sh url             the DATABASE_URL in the environment, treated as production (Neon)
 #
 #   --status   print the applied ledger and exit, no writes
@@ -59,7 +59,7 @@ for arg in "$@"; do
 done
 
 : "${AWS_REGION:=eu-central-1}"
-: "${DB_SECRET_ID:=fenro-dashboard-production-database-url}"
+: "${DB_PARAMETER:=/fenro/production/database-url}"
 CA_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/fenro"
 CA_PATH="$CA_DIR/rds-global-bundle.pem"
 
@@ -186,12 +186,15 @@ resolve_env_url() {
 resolve_prod_url() {
   need aws
   local url
-  url="$(aws secretsmanager get-secret-value \
-    --secret-id "$DB_SECRET_ID" \
+  # Terraform (terraform/ssm.tf) writes this SecureString, the same value App
+  # Runner hands the app. Flexi Day keeps its URL in Secrets Manager instead.
+  url="$(aws ssm get-parameter \
+    --name "$DB_PARAMETER" \
+    --with-decryption \
     --region "$AWS_REGION" \
-    --query SecretString \
-    --output text)" || die "could not read $DB_SECRET_ID from Secrets Manager"
-  [[ "$url" == postgres* ]] || die "secret $DB_SECRET_ID does not look like a connection string"
+    --query Parameter.Value \
+    --output text)" || die "could not read $DB_PARAMETER from SSM Parameter Store"
+  [[ "$url" == postgres* ]] || die "parameter $DB_PARAMETER does not look like a connection string"
 
   # RDS enforces TLS (rds.force_ssl=1). Verify it properly rather than
   # disabling the check: the global bundle is the CA RDS certificates chain to,

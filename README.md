@@ -235,17 +235,17 @@ among them) and ledger live in exactly those two.
 `scripts/db-migrate.sh` applies migrations, following Flexi Day's script of the
 same name; its header documents every flag.
 
-| Command                                      | Target                                        | Who runs it            |
-| -------------------------------------------- | --------------------------------------------- | ---------------------- |
-| `pnpm db:migrate`                            | `DATABASE_URL` from the shell or `.env.local` | anyone                 |
-| `pnpm db:status:prod`                        | prints RDS's applied ledger, writes nothing   | anyone                 |
-| `pnpm db:migrate:prod`                       | RDS, connection string from Secrets Manager   | a person at a terminal |
-| `DATABASE_URL=… ./scripts/db-migrate.sh url` | any other database, such as Neon              | a person at a terminal |
+| Command                                      | Target                                          | Who runs it            |
+| -------------------------------------------- | ----------------------------------------------- | ---------------------- |
+| `pnpm db:migrate`                            | `DATABASE_URL` from the shell or `.env.local`   | anyone                 |
+| `pnpm db:status:prod`                        | prints RDS's applied ledger, writes nothing     | anyone                 |
+| `pnpm db:migrate:prod`                       | RDS, connection string from SSM Parameter Store | a person at a terminal |
+| `DATABASE_URL=… ./scripts/db-migrate.sh url` | any other database, such as Neon                | a person at a terminal |
 
 The production targets refuse to write unless stdin is a terminal, so an
-agent's shell cannot apply DDL to a live database. `prod` reads the secret
-`fenro-dashboard-production-database-url` in `eu-central-1` (override with
-`DB_SECRET_ID` and `AWS_REGION`) and connects with `sslmode=verify-full`
+agent's shell cannot apply DDL to a live database. `prod` reads the SecureString
+parameter `/fenro/production/database-url` in `eu-central-1`, which Terraform
+writes (override with `DB_PARAMETER` and `AWS_REGION`), and connects with `sslmode=verify-full`
 against the RDS CA bundle, which it caches in `~/.cache/fenro`. It needs the
 AWS CLI, `psql` and `curl`.
 
@@ -263,7 +263,8 @@ DATABASE_URL='<Neon direct string>' ./scripts/db-migrate.sh url --adopt
 ```
 
 **On RDS, Fenro has a role of its own.** `scripts/rds-create-fenro-role.sql`,
-run once by the master user, creates `fenro`: it can create and own its two
+run once by the master user (Terraform's `database_bootstrap_command` output
+runs it), creates `fenro`: it can create and own its two
 schemas, cannot read or write Flexi Day's tables, is limited to 20
 connections, and defaults its `search_path` to `fenro`. Fenro's
 `DATABASE_URL` is then
