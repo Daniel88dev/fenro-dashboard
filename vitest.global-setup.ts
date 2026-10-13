@@ -3,6 +3,7 @@ import { migrate } from "drizzle-orm/node-postgres/migrator";
 import { Pool } from "pg";
 
 import { getEnv } from "./src/shared/config/env";
+import { migrationConfig } from "./src/shared/infrastructure/database/migrations";
 
 /**
  * Brings the adapter tests' database up to date once, before any test file
@@ -15,7 +16,7 @@ export async function setup(): Promise<void> {
 
   const pool = new Pool({ connectionString: url });
   try {
-    await migrate(drizzle({ client: pool }), { migrationsFolder: "drizzle" });
+    await migrate(drizzle({ client: pool }), migrationConfig);
   } finally {
     await pool.end();
   }

@@ -15,7 +15,9 @@
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "db:generate": "drizzle-kit generate",
-    "db:migrate": "drizzle-kit migrate",
+    "db:migrate": "./scripts/db-migrate.sh local",
+    "db:migrate:prod": "./scripts/db-migrate.sh prod",
+    "db:status:prod": "./scripts/db-migrate.sh prod --status",
     "db:studio": "drizzle-kit studio",
     "verify": "pnpm run lint && pnpm run format:check && pnpm run typecheck && pnpm run test && pnpm run build"
   },

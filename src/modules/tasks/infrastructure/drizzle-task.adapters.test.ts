@@ -23,7 +23,7 @@ import { DrizzleLabelRepository } from "./drizzle-label.repository";
 import { DrizzlePictureRepository } from "./drizzle-picture.repository";
 import { DrizzleTaskReadStore } from "./drizzle-task.read-store";
 import { DrizzleTaskRepository } from "./drizzle-task.repository";
-import { taskJournalEntry } from "./persistence/schema";
+import { task, taskJournalEntry, taskLabel } from "./persistence/schema";
 
 /**
  * Runs against a real Postgres, because what these adapters promise — the
@@ -72,7 +72,7 @@ describe.skipIf(!url)("Postgres tasks adapters", () => {
   });
 
   beforeEach(async () => {
-    await db.execute(sql`truncate task, task_label cascade`);
+    await db.execute(sql`truncate ${task}, ${taskLabel} cascade`);
   });
 
   afterAll(async () => {
