@@ -1,0 +1,62 @@
+# Copy to terraform.tfvars (gitignored) and fill in. That file holds live
+# secret values; so does terraform.tfstate, whatever way the values arrive
+# (TF_VAR_* included).
+
+# General
+aws_region   = "eu-central-1" # same region as flexi-day-be's RDS
+environment  = "production"
+project_name = "fenro-dashboard"
+
+# FIRST ROLLOUT (README): leave both false for the first apply, set
+# create_service once CI has pushed the first image, then
+# manage_dns_validation_records after the apply that created the service.
+create_service                = false
+manage_dns_validation_records = false
+
+# ECR and App Runner
+ecr_repository_name      = "daniel88dev/fenro-dashboard"
+docker_image_tag         = "latest"
+app_port                 = 3000
+apprunner_cpu            = "256" # 0.25 vCPU, the smallest size
+apprunner_memory         = "512" # 0.5 GB, the smallest size
+apprunner_max_size       = 1     # raise only with a shared Next.js cache handler
+auto_deployments_enabled = false # the pipeline calls start-deployment instead
+
+# Domain. Register it in the Route 53 console first; that creates the zone.
+# Only www.<domain> is attached to the service.
+domain_name = "fenro-dashboard.com"
+
+# Shared database: flexi-day-be's instance. Terraform generates the fenro
+# role's password and builds DATABASE_URL from it; the role and schema are
+# created once with the database_bootstrap_command output.
+rds_instance_identifier = "flexi-day-be-production-db"
+db_name                 = "flexiday"
+db_role                 = "fenro"
+
+# GitHub Actions deploy role. Subjects are relative to the repository:
+# "ref:refs/heads/main" is the main branch, "ref:refs/tags/v*" release tags,
+# "environment:production" a job using that GitHub environment.
+# The account's GitHub OIDC provider (already used by flexi-day-be) is looked
+# up, not created.
+github_repository      = "Daniel88dev/fenro-dashboard"
+github_deploy_subjects = ["ref:refs/heads/main"]
+
+# Production GitHub App (public values). Its callback URL must be
+#   https://www.fenro-dashboard.com/api/auth/callback/github
+github_client_id = ""
+github_app_slug  = ""
+
+# Secrets, each stored as an SSM SecureString under /fenro/production/ and
+# injected by App Runner.
+#
+# better_auth_secret: copy the value from Vercel production. It encrypts the
+# stored GitHub tokens; a fresh value makes every migrated token unreadable and
+# signs everybody out.
+better_auth_secret = ""
+
+# github_client_secret: a client secret of its own for AWS, generated in the
+# GitHub App beside the one Vercel uses.
+github_client_secret = ""
+
+# Optional. Empty runs the app without task pictures.
+uploadthing_token = ""
