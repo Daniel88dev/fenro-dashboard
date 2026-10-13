@@ -103,11 +103,15 @@ resource "aws_iam_role" "github_deploy" {
             "token.actions.githubusercontent.com:aud" = "sts.amazonaws.com"
           }
           # Only this repository, and only the listed refs: a workflow on a
-          # fork or a feature branch cannot deploy.
+          # fork or a feature branch cannot deploy. Both spellings of the
+          # repository are listed because GitHub sends the immutable-ID one
+          # (owner@id/name@id) for this repository.
           StringLike = {
-            "token.actions.githubusercontent.com:sub" = [
-              for subject in var.github_deploy_subjects : "repo:${var.github_repository}:${subject}"
-            ]
+            "token.actions.githubusercontent.com:sub" = flatten([
+              for repository in compact([var.github_repository, var.github_repository_immutable]) : [
+                for subject in var.github_deploy_subjects : "repo:${repository}:${subject}"
+              ]
+            ])
           }
         }
       }

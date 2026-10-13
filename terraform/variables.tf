@@ -94,6 +94,12 @@ variable "github_repository" {
   default     = "Daniel88dev/fenro-dashboard"
 }
 
+variable "github_repository_immutable" {
+  description = "The repository as GitHub's immutable-ID OIDC subject spells it, owner@owner_id/name@repo_id. GitHub sends this form instead of owner/name for this repository, so the deploy role trusts both. Empty trusts only github_repository."
+  type        = string
+  default     = "Daniel88dev@64728456/fenro-dashboard@1377254182"
+}
+
 variable "github_deploy_subjects" {
   description = "OIDC subject claims allowed to assume the deploy role, relative to the repository. The default lets only workflows running on main deploy."
   type        = list(string)

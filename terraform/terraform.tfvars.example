@@ -38,8 +38,11 @@ db_role                 = "fenro"
 # "environment:production" a job using that GitHub environment.
 # The account's GitHub OIDC provider (already used by flexi-day-be) is looked
 # up, not created.
-github_repository      = "Daniel88dev/fenro-dashboard"
-github_deploy_subjects = ["ref:refs/heads/main"]
+# GitHub sends this repository's subject as owner@owner_id/name@repo_id, so
+# that spelling is trusted too.
+github_repository           = "Daniel88dev/fenro-dashboard"
+github_repository_immutable = "Daniel88dev@64728456/fenro-dashboard@1377254182"
+github_deploy_subjects      = ["ref:refs/heads/main"]
 
 # Production GitHub App (public values). Its callback URL must be
 #   https://www.fenro-dashboard.com/api/auth/callback/github

@@ -93,7 +93,9 @@ maps in `ssm.tf` (secrets).
 ## Deploying
 
 The release workflow assumes `github_deploy_role_arn` through GitHub OIDC
-(only from `main`, see `github_deploy_subjects`), pushes the image with its
+(only from `main`, see `github_deploy_subjects`; GitHub names this repository
+`Daniel88dev@64728456/fenro-dashboard@1377254182` in the token's subject, which
+`github_repository_immutable` covers), pushes the image with its
 commit SHA as the tag, moves the `latest` tag onto it and runs
 `aws apprunner start-deployment`. Automatic deployments on a tag push are off:
 they cost $1 a month and the workflow already starts them. To roll back, point
