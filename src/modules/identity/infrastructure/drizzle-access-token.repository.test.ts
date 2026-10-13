@@ -56,7 +56,7 @@ describe.skipIf(!url)("DrizzleAccessTokenRepository", () => {
 
   beforeEach(async () => {
     // Tokens belong to a user row, so emptying the users empties them too.
-    await db.execute(sql`truncate "user" cascade`);
+    await db.execute(sql`truncate ${user} cascade`);
     await db.insert(user).values([
       { id: "user-1", name: "Daniel", email: "daniel@example.com" },
       { id: "user-2", name: "Mira", email: "mira@example.com" },

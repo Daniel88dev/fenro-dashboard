@@ -1,11 +1,12 @@
 import {
   boolean,
   index,
-  pgTable,
   text,
   timestamp,
   uniqueIndex,
 } from "drizzle-orm/pg-core";
+
+import { fenro } from "@/shared/infrastructure/database/schema";
 
 /**
  * The tables Better Auth reads and writes, in the shape its Drizzle adapter
@@ -24,7 +25,7 @@ const updatedAt = () =>
     .$onUpdate(() => new Date())
     .notNull();
 
-export const user = pgTable("user", {
+export const user = fenro.table("user", {
   id: text("id").primaryKey(),
   name: text("name").notNull(),
   email: text("email").notNull().unique(),
@@ -39,7 +40,7 @@ export const user = pgTable("user", {
   updatedAt: updatedAt(),
 });
 
-export const session = pgTable(
+export const session = fenro.table(
   "session",
   {
     id: text("id").primaryKey(),
@@ -56,7 +57,7 @@ export const session = pgTable(
   (table) => [index("session_user_id_idx").on(table.userId)],
 );
 
-export const account = pgTable(
+export const account = fenro.table(
   "account",
   {
     id: text("id").primaryKey(),
@@ -92,7 +93,7 @@ export const account = pgTable(
 );
 
 /** Short-lived values, such as OAuth state, while a sign-in is in flight. */
-export const verification = pgTable(
+export const verification = fenro.table(
   "verification",
   {
     id: text("id").primaryKey(),
@@ -112,7 +113,7 @@ export const identitySchema = { user, session, account, verification };
  * the `AccessToken` aggregate owns these rows, which is why this table stays
  * out of `identitySchema`, the set handed to Better Auth's adapter.
  */
-export const agentAccessToken = pgTable(
+export const agentAccessToken = fenro.table(
   "agent_access_token",
   {
     id: text("id").primaryKey(),

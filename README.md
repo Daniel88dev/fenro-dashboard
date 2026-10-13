@@ -80,19 +80,21 @@ read; a refused refresh asks the user to sign in again.
 
 ### Scripts
 
-| Script             | What it does                                |
-| ------------------ | ------------------------------------------- |
-| `pnpm dev`         | Dev server                                  |
-| `pnpm build`       | Production build                            |
-| `pnpm start`       | Serve the production build                  |
-| `pnpm lint`        | ESLint (`lint:fix` to autofix)              |
-| `pnpm typecheck`   | `tsc --noEmit`                              |
-| `pnpm format`      | Prettier write (`format:check` to verify)   |
-| `pnpm test`        | Vitest once (`test:watch`, `test:coverage`) |
-| `pnpm db:generate` | Write a migration from the schema changes   |
-| `pnpm db:migrate`  | Apply pending migrations to `DATABASE_URL`  |
-| `pnpm db:studio`   | Browse the database in Drizzle Studio       |
-| `pnpm verify`      | Everything CI runs, in one command          |
+| Script                 | What it does                                |
+| ---------------------- | ------------------------------------------- |
+| `pnpm dev`             | Dev server                                  |
+| `pnpm build`           | Production build                            |
+| `pnpm start`           | Serve the production build                  |
+| `pnpm lint`            | ESLint (`lint:fix` to autofix)              |
+| `pnpm typecheck`       | `tsc --noEmit`                              |
+| `pnpm format`          | Prettier write (`format:check` to verify)   |
+| `pnpm test`            | Vitest once (`test:watch`, `test:coverage`) |
+| `pnpm db:generate`     | Write a migration from the schema changes   |
+| `pnpm db:migrate`      | Apply pending migrations to `DATABASE_URL`  |
+| `pnpm db:migrate:prod` | Apply them to RDS (a person at a terminal)  |
+| `pnpm db:status:prod`  | List the migrations RDS has applied         |
+| `pnpm db:studio`       | Browse the database in Drizzle Studio       |
+| `pnpm verify`          | Everything CI runs, in one command          |
 
 ## Architecture
 
@@ -220,6 +222,59 @@ Everything the app reads comes from plain environment variables, validated once
 in `src/shared/config/env.ts`. See [.env.example](./.env.example) for the full
 list; copy it to `.env.local` for development.
 
+## Database
+
+Every table lives in the `fenro` Postgres schema
+(`src/shared/infrastructure/database/schema.ts`), and contexts declare tables
+with `fenro.table(...)`, never `pgTable`. Drizzle's migration ledger sits in a
+second schema, `fenro_migrations`. Neither touches `public` or `drizzle`, so
+Fenro can share a database with another app: in production that is Flexi
+Day's RDS instance, whose own tables (Better Auth's `user` and `session`
+among them) and ledger live in exactly those two.
+
+`scripts/db-migrate.sh` applies migrations, following Flexi Day's script of the
+same name; its header documents every flag.
+
+| Command                                      | Target                                          | Who runs it            |
+| -------------------------------------------- | ----------------------------------------------- | ---------------------- |
+| `pnpm db:migrate`                            | `DATABASE_URL` from the shell or `.env.local`   | anyone                 |
+| `pnpm db:status:prod`                        | prints RDS's applied ledger, writes nothing     | anyone                 |
+| `pnpm db:migrate:prod`                       | RDS, connection string from SSM Parameter Store | a person at a terminal |
+| `DATABASE_URL=… ./scripts/db-migrate.sh url` | any other database, such as Neon                | a person at a terminal |
+
+The production targets refuse to write unless stdin is a terminal, so an
+agent's shell cannot apply DDL to a live database. `prod` reads the SecureString
+parameter `/fenro/production/database-url` in `eu-central-1`, which Terraform
+writes (override with `DB_PARAMETER` and `AWS_REGION`), and connects with `sslmode=verify-full`
+against the RDS CA bundle, which it caches in `~/.cache/fenro`. It needs the
+AWS CLI, `psql` and `curl`.
+
+**The migration history was squashed** into `0000_baseline` when the tables
+moved into `fenro`. A database migrated before that (tables in `public`, ledger
+in `drizzle`, last migration `0008_task_skills`), such as Neon or an older
+local one, is moved over once with `--adopt`: it moves the tables into `fenro`
+and records the baseline, in one transaction, and refuses on any other
+database. A plain migrate on such a database stops with a message that says
+so.
+
+Back up a production database first; it is the only write the move makes to
+Neon:
+
+```bash
+./scripts/db-migrate.sh local --adopt                         # your docker compose database
+pg_dump '<Neon direct string>' --format=custom --no-owner --no-privileges -f "neon-before-adopt-$(date +%Y%m%d-%H%M).dump"
+DATABASE_URL='<Neon direct string>' ./scripts/db-migrate.sh url --adopt
+```
+
+**On RDS, Fenro has a role of its own.** `scripts/rds-create-fenro-role.sql`,
+run once by the master user (Terraform's `database_bootstrap_command` output
+runs it), creates `fenro`: it can create and own its two
+schemas, cannot read or write Flexi Day's tables, is limited to 20
+connections, and defaults its `search_path` to `fenro`. Fenro's
+`DATABASE_URL` is then
+`postgresql://fenro:<password>@<rds address>:5432/flexiday?sslmode=verify-full`,
+and the app's container trusts the RDS CA through `NODE_EXTRA_CA_CERTS`.
+
 ## Deployment
 
 ### Vercel (today)
@@ -236,23 +291,17 @@ Settings → Environment Variables, with `APP_URL` set to the production origin.
   pooled connection string as `DATABASE_URL`. Vercel's Neon integration sets
   that for you, alongside `DATABASE_URL_UNPOOLED`; the app ignores the other
   keys it adds. Apply migrations from your machine against the direct
-  (unpooled) string, `DATABASE_URL=<direct string> pnpm db:migrate`, before
-  deploying a change that adds one. The build does not run them.
+  (unpooled) string, `DATABASE_URL=<direct string> ./scripts/db-migrate.sh url`,
+  before deploying a change that adds one. The build does not run them.
 - **Pictures.** Set `UPLOADTHING_TOKEN` on Production and Preview. One
   UploadThing app can serve both.
 - **GitHub App.** A second app for production, set up as above with the
   callback URL `https://<your-domain>/api/auth/callback/github`, and its
   `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET` and `GITHUB_APP_SLUG` set on
-  Production and Preview.
-- **Sign-in on previews.** Previews get new URLs, which the GitHub App's
-  callback URLs cannot list, so they sign in through production. Set `OAUTH_PROXY_URL` (the
-  production origin) and one shared `OAUTH_PROXY_SECRET` on both Production
-  and Preview. Give Preview its own `BETTER_AUTH_SECRET`, the same GitHub
-  client id and secret, and no `APP_URL`: the app then uses the preview's
-  branch URL, so open previews through that link. Give previews their own
-  database branch (Neon's preview branching does this), or a preview sign-in
-  would overwrite production's stored GitHub token with one production cannot
-  decrypt.
+  Production.
+- **Previews.** Preview deployments cannot sign in: GitHub sends sign-in back
+  only to the callback URLs the GitHub App lists, and a preview's URL is new
+  every time.
 
 ### Moving to AWS later
 
@@ -274,11 +323,9 @@ What would change:
 - **Secrets.** Environment variables come from Vercel today; on AWS they would
   come from SSM Parameter Store or Secrets Manager, injected as the same
   variable names.
-- **Database.** RDS or Aurora Postgres, reached through the same
-  `DATABASE_URL`: the app uses the plain `pg` driver, no vendor SDK. Each
-  instance keeps its own pool (`pg`'s default of 10 connections), so size the
-  database's connection limit, or put RDS Proxy in front, for the number of
-  instances. Run `pnpm db:migrate` as a one-off task in the deploy pipeline.
+- **Database.** Flexi Day's RDS Postgres, in Fenro's own schema; see
+  [Database](#database). Each instance keeps its own pool (`pg`'s default of
+  10 connections) under the `fenro` role's limit of 20.
 - **Pictures.** UploadThing keeps working unchanged. To keep the files in S3
   instead, write a second adapter for the `PictureStorage` port
   (`src/modules/tasks/application/ports/picture-storage.ts`); nothing else

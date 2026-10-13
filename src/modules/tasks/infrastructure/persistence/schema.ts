@@ -4,13 +4,14 @@ import {
   index,
   integer,
   jsonb,
-  pgTable,
   primaryKey,
   text,
   timestamp,
   uniqueIndex,
   type AnyPgColumn,
 } from "drizzle-orm/pg-core";
+
+import { fenro } from "@/shared/infrastructure/database/schema";
 
 /**
  * The `Task` aggregate across six tables: the task itself, and the parts of it
@@ -32,7 +33,7 @@ export type StoredCriterion = {
   readonly evidence: string | null;
 };
 
-export const task = pgTable(
+export const task = fenro.table(
   "task",
   {
     id: text("id").primaryKey(),
@@ -77,7 +78,7 @@ const taskId = () =>
     .references(() => task.id, { onDelete: "cascade" });
 
 /** "`taskId` is blocked by / relates to / was discovered from `targetId`". */
-export const taskLink = pgTable(
+export const taskLink = fenro.table(
   "task_link",
   {
     taskId: taskId(),
@@ -92,7 +93,7 @@ export const taskLink = pgTable(
   ],
 );
 
-export const taskExternalReference = pgTable(
+export const taskExternalReference = fenro.table(
   "task_external_reference",
   {
     taskId: taskId(),
@@ -110,7 +111,7 @@ export const taskExternalReference = pgTable(
   ],
 );
 
-export const taskSession = pgTable(
+export const taskSession = fenro.table(
   "task_session",
   {
     id: text("id").primaryKey(),
@@ -130,7 +131,7 @@ export const taskSession = pgTable(
 );
 
 /** Append-only: rows are inserted and never updated. */
-export const taskJournalEntry = pgTable(
+export const taskJournalEntry = fenro.table(
   "task_journal_entry",
   {
     id: text("id").primaryKey(),
@@ -153,7 +154,7 @@ export const taskJournalEntry = pgTable(
  * rather than ids: the name is unique per owner, and it is what agents,
  * filters and URLs use.
  */
-export const taskLabel = pgTable(
+export const taskLabel = fenro.table(
   "task_label",
   {
     id: text("id").primaryKey(),
@@ -171,7 +172,7 @@ export const taskLabel = pgTable(
  * Pictures on tasks. The bytes live in the picture store (UploadThing);
  * `storage_key` is how that store names them. Rows go with their task.
  */
-export const taskPicture = pgTable(
+export const taskPicture = fenro.table(
   "task_picture",
   {
     id: text("id").primaryKey(),
@@ -195,7 +196,7 @@ export const taskPicture = pgTable(
  * their labels. `revision` counts changes to the text; `version` is bumped on
  * every save, links included, so a save over someone else's fails.
  */
-export const taskSkill = pgTable(
+export const taskSkill = fenro.table(
   "task_skill",
   {
     id: text("id").primaryKey(),
@@ -228,7 +229,7 @@ const skillId = () =>
  * The labels a skill applies through, by name as tasks carry them. The owner
  * rides along so "which skills does this label bring" is one index lookup.
  */
-export const taskSkillLabel = pgTable(
+export const taskSkillLabel = fenro.table(
   "task_skill_label",
   {
     skillId: skillId(),
@@ -245,7 +246,7 @@ export const taskSkillLabel = pgTable(
 );
 
 /** Append-only: the text of every revision, so any can be read or restored. */
-export const taskSkillRevision = pgTable(
+export const taskSkillRevision = fenro.table(
   "task_skill_revision",
   {
     skillId: skillId(),

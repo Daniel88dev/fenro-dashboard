@@ -72,40 +72,14 @@ describe("the GitHub consent screen", () => {
   });
 });
 
-describe("signing in from a preview", () => {
-  const PRODUCTION = "https://fenro.example";
-  const PREVIEW = "https://fenro-git-branch.example";
-
-  it("sends GitHub back to the production origin, which owns the callback", async () => {
+describe("the GitHub callback", () => {
+  it("comes back to APP_URL, which the GitHub App must list as a callback URL", async () => {
     const url = await gitHubAuthorizationUrl({
-      baseUrl: PREVIEW,
-      oauthProxy: {
-        url: PRODUCTION,
-        secret: "a-proxy-secret-that-is-32-characters",
-      },
+      baseUrl: "https://www.fenro.example",
     });
 
     expect(url.searchParams.get("redirect_uri")).toBe(
-      `${PRODUCTION}/api/auth/callback/github`,
-    );
-  });
-
-  it("leaves production's own sign-in alone", async () => {
-    const url = await gitHubAuthorizationUrl({
-      baseUrl: PRODUCTION,
-      oauthProxy: { url: PRODUCTION },
-    });
-
-    expect(url.searchParams.get("redirect_uri")).toBe(
-      `${PRODUCTION}/api/auth/callback/github`,
-    );
-  });
-
-  it("uses its own callback when no proxy is configured", async () => {
-    const url = await gitHubAuthorizationUrl({ baseUrl: PREVIEW });
-
-    expect(url.searchParams.get("redirect_uri")).toBe(
-      `${PREVIEW}/api/auth/callback/github`,
+      "https://www.fenro.example/api/auth/callback/github",
     );
   });
 });
