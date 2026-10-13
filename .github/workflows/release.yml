@@ -1,0 +1,120 @@
+name: Release
+
+# Ships main to App Runner once CI has passed on it: builds the image, pushes
+# it to ECR as :<commit sha> and :latest, then deploys :latest and waits for
+# App Runner to report the outcome. Database migrations are not run here; they
+# are applied by hand before merging a change that adds one (README,
+# "AWS App Runner").
+#
+# Repository variables (Settings → Secrets and variables → Actions → Variables):
+#   AWS_REGION              e.g. eu-central-1
+#   AWS_ROLE_ARN            the OIDC role this workflow assumes
+#   ECR_REPOSITORY          the ECR repository name, e.g. fenro-dashboard
+#   APP_RUNNER_SERVICE_ARN  the service to deploy; unset, the image is pushed
+#                           and nothing is deployed
+
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+  # Redeploys main by hand, for example after the first `terraform apply`.
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+# One release at a time, in order: a newer push waits rather than cancelling a
+# deployment App Runner has already started.
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: Build, push and deploy
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    # workflow_run also fires for failed and pull-request runs of CI. Only a
+    # green CI run for a push to main ships, and a manual run only from main,
+    # which is the only ref the AWS role trusts.
+    if: >-
+      (github.event_name == 'workflow_run' &&
+       github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.event == 'push') ||
+      (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main')
+
+    env:
+      AWS_REGION: ${{ vars.AWS_REGION }}
+      ECR_REPOSITORY: ${{ vars.ECR_REPOSITORY }}
+      SERVICE_ARN: ${{ vars.APP_RUNNER_SERVICE_ARN }}
+      # The commit CI tested, not whatever main points at by the time this runs.
+      RELEASE_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
+
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ env.RELEASE_SHA }}
+          persist-credentials: false
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Log in to ECR
+        id: ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build and push the image
+        env:
+          IMAGE: ${{ steps.ecr.outputs.registry }}/${{ vars.ECR_REPOSITORY }}
+        run: |
+          set -euo pipefail
+          docker buildx create --use --name release
+          # --provenance=false keeps a single-platform manifest: with
+          # provenance, buildx pushes an image index, which App Runner cannot
+          # pull.
+          docker buildx build \
+            --platform linux/amd64 \
+            --provenance=false \
+            --label "org.opencontainers.image.revision=${RELEASE_SHA}" \
+            --label "org.opencontainers.image.source=${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}" \
+            --tag "${IMAGE}:${RELEASE_SHA}" \
+            --tag "${IMAGE}:latest" \
+            --push \
+            .
+          echo "Pushed ${IMAGE}:${RELEASE_SHA} and :latest" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Deploy to App Runner
+        if: env.SERVICE_ARN != ''
+        run: |
+          set -euo pipefail
+          operation=$(aws apprunner start-deployment \
+            --service-arn "$SERVICE_ARN" \
+            --query OperationId --output text)
+          echo "Started deployment ${operation}"
+
+          # App Runner has no CLI waiter. A deployment pulls the image, starts
+          # it and waits for the health check, which takes a few minutes.
+          for _ in $(seq 1 90); do
+            status=$(aws apprunner list-operations \
+              --service-arn "$SERVICE_ARN" \
+              --query "OperationSummaryList[?Id=='${operation}'].Status | [0]" \
+              --output text)
+            case "$status" in
+              SUCCEEDED)
+                echo "Deployed ${RELEASE_SHA}" >> "$GITHUB_STEP_SUMMARY"
+                exit 0
+                ;;
+              FAILED | ROLLBACK_SUCCEEDED | ROLLBACK_FAILED)
+                echo "::error::App Runner deployment ${operation} ended ${status}; see the service's event log"
+                exit 1
+                ;;
+            esac
+            sleep 10
+          done
+          echo "::error::App Runner deployment ${operation} still ${status} after 15 minutes"
+          exit 1
