@@ -1,0 +1,160 @@
+# General
+variable "aws_region" {
+  description = "AWS region for every resource. eu-central-1 is where flexi-day-be's RDS instance runs, so the app sits next to its database."
+  type        = string
+  default     = "eu-central-1"
+}
+
+variable "environment" {
+  description = "Environment name (production, staging, ...)"
+  type        = string
+  default     = "production"
+}
+
+variable "project_name" {
+  description = "Prefix for resource names"
+  type        = string
+  default     = "fenro-dashboard"
+}
+
+# Rollout switches (README, "First rollout")
+variable "create_service" {
+  description = "Set to true once CI has pushed the first image to ECR. App Runner refuses to create a service whose image does not exist yet."
+  type        = bool
+  default     = false
+}
+
+variable "manage_dns_validation_records" {
+  description = "Set to true after the apply that created the service. The certificate validation records are only known once the custom domain association exists (see dns.tf)."
+  type        = bool
+  default     = false
+}
+
+# ECR
+variable "ecr_repository_name" {
+  description = "ECR repository the release pipeline pushes to"
+  type        = string
+  default     = "daniel88dev/fenro-dashboard"
+}
+
+variable "ecr_keep_images" {
+  description = "How many images the lifecycle policy keeps. Older ones are deleted, so this is also how far back a rollback can go."
+  type        = number
+  default     = 5
+}
+
+variable "docker_image_tag" {
+  description = "Tag App Runner deploys. The pipeline moves it to the newest image, then starts a deployment."
+  type        = string
+  default     = "main"
+}
+
+# App Runner
+variable "app_port" {
+  description = "Port the container listens on (PORT in the Dockerfile)"
+  type        = number
+  default     = 8080
+}
+
+variable "apprunner_cpu" {
+  description = "vCPU per instance (256 = 0.25 vCPU, the smallest)"
+  type        = string
+  default     = "256"
+}
+
+variable "apprunner_memory" {
+  description = "Memory per instance in MB (512 = 0.5 GB, the smallest)"
+  type        = string
+  default     = "512"
+}
+
+variable "apprunner_max_size" {
+  description = "Maximum instances. Keep 1 until Next.js has a shared cache handler: its cache is per instance (README, Moving to AWS)."
+  type        = number
+  default     = 1
+}
+
+variable "auto_deployments_enabled" {
+  description = "Let App Runner redeploy whenever the tag moves. Off by default: it costs $1 a month and the pipeline starts deployments itself."
+  type        = bool
+  default     = false
+}
+
+# Domain
+variable "domain_name" {
+  description = "Apex domain. Registering it in Route 53 creates the public hosted zone this configuration looks up. The app is served on www.<domain> only, which is APP_URL."
+  type        = string
+  default     = "fenro-dashboard.com"
+}
+
+# GitHub Actions
+variable "github_repository" {
+  description = "owner/name of the repository whose workflows may deploy"
+  type        = string
+  default     = "Daniel88dev/fenro-dashboard"
+}
+
+variable "github_deploy_subjects" {
+  description = "OIDC subject claims allowed to assume the deploy role, relative to the repository. The default lets only workflows running on main deploy."
+  type        = list(string)
+  default     = ["ref:refs/heads/main"]
+}
+
+# Plain runtime settings (public values)
+variable "github_client_id" {
+  description = "Client ID of the production GitHub App (public; plain env var)"
+  type        = string
+  default     = ""
+}
+
+variable "github_app_slug" {
+  description = "URL name of the production GitHub App, github.com/apps/<slug> (public; plain env var)"
+  type        = string
+  default     = ""
+}
+
+# Shared database (flexi-day-be's RDS instance, read only)
+variable "rds_instance_identifier" {
+  description = "Identifier of flexi-day-be's RDS instance Fenro's schema lives on"
+  type        = string
+  default     = "flexi-day-be-production-db"
+}
+
+variable "db_name" {
+  description = "Database on that instance holding the fenro schema"
+  type        = string
+  default     = "flexiday"
+}
+
+variable "db_role" {
+  description = "Fenro's own login role, owner of the fenro schema. Its password is generated here."
+  type        = string
+  default     = "fenro"
+}
+
+# Secrets (SSM Parameter Store SecureString; README, "Secrets")
+variable "better_auth_secret" {
+  description = "BETTER_AUTH_SECRET copied from Vercel production. It encrypts the stored GitHub tokens, so a new value would make every migrated token unreadable."
+  type        = string
+  sensitive   = true
+  default     = ""
+
+  validation {
+    condition     = var.better_auth_secret == "" || length(var.better_auth_secret) >= 32
+    error_message = "better_auth_secret must be at least 32 characters, as src/shared/config/env.ts requires."
+  }
+}
+
+variable "github_client_secret" {
+  description = "Client secret of the production GitHub App"
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
+variable "uploadthing_token" {
+  description = "UploadThing token for task pictures. Empty runs the app without pictures."
+  type        = string
+  sensitive   = true
+  default     = ""
+}
