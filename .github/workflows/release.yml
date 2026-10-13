@@ -64,6 +64,19 @@ jobs:
           role-to-assume: ${{ vars.AWS_ROLE_ARN }}
           aws-region: ${{ vars.AWS_REGION }}
 
+      # AWS answers a trust-policy mismatch with a bare "Not authorized", so
+      # print what this run's token actually claims. Claims only, never the
+      # token: they are what the role's sub and aud conditions must match.
+      - name: Show the OIDC claims AWS rejected
+        if: failure()
+        run: |
+          set -euo pipefail
+          curl -sSf -H "Authorization: bearer ${ACTIONS_ID_TOKEN_REQUEST_TOKEN}" \
+            "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=sts.amazonaws.com" |
+            jq -r .value | cut -d. -f2 |
+            python3 -c 'import base64, json, sys; p = sys.stdin.read().strip(); print(json.dumps({k: v for k, v in json.loads(base64.urlsafe_b64decode(p + "=" * (-len(p) % 4))).items() if k in ("sub", "aud", "iss", "repository", "ref", "event_name", "job_workflow_ref")}, indent=2))' |
+            tee -a "$GITHUB_STEP_SUMMARY"
+
       - name: Log in to ECR
         id: ecr
         uses: aws-actions/amazon-ecr-login@v2
