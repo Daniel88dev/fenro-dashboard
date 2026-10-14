@@ -3,8 +3,10 @@
 import {
   useActionState,
   useId,
+  useLayoutEffect,
   useRef,
   useState,
+  type CSSProperties,
   type KeyboardEvent,
 } from "react";
 
@@ -83,6 +85,33 @@ const PRIMARY_BUTTON =
 const QUIET_BUTTON =
   "text-ink-muted hover:text-ink cursor-pointer px-2 text-[12.5px]";
 
+/** Space kept between the panel and the edge of the screen. */
+const VIEWPORT_GUTTER = 16;
+
+/**
+ * Where the panel's left edge goes, relative to the toggle's left edge. It
+ * hangs from the toggle's right edge when there is room on the left, as in the
+ * header, and from its left edge otherwise, as in the empty state; either way
+ * it is then pulled back inside the screen.
+ */
+export function panelOffset({
+  toggleLeft,
+  toggleRight,
+  panelWidth,
+  viewportWidth,
+}: {
+  toggleLeft: number;
+  toggleRight: number;
+  panelWidth: number;
+  viewportWidth: number;
+}): number {
+  const hangingRight = toggleRight - panelWidth;
+  const preferred = hangingRight >= VIEWPORT_GUTTER ? hangingRight : toggleLeft;
+  const furthest = viewportWidth - VIEWPORT_GUTTER - panelWidth;
+  const left = Math.max(VIEWPORT_GUTTER, Math.min(preferred, furthest));
+  return left - toggleLeft;
+}
+
 /**
  * Picks repositories from the ones GitHub lets the viewer see, which are only
  * those the GitHub App is installed on, rather than
@@ -125,6 +154,36 @@ export function AddRepositories({
     EMPTY_ADD_STATE,
   );
   const toggleRef = useRef<HTMLButtonElement>(null);
+  const anchorRef = useRef<HTMLDivElement>(null);
+  const [offset, setOffset] = useState<number | null>(null);
+
+  // Measured before paint, so the panel never shows where it would not fit.
+  useLayoutEffect(() => {
+    if (!open) return;
+    const place = () => {
+      const anchor = anchorRef.current;
+      const panel = anchor?.querySelector<HTMLElement>(`[id="${panelId}"]`);
+      if (!anchor || !panel) return;
+      const toggle = anchor.getBoundingClientRect();
+      setOffset(
+        panelOffset({
+          toggleLeft: toggle.left,
+          toggleRight: toggle.right,
+          panelWidth: panel.offsetWidth,
+          viewportWidth: document.documentElement.clientWidth,
+        }),
+      );
+    };
+    place();
+    window.addEventListener("resize", place);
+    return () => window.removeEventListener("resize", place);
+  }, [open, mode, panelId]);
+
+  // Until measured it hangs from the right edge, as it always did: spilling
+  // past the left of the page cannot scroll it sideways when the search box
+  // takes focus, which would throw the measurement off.
+  const panelStyle =
+    offset === null ? undefined : { left: offset, right: "auto" };
 
   const load = () => {
     setListing({ status: "loading" });
@@ -161,7 +220,7 @@ export function AddRepositories({
     });
 
   return (
-    <div className="relative" onKeyDown={onKeyDown}>
+    <div ref={anchorRef} className="relative" onKeyDown={onKeyDown}>
       <button
         ref={toggleRef}
         type="button"
@@ -181,12 +240,14 @@ export function AddRepositories({
           onAdded={() => setOpen(false)}
           onBack={() => setMode("pick")}
           onCancel={close}
+          style={panelStyle}
         />
       ) : open ? (
         <form
           id={panelId}
           action={formAction}
           aria-label="Add repositories"
+          style={panelStyle}
           className="border-hairline bg-surface absolute top-[40px] right-0 z-20 flex w-[min(520px,calc(100vw-32px))] flex-col gap-3 rounded-xl border p-3 shadow-lg"
         >
           <label htmlFor={searchId} className="sr-only">
@@ -332,12 +393,14 @@ function AddManually({
   onAdded,
   onBack,
   onCancel,
+  style,
 }: {
   id: string;
   action: AddAction;
   onAdded: () => void;
   onBack: () => void;
   onCancel: () => void;
+  style?: CSSProperties;
 }) {
   const ownerId = useId();
   const nameId = useId();
@@ -357,6 +420,7 @@ function AddManually({
       action={formAction}
       aria-label="Add a repository manually"
       aria-describedby={noteId}
+      style={style}
       className="border-hairline bg-surface absolute top-[40px] right-0 z-20 flex w-[min(520px,calc(100vw-32px))] flex-col gap-3 rounded-xl border p-3 shadow-lg"
     >
       <div className="flex flex-col gap-1 px-1">
