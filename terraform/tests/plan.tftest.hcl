@@ -61,6 +61,10 @@ run "service" {
     condition     = length(aws_route53_record.cert_validation) == 0 && length(aws_route53_record.www) == 1
     error_message = "records"
   }
+  assert {
+    condition     = !contains(keys(aws_apprunner_service.app[0].source_configuration[0].image_repository[0].image_configuration[0].runtime_environment_variables), "PICTURES_S3_BUCKET")
+    error_message = "pictures stay on UploadThing until serve_pictures_from_s3"
+  }
 }
 
 run "dns" {
@@ -85,5 +89,37 @@ run "dns" {
   assert {
     condition     = strcontains(output.github_actions_variables_commands, "APP_RUNNER_SERVICE_ARN")
     error_message = "service arn variable"
+  }
+}
+
+run "pictures" {
+  command = apply
+  variables {
+    create_service         = true
+    serve_pictures_from_s3 = true
+    better_auth_secret     = "0123456789abcdef0123456789abcdef"
+    github_client_secret   = "s"
+    github_client_id       = "Iv1.abc"
+    github_app_slug        = "fenro"
+  }
+  assert {
+    condition     = aws_s3_bucket.pictures.bucket == "fenro-dashboard-production-pictures-123456789012"
+    error_message = "bucket name"
+  }
+  assert {
+    condition     = aws_s3_bucket_public_access_block.pictures.block_public_acls && aws_s3_bucket_public_access_block.pictures.block_public_policy && aws_s3_bucket_public_access_block.pictures.ignore_public_acls && aws_s3_bucket_public_access_block.pictures.restrict_public_buckets
+    error_message = "bucket must stay private"
+  }
+  assert {
+    condition     = aws_apprunner_service.app[0].source_configuration[0].image_repository[0].image_configuration[0].runtime_environment_variables["PICTURES_S3_BUCKET"] == "fenro-dashboard-production-pictures-123456789012" && aws_apprunner_service.app[0].source_configuration[0].image_repository[0].image_configuration[0].runtime_environment_variables["PICTURES_S3_REGION"] == "eu-central-1"
+    error_message = "app points at the bucket"
+  }
+  assert {
+    condition     = jsondecode(aws_iam_role_policy.apprunner_pictures.policy).Statement[0].Resource == "${aws_s3_bucket.pictures.arn}/*" && join(",", jsondecode(aws_iam_role_policy.apprunner_pictures.policy).Statement[0].Action) == "s3:GetObject,s3:PutObject,s3:DeleteObject"
+    error_message = "instance role reaches only this bucket's objects"
+  }
+  assert {
+    condition     = jsondecode(aws_s3_bucket_policy.pictures.policy).Statement[0].Effect == "Deny" && jsondecode(aws_s3_bucket_policy.pictures.policy).Statement[0].Condition.Bool["aws:SecureTransport"] == "false"
+    error_message = "TLS only"
   }
 }

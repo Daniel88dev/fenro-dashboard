@@ -196,11 +196,8 @@ import {
 } from "@/modules/tasks/application/queries/list-tasks";
 import {
   PictureContentHandler,
-  PictureLinkHandler,
   type PictureContentQuery,
   type PictureContentResult,
-  type PictureLinkQuery,
-  type PictureLinkResult,
 } from "@/modules/tasks/application/queries/picture";
 import {
   PictureUploadTicketHandler,
@@ -245,12 +242,11 @@ import { DrizzleSkillRepository } from "@/modules/tasks/infrastructure/drizzle-s
 import { DrizzleTaskReadStore } from "@/modules/tasks/infrastructure/drizzle-task.read-store";
 import { DrizzleTaskRepository } from "@/modules/tasks/infrastructure/drizzle-task.repository";
 import { HmacUploadTickets } from "@/modules/tasks/infrastructure/hmac-upload-tickets";
-import {
-  UnconfiguredPictureStorage,
-  UploadThingPictureStorage,
-} from "@/modules/tasks/infrastructure/uploadthing-picture.storage";
+import { S3PictureStorage } from "@/modules/tasks/infrastructure/s3-picture.storage";
+import { UnconfiguredPictureStorage } from "@/modules/tasks/infrastructure/unconfigured-picture.storage";
+import { UploadThingPictureStorage } from "@/modules/tasks/infrastructure/uploadthing-picture.storage";
 import { CommandBus, QueryBus } from "@/shared/application";
-import { getEnv } from "@/shared/config/env";
+import { getEnv, type Env } from "@/shared/config/env";
 import { getDatabase } from "@/shared/infrastructure/database/client";
 
 /**
@@ -481,10 +477,6 @@ function registerTasks(
     "tasks.task-brief",
     new TaskBriefHandler(taskReads, clock),
   );
-  queryBus.register<PictureLinkQuery, PictureLinkResult>(
-    "tasks.picture-link",
-    new PictureLinkHandler(taskReads, pictureStorage),
-  );
   queryBus.register<PictureContentQuery, PictureContentResult>(
     "tasks.picture-content",
     new PictureContentHandler(taskReads, pictureStorage),
@@ -597,12 +589,33 @@ function containerFor(
   });
 }
 
-/** UploadThing when a token is set; otherwise pictures are off. */
-function pictureStorage(): PictureStorage {
-  const token = getEnv().UPLOADTHING_TOKEN;
-  return token
-    ? new UploadThingPictureStorage(token)
-    : new UnconfiguredPictureStorage();
+/**
+ * The S3 bucket when one is set. UploadThing only while the move to S3 is
+ * under way; with neither, pictures are off.
+ */
+function pictureStorage(env: Env = getEnv()): PictureStorage {
+  if (env.PICTURES_S3_BUCKET) {
+    const accessKeyId = env.PICTURES_S3_ACCESS_KEY_ID;
+    const secretAccessKey = env.PICTURES_S3_SECRET_ACCESS_KEY;
+    return new S3PictureStorage({
+      bucket: env.PICTURES_S3_BUCKET,
+      region: env.PICTURES_S3_REGION,
+      endpoint: env.PICTURES_S3_ENDPOINT,
+      credentials:
+        accessKeyId && secretAccessKey
+          ? { accessKeyId, secretAccessKey }
+          : undefined,
+    });
+  }
+  if (env.UPLOADTHING_TOKEN) {
+    return new UploadThingPictureStorage(env.UPLOADTHING_TOKEN);
+  }
+  return new UnconfiguredPictureStorage();
+}
+
+/** Whether pages offer pictures, without building a store to ask. */
+export function picturesEnabled(env: Env = getEnv()): boolean {
+  return Boolean(env.PICTURES_S3_BUCKET || env.UPLOADTHING_TOKEN);
 }
 
 /**

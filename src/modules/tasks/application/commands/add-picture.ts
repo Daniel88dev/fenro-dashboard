@@ -31,7 +31,7 @@ export function picturesUnavailable(detail: string): TaskError {
 }
 
 export const NOT_CONFIGURED = picturesUnavailable(
-  "Pictures are not set up on this Fenro: it has no UPLOADTHING_TOKEN. The owner adds one to turn pictures on.",
+  "Pictures are not set up on this Fenro: it has no PICTURES_S3_BUCKET. The owner sets one to turn pictures on.",
 );
 
 export class AddPictureHandler implements CommandHandler<AddPictureCommand> {

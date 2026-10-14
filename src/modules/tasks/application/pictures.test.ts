@@ -4,7 +4,7 @@ import type { Actor } from "@/modules/tasks/domain";
 import { HmacUploadTickets } from "@/modules/tasks/infrastructure/hmac-upload-tickets";
 import { InMemoryPictureStorage } from "@/modules/tasks/infrastructure/in-memory-picture.storage";
 import { InMemoryTaskStore } from "@/modules/tasks/infrastructure/in-memory-task.store";
-import { UnconfiguredPictureStorage } from "@/modules/tasks/infrastructure/uploadthing-picture.storage";
+import { UnconfiguredPictureStorage } from "@/modules/tasks/infrastructure/unconfigured-picture.storage";
 
 import {
   AddPictureHandler,
@@ -15,7 +15,7 @@ import { CreateTaskHandler } from "./commands/create-task";
 import { RemovePictureHandler } from "./commands/remove-picture";
 import { StartTaskHandler } from "./commands/start-task";
 import type { PictureStorage } from "./ports/picture-storage";
-import { PictureLinkHandler, pictureLinkQuery } from "./queries/picture";
+import { PictureContentHandler, pictureContentQuery } from "./queries/picture";
 import {
   PictureUploadTicketHandler,
   UPLOAD_TICKET_TTL_MS,
@@ -249,15 +249,16 @@ describe("removing and showing a picture", () => {
     expect(storage.files.size).toBe(0);
   });
 
-  it("links only the owner to a picture", async () => {
+  it("hands a picture's bytes to its owner only", async () => {
     const id = pictureId();
     await add({ pictureId: id });
-    const links = new PictureLinkHandler(store, storage);
+    const content = new PictureContentHandler(store, storage);
 
-    const mine = await links.handle(pictureLinkQuery(OWNER, id));
-    const theirs = await links.handle(pictureLinkQuery("user-2", id));
+    const mine = await content.handle(pictureContentQuery(OWNER, id));
+    const theirs = await content.handle(pictureContentQuery("user-2", id));
 
-    expect(mine.ok && mine.value.url).toMatch(/^https:\/\/pictures\.test\//);
+    expect(mine.ok && mine.value.bytes).toEqual(PNG);
+    expect(mine.ok && mine.value.type).toBe("image/png");
     expect(!theirs.ok && theirs.error.code).toBe("picture-not-found");
   });
 });

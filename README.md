@@ -201,20 +201,18 @@ drop them on the Pictures section, paste them anywhere, or use **Add
 pictures**; click one to see it large. Agents use the MCP tools
 `attach_picture` and `get_picture`.
 
-The files are kept on [UploadThing](https://uploadthing.com)'s free plan, with
-no bucket or cloud account to set up:
+The files are kept in a private S3 bucket. Locally, `docker compose up -d`
+starts an S3 stand-in (S3Mock) next to Postgres with the bucket already made,
+and the `PICTURES_S3_*` values in `.env.example` point at it, so pictures work
+as soon as you copy that file. Without `PICTURES_S3_BUCKET` everything else
+works and the Pictures section says pictures are off.
 
-1. Sign in at uploadthing.com and create an app.
-2. Copy the `UPLOADTHING_TOKEN` value from its **API Keys** page into
-   `.env.local` as `UPLOADTHING_TOKEN`.
-
-Without the token everything else works and the Pictures section says pictures
-are off. Uploads go through this app's server, so no UploadThing callback URL
-is needed. The app shows a picture only to its owner: a page loads one through
-`/api/pictures/<id>`, which checks it is yours and redirects to a link that
-expires within the hour. The files themselves sit under random keys at
-UploadThing; if your UploadThing app lets you make its files private, do, so
-only those expiring links open them.
+Only the app touches the bucket. Uploads go through this app's server, and a
+page loads a picture through `/api/pictures/<id>`, which checks it is yours
+and sends the bytes itself. A picture never changes, so the browser keeps it
+and asks once. In production the bucket comes from `terraform/s3.tf` and the
+app reaches it with the App Runner instance role, so there are no access keys
+([terraform/README.md](./terraform/README.md#pictures)).
 
 ## Configuration
 
@@ -293,8 +291,8 @@ Settings → Environment Variables, with `APP_URL` set to the production origin.
   keys it adds. Apply migrations from your machine against the direct
   (unpooled) string, `DATABASE_URL=<direct string> ./scripts/db-migrate.sh url`,
   before deploying a change that adds one. The build does not run them.
-- **Pictures.** Set `UPLOADTHING_TOKEN` on Production and Preview. One
-  UploadThing app can serve both.
+- **Pictures.** Production keeps them in S3 now (see below). Vercel would
+  need `PICTURES_S3_BUCKET` and an access key pair for it.
 - **GitHub App.** A second app for production, set up as above with the
   callback URL `https://<your-domain>/api/auth/callback/github`, and its
   `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET` and `GITHUB_APP_SLUG` set on
@@ -325,10 +323,10 @@ What would change:
 - **Database.** Flexi Day's RDS Postgres, in Fenro's own schema; see
   [Database](#database). Each instance keeps its own pool (`pg`'s default of
   10 connections) under the `fenro` role's limit of 20.
-- **Pictures.** UploadThing keeps working unchanged. To keep the files in S3
-  instead, write a second adapter for the `PictureStorage` port
-  (`src/modules/tasks/application/ports/picture-storage.ts`); nothing else
-  knows where pictures live.
+- **Pictures.** Done: an S3 adapter for the `PictureStorage` port
+  (`src/modules/tasks/infrastructure/s3-picture.storage.ts`), the bucket in
+  `terraform/s3.tf`, and `scripts/copy-pictures-to-s3.sh` to bring the
+  UploadThing pictures over.
 - **Sign-in.** Point the production GitHub App's callback at the new
   origin and update `APP_URL`. Sessions and tokens live in Postgres, so they
   survive the move as long as `BETTER_AUTH_SECRET` stays the same.

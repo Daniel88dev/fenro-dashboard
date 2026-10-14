@@ -7,12 +7,12 @@ import type { PictureType } from "@/modules/tasks/domain";
 const LINK_LIFETIME = "1h";
 
 /**
- * Pictures kept in UploadThing, uploaded from the server with its UTApi. The
- * bytes pass through the app on their way, which keeps one path for people
- * and agents and needs no callback from UploadThing into the app.
+ * Pictures kept in UploadThing, where they lived before the move to S3. It
+ * stays until every picture is copied over (scripts/copy-pictures-to-s3.sh),
+ * and goes with UPLOADTHING_TOKEN.
  *
- * Links are signed, so they work whether the UploadThing app keeps files
- * public or private.
+ * Uploads go from the server through the UTApi; reads fetch a signed link, so
+ * they work whether the UploadThing app keeps files public or private.
  */
 export class UploadThingPictureStorage implements PictureStorage {
   readonly configured = true;
@@ -36,7 +36,7 @@ export class UploadThingPictureStorage implements PictureStorage {
     return { key: result.data.key };
   }
 
-  async link(key: string): Promise<string> {
+  async #link(key: string): Promise<string> {
     const { ufsUrl } = await this.#api.generateSignedURL(key, {
       expiresIn: LINK_LIFETIME,
     });
@@ -44,7 +44,7 @@ export class UploadThingPictureStorage implements PictureStorage {
   }
 
   async read(key: string): Promise<Uint8Array | undefined> {
-    const response = await fetch(await this.link(key));
+    const response = await fetch(await this.#link(key));
     if (!response.ok) return undefined;
     return new Uint8Array(await response.arrayBuffer());
   }
@@ -52,23 +52,4 @@ export class UploadThingPictureStorage implements PictureStorage {
   async remove(key: string): Promise<void> {
     await this.#api.deleteFiles(key);
   }
-}
-
-/** Standing in when no UploadThing token is set: nothing can be stored. */
-export class UnconfiguredPictureStorage implements PictureStorage {
-  readonly configured = false;
-
-  async put(): Promise<{ readonly key: string }> {
-    throw new Error("No picture storage is configured.");
-  }
-
-  async link(): Promise<string> {
-    throw new Error("No picture storage is configured.");
-  }
-
-  async read(): Promise<undefined> {
-    return undefined;
-  }
-
-  async remove(): Promise<void> {}
 }

@@ -314,6 +314,28 @@ from prototyping). Decisions:
   in the task dialog, each batch of pictures as a line in the journal, and a
   full-screen viewer with arrow-key stepping, Open original and Remove.
 
+### Pictures in S3 _(2026-10-14)_
+
+After the move to AWS, Daniel asked for pictures to leave UploadThing for a
+private S3 bucket made in Terraform, served through the app. Research in
+`/mnt/project-files/task-pictures-s3/research.md`. Decisions:
+
+- **Through the app, not presigned links.** `/api/pictures/<id>` checks the
+  owner and sends the bytes from S3 with a week of private browser caching, so the
+  bucket has no public access, no CORS and no links that outlive a check. The
+  port lost `link()`; pages and `get_picture` both use the content query.
+  Pictures are capped at 4 MB, so the 0.25 vCPU instance carries them easily.
+- **No keys in production.** The App Runner instance role may get, put and
+  delete objects in that bucket only. Access keys exist only for the local
+  stand-in.
+- **Same keys.** New pictures get a UUID key. Old ones are copied from
+  UploadThing under their existing key (`scripts/copy-pictures-to-s3.sh`), so
+  no row changes and no migration is needed.
+- **Local: S3Mock** in `compose.yaml`, because MinIO stopped publishing a free
+  image.
+- UploadThing stays readable only while `PICTURES_S3_BUCKET` is unset, and
+  goes once the copy is done.
+
 ### Skills for agents _(2026-10-04)_
 
 A skill is a named block of Markdown instructions linked to labels; the full

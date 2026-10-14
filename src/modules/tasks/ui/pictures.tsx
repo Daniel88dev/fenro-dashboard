@@ -378,8 +378,8 @@ function DropTile({
 function DisabledNote() {
   return (
     <p className="text-ink-muted text-[12.5px]">
-      Pictures are off on this Fenro. Set <code>UPLOADTHING_TOKEN</code> to turn
-      them on.
+      Pictures are off on this Fenro. Set <code>PICTURES_S3_BUCKET</code> to
+      turn them on.
     </p>
   );
 }
