@@ -55,7 +55,14 @@ resource "aws_apprunner_service" "app" {
             APP_URL = local.app_url
           },
           var.github_client_id != "" ? { GITHUB_CLIENT_ID = var.github_client_id } : {},
-          var.github_app_slug != "" ? { GITHUB_APP_SLUG = var.github_app_slug } : {}
+          var.github_app_slug != "" ? { GITHUB_APP_SLUG = var.github_app_slug } : {},
+          # SENTRY_RELEASE is baked into the image: it names the commit the
+          # source maps were uploaded for.
+          var.sentry_dsn != "" ? {
+            SENTRY_DSN                = var.sentry_dsn
+            SENTRY_ENVIRONMENT        = var.environment
+            SENTRY_TRACES_SAMPLE_RATE = tostring(var.sentry_traces_sample_rate)
+          } : {}
         )
 
         # Resolved at deployment through the instance role; each env var gets

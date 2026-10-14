@@ -1,3 +1,4 @@
+import { untracedMessages, type MessageTracer } from "./message-tracer";
 import type { Query, QueryHandler } from "./messages";
 
 /**
@@ -6,6 +7,11 @@ import type { Query, QueryHandler } from "./messages";
  */
 export class QueryBus {
   readonly #handlers = new Map<string, QueryHandler<never, unknown>>();
+  readonly #tracer: MessageTracer;
+
+  constructor(tracer: MessageTracer = untracedMessages) {
+    this.#tracer = tracer;
+  }
 
   register<TQuery extends Query<string, TResult>, TResult>(
     type: TQuery["type"],
@@ -23,6 +29,6 @@ export class QueryBus {
     if (!handler) {
       throw new Error(`No handler registered for query "${query.type}".`);
     }
-    return handler.handle(query);
+    return this.#tracer.traceQuery(query, async () => handler.handle(query));
   }
 }
