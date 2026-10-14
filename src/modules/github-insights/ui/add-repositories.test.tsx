@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
   AddRepositories,
+  panelOffset,
   type AddRepositoriesState,
   type PickerListing,
 } from "./add-repositories";
@@ -41,6 +42,7 @@ function answering(body: PickerListing) {
 
 afterEach(() => {
   vi.unstubAllGlobals();
+  vi.restoreAllMocks();
 });
 
 type AddAction = (
@@ -272,6 +274,50 @@ describe("AddRepositories", () => {
       for (const label of ["Owner", "Repository"]) {
         expect(screen.getByLabelText(label)).toHaveAttribute("data-1p-ignore");
       }
+    });
+  });
+});
+
+describe("panelOffset", () => {
+  const desktop = { panelWidth: 520, viewportWidth: 1280 };
+
+  it("hangs from the toggle's right edge when there is room on the left", () => {
+    // The header: the toggle sits at the right of the page.
+    expect(
+      panelOffset({ toggleLeft: 1100, toggleRight: 1250, ...desktop }),
+    ).toBe(150 - 520);
+  });
+
+  it("opens to the right when hanging left would leave the screen", () => {
+    // The empty state: the toggle sits at the left of the page.
+    expect(panelOffset({ toggleLeft: 120, toggleRight: 270, ...desktop })).toBe(
+      0,
+    );
+  });
+
+  it("stays inside the screen when neither edge fits", () => {
+    const phone = { panelWidth: 358, viewportWidth: 390 };
+    expect(panelOffset({ toggleLeft: 40, toggleRight: 186, ...phone })).toBe(
+      16 - 40,
+    );
+  });
+});
+
+describe("AddRepositories placement", () => {
+  it("keeps the panel inside the screen when the toggle sits at the left", async () => {
+    answering(listing);
+    vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockReturnValue(
+      DOMRect.fromRect({ x: 120, y: 300, width: 150, height: 34 }),
+    );
+    vi.spyOn(HTMLElement.prototype, "offsetWidth", "get").mockReturnValue(520);
+    vi.spyOn(document.documentElement, "clientWidth", "get").mockReturnValue(
+      1280,
+    );
+    renderPicker();
+    await open();
+
+    expect(screen.getByRole("form", { name: "Add repositories" })).toHaveStyle({
+      left: "0px",
     });
   });
 });
