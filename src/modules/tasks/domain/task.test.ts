@@ -493,3 +493,80 @@ describe("Task", () => {
     });
   });
 });
+
+describe("Task epics", () => {
+  it("creates an epic that sits at the top", () => {
+    expect(aTask({ kind: "epic" }).kind).toBe("epic");
+    expect(aTask().kind).toBe("task");
+
+    const nested = Task.create({
+      id: "task-1",
+      ownerId: "user-1",
+      number: 7,
+      title: "Ship tasks v2",
+      author: daniel,
+      now: t0,
+      kind: "epic",
+      parentId: "task-0",
+    });
+    expect(isErr(nested) && nested.error.code).toBe("invalid-task");
+  });
+
+  it("refuses to put an epic under another task", () => {
+    const epic = aTask({ kind: "epic" });
+
+    const moved = epic.moveUnder("task-0", daniel, t0);
+
+    expect(isErr(moved)).toBe(true);
+    expect(epic.state.parentId ?? null).toBeNull();
+  });
+
+  it("turns a top-level task into an epic and records it", () => {
+    const task = aTask();
+    task.pullDomainEvents();
+
+    unwrap(task.changeKind("epic", daniel, later(1)));
+
+    expect(task.kind).toBe("epic");
+    expect(task.pullDomainEvents().map((event) => event.name)).toEqual([
+      "tasks.task-kind-changed",
+    ]);
+  });
+
+  it("does not make a sub-task an epic while it has a parent", () => {
+    const task = aTask({ parentId: "task-0" });
+
+    const changed = task.changeKind("epic", daniel, t0);
+
+    expect(isErr(changed) && changed.error.code).toBe("invalid-task");
+    expect(task.kind).toBe("task");
+  });
+
+  it("does not let anyone start a session on an epic", () => {
+    const epic = aTask({ kind: "epic" });
+
+    const result = epic.startSession(claude, clear, t0);
+
+    expect(isErr(result) && result.error.code).toBe("invalid-transition");
+  });
+});
+
+describe("Task moved into progress by hand", () => {
+  it("lets a person move a task into progress without a session", () => {
+    const task = aTask();
+
+    unwrap(task.changeStatus("in_progress", daniel, clear, t0));
+
+    expect(task.status).toBe("in_progress");
+    expect(task.liveSession(t0)).toBeUndefined();
+  });
+
+  it("tells an agent to start the task instead", () => {
+    const task = aTask();
+
+    const result = task.changeStatus("in_progress", claude, clear, t0);
+
+    expect(isErr(result) && result.error.code).toBe("invalid-transition");
+    expect(task.status).toBe("todo");
+  });
+});

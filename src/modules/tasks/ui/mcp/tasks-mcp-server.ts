@@ -38,6 +38,7 @@ import {
   NOTE_KINDS,
   PRIORITIES,
   SESSION_OUTCOMES,
+  TASK_KINDS,
   TASK_STATUSES,
   type Actor,
   type LinkKind,
@@ -85,7 +86,9 @@ The loop:
 4. check_criterion for each acceptance criterion with its evidence.
 5. finish_session with a handoff summary and an outcome: done, in_review (a person must look, e.g. a pull request is open), paused, blocked (say on what), or released (give it back).
 
-A task is not done while it has open sub-tasks or unmet criteria. Tasks are named by key, like T-12; a person may paste a task's link instead (…/tasks/T-12), which works wherever a key does. A task can sit under a parent, like an epic: get_task shows its parent and sub-tasks, save_task with parent moves it, and list_tasks with parent lists a parent's sub-tasks.
+A task is not done while it has open sub-tasks or unmet criteria. Tasks are named by key, like T-12; a person may paste a task's link instead (…/tasks/T-12), which works wherever a key does. A task can sit under a parent: get_task shows its parent and sub-tasks, save_task with parent moves it, and list_tasks with parent lists a parent's sub-tasks.
+
+An epic (type: "epic") is a larger piece of work that holds tasks. It sits at the top, has no parent, and is done when its tasks are; nobody starts a session on one, so work its tasks instead. File work that belongs to an epic with save_task and the epic's key as parent, and list an epic's tasks with list_tasks and epic. list_tasks with type: "epic" lists the epics.
 
 Labels group tasks, and the person filters their list by them. Reuse the labels list_labels returns before inventing new ones; a name that does not exist yet is created when a task is saved with it.
 
@@ -169,6 +172,14 @@ export function createTasksMcpServer(
           .optional()
           .describe("Tasks carrying any of these labels"),
         parent: z.string().optional().describe("Only sub-tasks of this task"),
+        type: z
+          .enum(TASK_KINDS)
+          .optional()
+          .describe("Only plain tasks, or only epics"),
+        epic: z
+          .string()
+          .optional()
+          .describe("Only the tasks under this epic, at any depth"),
         text: z.string().optional().describe("Words in the title"),
         limit: z.number().int().min(1).max(100).optional(),
       }),
@@ -184,6 +195,8 @@ export function createTasksMcpServer(
             repository: input.repository,
             labels: input.labels,
             parent: input.parent,
+            kinds: input.type ? [input.type] : undefined,
+            epic: input.epic,
             text: input.text,
             limit: input.limit,
           }),
@@ -373,6 +386,12 @@ export function createTasksMcpServer(
         "Without task, creates one (title required). With task, changes only the fields given. Use discovered_from when filing work found while on another task. attach takes links to the task's source or related pages (GitHub issue or PR, Jira, Linear, any URL).",
       inputSchema: z.object({
         task: z.string().optional().describe("Key of the task to update"),
+        type: z
+          .enum(TASK_KINDS)
+          .optional()
+          .describe(
+            "task (default) or epic. An epic holds tasks and has no parent",
+          ),
         title: z.string().optional(),
         description: z.string().optional().describe(MARKDOWN),
         priority: z.enum(PRIORITIES).optional(),
@@ -402,7 +421,7 @@ export function createTasksMcpServer(
           .nullable()
           .optional()
           .describe(
-            "Key of the parent task (like an epic) it goes under; null makes it top-level",
+            "Key of the parent task or epic it goes under; null makes it top-level",
           ),
         status: z
           .enum(["backlog", "todo"])
@@ -443,6 +462,7 @@ export function createTasksMcpServer(
           ownerId,
           actor,
           task,
+          kind: input.type,
           title: input.title,
           description: input.description,
           priority: input.priority,
@@ -471,6 +491,7 @@ export function createTasksMcpServer(
         ownerId,
         actor,
         taskId,
+        kind: input.type,
         title: input.title,
         description: input.description,
         status: input.status,
@@ -1041,6 +1062,7 @@ const INLINE_LIMIT_BASE64 = Math.ceil(INLINE_PICTURE_BYTES / 3) * 4;
 function standingOf(task: TaskBrief) {
   return {
     key: task.key,
+    type: task.kind,
     title: task.title,
     status: task.status,
     state: task.state,

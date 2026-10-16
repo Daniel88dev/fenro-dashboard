@@ -195,6 +195,10 @@ import {
   type ListTasksQuery,
 } from "@/modules/tasks/application/queries/list-tasks";
 import {
+  TaskBoardHandler,
+  type TaskBoardQuery,
+} from "@/modules/tasks/application/queries/task-board";
+import {
   PictureContentHandler,
   PictureLinkHandler,
   type PictureContentQuery,
@@ -212,6 +216,7 @@ import type {
   RepositoryTasks,
   SkillItem,
   TaskCountsByRepository,
+  TaskBoard,
   TaskList,
   TaskRepositoryItem,
 } from "@/modules/tasks/application/queries/read-models";
@@ -460,6 +465,10 @@ function registerTasks(
   queryBus.register<ListTasksQuery, TaskList>(
     "tasks.list-tasks",
     new ListTasksHandler(taskReads, clock),
+  );
+  queryBus.register<TaskBoardQuery, TaskBoard>(
+    "tasks.task-board",
+    new TaskBoardHandler(taskReads, clock),
   );
   queryBus.register<ListLabelsQuery, LabelItem[]>(
     "tasks.list-labels",

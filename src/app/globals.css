@@ -56,6 +56,13 @@
   --color-neutral-wash: #efede7;
   /* Text on a solid teal fill: the brand mark, a ticked checkbox. */
   --color-on-pr: #ffffff;
+  /* Epics: their own violet, so an epic never reads as a pull request (teal),
+     an issue (rust) or a running check (amber). Used for epics only. */
+  --color-epic: #6b48c8;
+  --color-epic-strong: #55389f;
+  --color-epic-wash: #eee9fb;
+  --color-epic-line: #d9cff5;
+  --color-on-epic: #ffffff;
   /* Label dots. Graphics, not text: each clears 3:1 on a chip and a row. */
   --color-label-gray: #7a7a80;
   --color-label-red: #d1453b;
@@ -120,6 +127,11 @@
     --color-issue-wash: #3a2418;
     --color-neutral-wash: #2b2b27;
     --color-on-pr: #10231f;
+    --color-epic: #b29af6;
+    --color-epic-strong: #cfc0fb;
+    --color-epic-wash: #2b2342;
+    --color-epic-line: #4a3b78;
+    --color-on-epic: #1d1530;
     --color-label-gray: #9d9ca3;
     --color-label-red: #f07068;
     --color-label-orange: #f0934a;
@@ -161,6 +173,11 @@
   --color-issue-wash: #3a2418;
   --color-neutral-wash: #2b2b27;
   --color-on-pr: #10231f;
+  --color-epic: #b29af6;
+  --color-epic-strong: #cfc0fb;
+  --color-epic-wash: #2b2342;
+  --color-epic-line: #4a3b78;
+  --color-on-epic: #1d1530;
   --color-label-gray: #9d9ca3;
   --color-label-red: #f07068;
   --color-label-orange: #f0934a;

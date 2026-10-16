@@ -10,6 +10,7 @@ import {
   SessionEnded,
   SessionStarted,
   TaskCreated,
+  TaskKindChanged,
   TaskStatusChanged,
 } from "./events";
 import type { ExternalReference } from "./external-reference";
@@ -23,6 +24,7 @@ import {
 import type { RepositoryReference } from "./repository-reference";
 import { Session, type FinishOutcome, type SessionOutcome } from "./session";
 import { formatTaskKey } from "./task-key";
+import type { TaskKind } from "./task-kind";
 import type { LinkKind, TaskLink } from "./task-link";
 import { isOpen, type Priority, type TaskStatus } from "./task-status";
 
@@ -51,6 +53,7 @@ type Props = {
 };
 
 export type TaskState = {
+  readonly kind: TaskKind;
   readonly title: string;
   readonly description: string;
   readonly status: TaskStatus;
@@ -71,6 +74,7 @@ export type NewTask = {
   readonly id: string;
   readonly ownerId: string;
   readonly number: number;
+  readonly kind?: TaskKind;
   readonly title: string;
   readonly description?: string;
   readonly status?: "backlog" | "todo";
@@ -100,8 +104,12 @@ export type Finish = {
   readonly reason?: string;
 };
 
-/** Where a status change may be asked for; `in_progress` comes from a session. */
-export type StatusTarget = Exclude<TaskStatus, "in_progress">;
+/**
+ * Where a status change may be asked for. An agent reaches `in_progress` only
+ * by starting a session; a person may move a task there by hand, as on the
+ * board, and it waits there, paused, until an agent picks it up.
+ */
+export type StatusTarget = TaskStatus;
 
 /**
  * A piece of work, and the context it carries from one agent session to the
@@ -121,6 +129,8 @@ export type StatusTarget = Exclude<TaskStatus, "in_progress">;
  *   backlog, on hold, blocked by an open task, or — before work on it has
  *   begun — waiting on its open sub-tasks.
  * - **An append-only journal.** Entries are added, never changed.
+ * - **Epics sit at the top.** An epic holds tasks and has no parent of its
+ *   own, and nobody starts a session on one: its tasks are the work.
  *
  * Rules that span tasks — no cycle through `blocked-by` or through parents —
  * belong to `TaskGraph`, which the application layer consults before calling
@@ -147,11 +157,16 @@ export class Task extends AggregateRoot<Props> {
     if (input.parentId === input.id) {
       return err(invalidTask("A task cannot be its own parent."));
     }
+    const kind = input.kind ?? "task";
+    if (kind === "epic" && input.parentId) {
+      return err(epicWithParent("An epic"));
+    }
 
     const task = new Task(
       UniqueId.create(input.id),
       { ownerId: input.ownerId, number: input.number, createdAt: input.now },
       {
+        kind,
         title: title.value,
         description: description.value,
         status: input.status ?? "todo",
@@ -223,8 +238,32 @@ export class Task extends AggregateRoot<Props> {
     if (parentId === this.id.value) {
       return err(invalidTask("A task cannot be its own parent."));
     }
+    if (parentId && this.#state.kind === "epic") {
+      return err(epicWithParent(this.key));
+    }
     this.#state = { ...this.#state, parentId };
     this.#touch(actor, now);
+    return ok(undefined);
+  }
+
+  /**
+   * Make this an epic or a plain task. A task under a parent cannot become an
+   * epic until it is taken out from under it; an epic that becomes a task
+   * keeps its tasks as sub-tasks.
+   */
+  changeKind(kind: TaskKind, actor: Actor, now: Date): Result<void, TaskError> {
+    const from = this.#state.kind;
+    if (from === kind) return ok(undefined);
+    if (kind === "epic" && this.#state.parentId) {
+      return err(
+        invalidTask(
+          `${this.key} is a sub-task. Take it out from under its parent before making it an epic.`,
+        ),
+      );
+    }
+    this.#state = { ...this.#state, kind };
+    this.#touch(actor, now);
+    this.record(new TaskKindChanged(this.id.value, from, kind, now));
     return ok(undefined);
   }
 
@@ -379,6 +418,14 @@ export class Task extends AggregateRoot<Props> {
     now: Date,
   ): Result<Session, TaskError> {
     const { status, hold } = this.#state;
+    if (this.#state.kind === "epic") {
+      return err(
+        taskError(
+          "invalid-transition",
+          `${this.key} is an epic: its tasks are the work. Start one of them instead, or list tasks with this epic.`,
+        ),
+      );
+    }
     if (!isOpen(status)) {
       return err(
         taskError(
@@ -528,6 +575,14 @@ export class Task extends AggregateRoot<Props> {
       );
     }
     if (live && actor.kind === "agent") return err(this.#claimedBy(live));
+    if (target === "in_progress" && actor.kind === "agent") {
+      return err(
+        taskError(
+          "invalid-transition",
+          `Start ${this.key} to work on it: an agent moves a task into progress by starting a session.`,
+        ),
+      );
+    }
 
     if (!isOpen(from) && target !== "todo" && target !== "backlog") {
       return err(
@@ -599,6 +654,10 @@ export class Task extends AggregateRoot<Props> {
 
   get status(): TaskStatus {
     return this.#state.status;
+  }
+
+  get kind(): TaskKind {
+    return this.#state.kind;
   }
 
   get parentId(): string | null {
@@ -779,6 +838,12 @@ export class Task extends AggregateRoot<Props> {
       (link) => link.kind === kind && link.taskId === taskId,
     );
   }
+}
+
+function epicWithParent(subject: string): TaskError {
+  return invalidTask(
+    `${subject} sits at the top and cannot have a parent. Put tasks under the epic instead.`,
+  );
 }
 
 function checkTitle(title: string): Result<string, TaskError> {

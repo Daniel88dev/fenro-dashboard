@@ -40,6 +40,8 @@ export const task = fenro.table(
     ownerId: text("owner_id").notNull(),
     /** Per owner: T-1, T-2… */
     number: integer("number").notNull(),
+    /** `task` or `epic`; rows from before epics existed are tasks. */
+    kind: text("kind").notNull().default("task"),
     title: text("title").notNull(),
     description: text("description").notNull(),
     status: text("status").notNull(),

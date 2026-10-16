@@ -6,6 +6,7 @@ import {
   type Priority,
   type TaskEdit,
   type TaskError,
+  type TaskKind,
   type TaskRepository,
 } from "@/modules/tasks/domain";
 import type { CommandHandler } from "@/shared/application";
@@ -27,6 +28,8 @@ import {
  */
 export type UpdateTaskCommand = TaskCommand<"tasks.update-task"> & {
   readonly task: TaskReference;
+  /** Make it an epic or a plain task. */
+  readonly kind?: TaskKind;
   readonly title?: string;
   readonly description?: string;
   readonly priority?: Priority;
@@ -103,6 +106,13 @@ export class UpdateTaskHandler implements CommandHandler<UpdateTaskCommand> {
           if (!labelled.ok) return labelled;
         }
 
+        // An epic that becomes a task may then go under a parent; a task that
+        // becomes an epic must leave its parent first.
+        if (command.kind === "task") {
+          const changed = task.changeKind("task", actor, now);
+          if (!changed.ok) return changed;
+        }
+
         if (parentId !== undefined && parentId !== task.parentId) {
           if (
             parentId &&
@@ -117,6 +127,11 @@ export class UpdateTaskHandler implements CommandHandler<UpdateTaskCommand> {
           }
           const moved = task.moveUnder(parentId, actor, now);
           if (!moved.ok) return moved;
+        }
+
+        if (command.kind === "epic") {
+          const changed = task.changeKind("epic", actor, now);
+          if (!changed.ok) return changed;
         }
 
         for (const number of command.removeCriteria ?? []) {

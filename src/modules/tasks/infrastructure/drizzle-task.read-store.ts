@@ -28,6 +28,7 @@ import {
   type LinkKind,
   type Priority,
   type SessionOutcome,
+  type TaskKind,
   type TaskStatus,
 } from "@/modules/tasks/domain";
 import type { Database } from "@/shared/infrastructure/database/client";
@@ -371,6 +372,7 @@ export class DrizzleTaskReadStore implements TaskReadStore {
     return rows.map((row) => ({
       id: row.id,
       number: row.number,
+      kind: row.kind as TaskKind,
       title: row.title,
       status: row.status as TaskStatus,
       priority: row.priority as Priority,

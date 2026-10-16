@@ -3,12 +3,16 @@
 import { CaretDown, Check, TreeStructure } from "@phosphor-icons/react/ssr";
 import { useEffect, useId, useRef, useState } from "react";
 
+import type { TaskKind } from "@/modules/tasks/domain";
+
+import { TaskKindIcon } from "./task-kind";
 import { FLOATING_PANEL, useFloatingPanel } from "./floating-panel";
 
 export type ParentOption = {
   /** `T-12` */
   readonly key: string;
   readonly title: string;
+  readonly kind?: TaskKind;
 };
 
 /**
@@ -97,7 +101,8 @@ export function ParentSelect({
           className="text-ink-faint size-[15px] shrink-0"
         />
         {current ? (
-          <span className="flex min-w-0 flex-1 items-baseline gap-2">
+          <span className="flex min-w-0 flex-1 items-center gap-2">
+            {current.kind ? <TaskKindIcon kind={current.kind} /> : null}
             <span className="text-ink shrink-0 font-mono">{current.key}</span>
             <span className="text-ink-soft min-w-0 truncate">
               {current.title}
@@ -166,6 +171,7 @@ export function ParentSelect({
                 on={option.key === picked}
                 onPick={() => pick(option.key)}
               >
+                {option.kind ? <TaskKindIcon kind={option.kind} /> : null}
                 <span className="text-ink-muted w-12 shrink-0 font-mono">
                   {option.key}
                 </span>

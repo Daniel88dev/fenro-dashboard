@@ -1,0 +1,1 @@
+ALTER TABLE "fenro"."task" ADD COLUMN "kind" text DEFAULT 'task' NOT NULL;
