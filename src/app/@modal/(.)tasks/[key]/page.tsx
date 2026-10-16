@@ -4,7 +4,7 @@ import { listLabelsQuery } from "@/modules/tasks/application/queries/list-labels
 import { taskBriefQuery } from "@/modules/tasks/application/queries/task-brief";
 import { RouteDialog } from "@/modules/tasks/ui/route-dialog";
 import { TaskDialogContent } from "@/modules/tasks/ui/task-dialog";
-import { getEnv } from "@/shared/config/env";
+import { picturesEnabled } from "@/shared/infrastructure/container";
 
 import { tasksContext } from "../../../tasks/signed-in-owner";
 import { TASK_ACTIONS } from "../../../tasks/task-actions";
@@ -38,7 +38,7 @@ export default async function TaskDialogPage({
         task={task.value}
         actions={TASK_ACTIONS}
         labels={labels}
-        picturesEnabled={Boolean(getEnv().UPLOADTHING_TOKEN)}
+        picturesEnabled={picturesEnabled()}
       />
     </RouteDialog>
   );

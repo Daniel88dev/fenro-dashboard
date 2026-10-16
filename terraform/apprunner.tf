@@ -6,8 +6,8 @@
 # to an older SHA tag and starting a deployment.
 #
 # Networking: default public egress, as in flexi-day-be. The app reaches RDS
-# on its public, TLS-only endpoint and GitHub and UploadThing over the
-# internet. No VPC connector, so no NAT gateway to pay for.
+# on its public, TLS-only endpoint, GitHub over the internet, and S3 through
+# its public endpoint with the instance role. No VPC connector, so no NAT gateway to pay for.
 #
 # Created only when create_service is true: App Runner fails to create a
 # service whose image is not in ECR yet (README, "First rollout").
@@ -56,6 +56,12 @@ resource "aws_apprunner_service" "app" {
           },
           var.github_client_id != "" ? { GITHUB_CLIENT_ID = var.github_client_id } : {},
           var.github_app_slug != "" ? { GITHUB_APP_SLUG = var.github_app_slug } : {},
+          # Credentials come from the instance role, so these two are all
+          # the app needs to keep pictures in S3 (README, "Pictures").
+          var.serve_pictures_from_s3 ? {
+            PICTURES_S3_BUCKET = aws_s3_bucket.pictures.bucket
+            PICTURES_S3_REGION = var.aws_region
+          } : {},
           # SENTRY_RELEASE is baked into the image: it names the commit the
           # source maps were uploaded for.
           var.sentry_dsn != "" ? {
@@ -97,6 +103,7 @@ resource "aws_apprunner_service" "app" {
   depends_on = [
     aws_ssm_parameter.app,
     aws_iam_role_policy.apprunner_secrets,
+    aws_iam_role_policy.apprunner_pictures,
     aws_iam_role_policy_attachment.apprunner_ecr_access,
   ]
 

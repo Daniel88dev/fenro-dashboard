@@ -16,6 +16,7 @@
 # - ecr.tf: image repository and its lifecycle policy
 # - ssm.tf: SecureString parameters App Runner injects, database password
 # - iam.tf: App Runner roles and the GitHub Actions deploy role (OIDC)
+# - s3.tf: private bucket for pictures on tasks
 # - apprunner.tf: App Runner service and autoscaling
 # - dns.tf: custom domain association (www) and Route 53 records
 # - outputs.tf: output values

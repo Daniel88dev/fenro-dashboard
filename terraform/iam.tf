@@ -1,8 +1,8 @@
 # Three roles:
 #
 # 1. ECR access role: assumed by App Runner's build service to pull the image.
-# 2. Instance role: assumed by the running app; it only reads the SSM
-#    parameters injected as env vars.
+# 2. Instance role: assumed by the running app; it reads the SSM parameters
+#    injected as env vars and keeps pictures in their bucket (s3.tf).
 # 3. Deploy role: assumed by GitHub Actions through OIDC to push images and
 #    start deployments. No long-lived AWS keys live in GitHub.
 
@@ -82,6 +82,29 @@ resource "aws_iam_role_policy" "apprunner_secrets" {
         Condition = {
           StringEquals = { "kms:ViaService" = "ssm.${var.aws_region}.amazonaws.com" }
         }
+      }
+    ]
+  })
+}
+
+# Objects only, in the one bucket. ListBucket lets a missing picture read as
+# "not found" rather than "access denied"; it lists nothing the app shows.
+resource "aws_iam_role_policy" "apprunner_pictures" {
+  name = "${local.service_name}-apprunner-pictures"
+  role = aws_iam_role.apprunner_instance.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect   = "Allow"
+        Action   = ["s3:GetObject", "s3:PutObject", "s3:DeleteObject"]
+        Resource = "${aws_s3_bucket.pictures.arn}/*"
+      },
+      {
+        Effect   = "Allow"
+        Action   = ["s3:ListBucket"]
+        Resource = aws_s3_bucket.pictures.arn
       }
     ]
   })

@@ -67,5 +67,10 @@ better_auth_secret = ""
 # GitHub App beside the one Vercel uses.
 github_client_secret = ""
 
-# Optional. Empty runs the app without task pictures.
-uploadthing_token = ""
+# Pictures live in a private S3 bucket (s3.tf). Leave serve_pictures_from_s3
+# false until scripts/copy-pictures-to-s3.sh has copied the UploadThing
+# pictures over, then set it to true. Once the copy is done, empty
+# uploadthing_token and apply again (README, "Pictures").
+serve_pictures_from_s3   = false
+pictures_noncurrent_days = 30
+uploadthing_token        = ""

@@ -120,7 +120,7 @@ describe("the Pictures section", () => {
       />,
     );
 
-    expect(screen.getByText(/UPLOADTHING_TOKEN/)).toBeInTheDocument();
+    expect(screen.getByText(/PICTURES_S3_BUCKET/)).toBeInTheDocument();
     expect(
       screen.queryByRole("button", { name: /Add pictures/ }),
     ).not.toBeInTheDocument();

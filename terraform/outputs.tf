@@ -59,6 +59,17 @@ output "start_deployment_command" {
   value       = var.create_service ? "aws apprunner start-deployment --service-arn ${aws_apprunner_service.app[0].arn} --region ${var.aws_region}" : null
 }
 
+# Pictures
+output "pictures_bucket" {
+  description = "Private bucket pictures on tasks are kept in"
+  value       = aws_s3_bucket.pictures.bucket
+}
+
+output "copy_pictures_command" {
+  description = "Copies every picture from UploadThing into the bucket (run from the repository root; safe to repeat)"
+  value       = "PICTURES_S3_BUCKET=${aws_s3_bucket.pictures.bucket} ./scripts/copy-pictures-to-s3.sh"
+}
+
 # Secrets and database
 output "ssm_parameter_names" {
   description = "SecureString parameters App Runner injects, by env var"

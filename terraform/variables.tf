@@ -119,6 +119,19 @@ variable "github_app_slug" {
   default     = ""
 }
 
+# Pictures (s3.tf)
+variable "serve_pictures_from_s3" {
+  description = "Point the app at the pictures bucket. Set to true after the first run of scripts/copy-pictures-to-s3.sh (README, \"Pictures\"); until then the app keeps using UploadThing."
+  type        = bool
+  default     = false
+}
+
+variable "pictures_noncurrent_days" {
+  description = "Days a removed or replaced picture stays recoverable as an old object version"
+  type        = number
+  default     = 30
+}
+
 # Sentry (public values; the DSN reaches every browser anyway)
 variable "sentry_dsn" {
   description = "DSN of the Sentry project (Project Settings → Client Keys). Empty sends nothing to Sentry."
@@ -177,7 +190,7 @@ variable "github_client_secret" {
 }
 
 variable "uploadthing_token" {
-  description = "UploadThing token for task pictures. Empty runs the app without pictures."
+  description = "UploadThing token, only while pictures move to S3: scripts/copy-pictures-to-s3.sh reads it from SSM, and the app uses it until serve_pictures_from_s3 is true. Empty it once the copy is done (README, \"Pictures\")."
   type        = string
   sensitive   = true
   default     = ""

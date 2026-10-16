@@ -1,13 +1,13 @@
 import { signedInUserQuery } from "@/modules/identity/application/queries/signed-in-user";
-import { pictureLinkQuery } from "@/modules/tasks/application/queries/picture";
+import { pictureContentQuery } from "@/modules/tasks/application/queries/picture";
 import { getContainer } from "@/shared/infrastructure/container";
 
 import { failure, refusal } from "../responses";
 
 /**
- * One of the signed-in person's pictures: a redirect to a short-lived link
- * at the store. Pages point here rather than at the store, so a link on a
- * page never goes stale and nobody else's picture can be named.
+ * One of the signed-in person's pictures, sent by the app itself. The store
+ * stays private and is never named to the browser, and nobody else's picture
+ * can be asked for.
  */
 export async function GET(
   _request: Request,
@@ -18,14 +18,18 @@ export async function GET(
   const user = await queryBus.ask(signedInUserQuery());
   if (!user) return failure(401, "Sign in with GitHub to see pictures.");
 
-  const link = await queryBus.ask(pictureLinkQuery(user.id, id));
-  if (!link.ok) return refusal(link.error);
-  return new Response(null, {
-    status: 307,
+  const picture = await queryBus.ask(pictureContentQuery(user.id, id));
+  if (!picture.ok) return refusal(picture.error);
+  return new Response(picture.value.bytes as Uint8Array<ArrayBuffer>, {
     headers: {
-      location: link.value.url,
-      // The link inside lasts an hour; the browser may reuse it for less.
-      "cache-control": "private, max-age=600",
+      "content-type": picture.value.type,
+      "content-length": String(picture.value.bytes.byteLength),
+      "content-disposition": `inline; filename*=UTF-8''${encodeURIComponent(picture.value.name)}`,
+      // A picture is never edited, only added and removed, so the browser
+      // keeps its copy rather than asking again. Private, so no shared cache
+      // holds it, and for a week, as long as a session lasts.
+      "cache-control": "private, max-age=604800, immutable",
+      "x-content-type-options": "nosniff",
     },
   });
 }

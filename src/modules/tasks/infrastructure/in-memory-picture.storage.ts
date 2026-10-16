@@ -19,10 +19,6 @@ export class InMemoryPictureStorage implements PictureStorage {
     return { key };
   }
 
-  async link(key: string): Promise<string> {
-    return `https://pictures.test/${key}?signature=test`;
-  }
-
   async read(key: string): Promise<Uint8Array | undefined> {
     return this.files.get(key);
   }
