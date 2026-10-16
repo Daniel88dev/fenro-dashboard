@@ -7,6 +7,7 @@ import {
   type LabelRepository,
   type Priority,
   type TaskError,
+  type TaskKind,
   type TaskRepository,
 } from "@/modules/tasks/domain";
 import type { CommandHandler } from "@/shared/application";
@@ -31,6 +32,8 @@ export type CreateTaskCommand = TaskCommand<"tasks.create-task"> & {
    * the command returning anything.
    */
   readonly taskId: string;
+  /** A plain task unless asked for an epic. */
+  readonly kind?: TaskKind;
   readonly title: string;
   readonly description?: string;
   readonly status?: "backlog" | "todo";
@@ -87,6 +90,7 @@ export class CreateTaskHandler implements CommandHandler<CreateTaskCommand> {
         id: command.taskId,
         ownerId,
         number: await this.tasks.nextNumber(ownerId),
+        kind: command.kind,
         title: command.title,
         description: command.description,
         status: command.status,

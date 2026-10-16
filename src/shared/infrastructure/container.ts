@@ -212,6 +212,7 @@ import type {
   RepositoryTasks,
   SkillItem,
   TaskCountsByRepository,
+  TaskBoard,
   TaskList,
   TaskRepositoryItem,
 } from "@/modules/tasks/application/queries/read-models";
@@ -225,6 +226,10 @@ import {
   type TaskBriefQuery,
   type TaskBriefResult,
 } from "@/modules/tasks/application/queries/task-brief";
+import {
+  TaskBoardHandler,
+  type TaskBoardQuery,
+} from "@/modules/tasks/application/queries/task-board";
 import {
   TaskCountsByRepositoryHandler,
   type TaskCountsByRepositoryQuery,
@@ -463,6 +468,10 @@ function registerTasks(
   queryBus.register<ListTasksQuery, TaskList>(
     "tasks.list-tasks",
     new ListTasksHandler(taskReads, clock),
+  );
+  queryBus.register<TaskBoardQuery, TaskBoard>(
+    "tasks.task-board",
+    new TaskBoardHandler(taskReads, clock),
   );
   queryBus.register<ListLabelsQuery, LabelItem[]>(
     "tasks.list-labels",

@@ -4,6 +4,7 @@ import type {
   LabelColour,
   PictureType,
   Priority,
+  TaskKind,
   TaskStatus,
 } from "@/modules/tasks/domain";
 
@@ -113,9 +114,13 @@ export type TaskRepositoryItem = {
   readonly tasks: number;
 };
 
+/** The epic a task belongs to, named so a list can show it. */
+export type EpicMention = { readonly key: string; readonly title: string };
+
 /** One task in a list: enough to choose it, not enough to work it. */
 export type TaskListItem = {
   readonly key: string;
+  readonly kind: TaskKind;
   readonly title: string;
   readonly status: TaskStatus;
   readonly state: TaskState;
@@ -123,6 +128,13 @@ export type TaskListItem = {
   readonly labels: readonly string[];
   readonly repository: string | null;
   readonly parent: string | null;
+  /** The epic above it, however deep; null for an epic and for loose tasks. */
+  readonly epic: EpicMention | null;
+  /**
+   * For an epic: its tasks that are done, of those not cancelled. Null for a
+   * plain task, whose sub-tasks are counted in `subtasks`.
+   */
+  readonly progress: { readonly done: number; readonly total: number } | null;
   /** Keys of the open tasks it is blocked by. */
   readonly blockedBy: readonly string[];
   readonly hold: string | null;
@@ -140,8 +152,20 @@ export type TaskList = {
   readonly tasks: readonly TaskListItem[];
 };
 
+/** One status column of the board. */
+export type BoardColumn = {
+  readonly status: TaskStatus;
+  /** How many tasks are in it, of which `tasks` holds the first few. */
+  readonly total: number;
+  readonly tasks: readonly TaskListItem[];
+};
+
+/** The owner's tasks by status, cancelled ones left out. */
+export type TaskBoard = { readonly columns: readonly BoardColumn[] };
+
 export type TaskMention = {
   readonly key: string;
+  readonly kind: TaskKind;
   readonly title: string;
   readonly status: TaskStatus;
   readonly state: TaskState;
@@ -175,6 +199,7 @@ export type PictureItem = {
 export type TaskBrief = {
   readonly key: string;
   readonly id: string;
+  readonly kind: TaskKind;
   readonly title: string;
   readonly status: TaskStatus;
   readonly state: TaskState;
@@ -190,6 +215,10 @@ export type TaskBrief = {
   }[];
   readonly hold: { readonly reason: string; readonly since: string } | null;
   readonly parent: TaskMention | null;
+  /** The epic above it, however deep; null for an epic and for loose tasks. */
+  readonly epic: EpicMention | null;
+  /** For an epic: its tasks that are done, of those not cancelled. */
+  readonly progress: { readonly done: number; readonly total: number } | null;
   readonly subtasks: readonly TaskMention[];
   readonly blockedBy: readonly TaskMention[];
   readonly blocks: readonly TaskMention[];

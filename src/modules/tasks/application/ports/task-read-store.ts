@@ -6,6 +6,7 @@ import type {
   PictureType,
   Priority,
   SessionOutcome,
+  TaskKind,
   TaskStatus,
 } from "@/modules/tasks/domain";
 
@@ -102,6 +103,7 @@ export type SessionRecord = {
 export type TaskRecord = {
   readonly id: string;
   readonly number: number;
+  readonly kind: TaskKind;
   readonly title: string;
   readonly status: TaskStatus;
   readonly priority: Priority;

@@ -58,6 +58,8 @@ async function NewTaskScreen({
     );
   }
 
+  const defaults = newTaskDefaults(params);
+  const heading = defaults.kind === "epic" ? "New epic" : "New task";
   return (
     <div className="flex max-w-[1040px] flex-col gap-6">
       <header className="flex flex-col gap-2">
@@ -69,10 +71,10 @@ async function NewTaskScreen({
             Tasks
           </Link>
           <CaretRight aria-hidden="true" className="size-[11px]" />
-          <span>New task</span>
+          <span>{heading}</span>
         </nav>
         <h1 className="text-ink text-[24px] leading-tight font-semibold tracking-tight">
-          New task
+          {heading}
         </h1>
         <p className="text-ink-muted text-[13.5px]">
           What you write here is the brief an agent reads when it picks the task
@@ -81,7 +83,7 @@ async function NewTaskScreen({
       </header>
       <NewTaskForm
         action={TASK_ACTIONS.create}
-        defaults={newTaskDefaults(params)}
+        defaults={defaults}
         labels={await container.queryBus.ask(listLabelsQuery(ownerId))}
         repositories={await repositoryOptions()}
         parents={await parentOptions()}

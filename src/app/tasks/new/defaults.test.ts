@@ -22,4 +22,9 @@ describe("newTaskDefaults", () => {
       newTaskDefaults({ title: " Tidy up ", parent: ["T-3", "T-4"] }),
     ).toMatchObject({ title: "Tidy up", parent: "T-3" });
   });
+
+  it("starts as an epic from New epic", () => {
+    expect(newTaskDefaults({ type: "epic" })).toMatchObject({ kind: "epic" });
+    expect(newTaskDefaults({ type: "story" })).not.toHaveProperty("kind");
+  });
 });

@@ -45,6 +45,7 @@ import { LiveDot } from "./task-list";
 import { InlineMarkdown, Markdown } from "./markdown";
 import { PictureThumbs, PicturesSection } from "./pictures";
 import { TaskSkills } from "./task-skills";
+import { EpicProgress, kindWord, TaskKindIcon } from "./task-kind";
 import { STATE_TONES, taskHref } from "./task-state";
 
 const DATE = new Intl.DateTimeFormat("en", {
@@ -587,6 +588,7 @@ function MentionLink({ task }: { task: TaskMention }) {
       className="hover:bg-surface-sunken focus-visible:outline-pr -mx-1.5 flex min-w-0 items-center gap-2 rounded-md px-1.5 py-0.5 focus-visible:outline-2"
       title={task.title}
     >
+      {task.kind === "epic" ? <TaskKindIcon kind="epic" /> : null}
       <span className="text-ink font-mono text-[12.5px]">{task.key}</span>
       <span className="text-ink-soft min-w-0 flex-1 truncate text-[12.5px]">
         {task.title}
@@ -626,13 +628,17 @@ export function TaskTrail({
         <>
           <Link
             href={taskHref(task.parent.key)}
-            title={`Parent: ${task.parent.title}`}
+            title={`${task.parent.kind === "epic" ? "Epic" : "Parent"}: ${task.parent.title}`}
             className="hover:text-ink flex min-w-0 items-center gap-1.5"
           >
-            <TreeStructure
-              aria-hidden="true"
-              className="text-ink-faint size-[13px] shrink-0"
-            />
+            {task.parent.kind === "epic" ? (
+              <TaskKindIcon kind="epic" />
+            ) : (
+              <TreeStructure
+                aria-hidden="true"
+                className="text-ink-faint size-[13px] shrink-0"
+              />
+            )}
             <span className="font-mono">{task.parent.key}</span>
             <span className="max-w-[40ch] truncate">{task.parent.title}</span>
           </Link>
@@ -661,6 +667,17 @@ export function TaskProperties({ task }: { task: TaskBrief }) {
   const source = task.references.find((reference) => reference.isSource);
   return (
     <dl className="m-0 flex flex-col">
+      <Property label="Type">
+        <span className="flex items-center gap-2">
+          <TaskKindIcon kind={task.kind} />
+          {kindWord(task.kind)}
+        </span>
+      </Property>
+      {task.progress ? (
+        <Property label="Progress">
+          <EpicProgress progress={task.progress} pips={10} />
+        </Property>
+      ) : null}
       <Property label="Status">{STATUS_WORDS[task.status]}</Property>
       <Property label="Priority">{PRIORITY_WORDS[task.priority]}</Property>
       {task.repository ? (
@@ -668,8 +685,20 @@ export function TaskProperties({ task }: { task: TaskBrief }) {
           <span className="truncate font-mono">{task.repository}</span>
         </Property>
       ) : null}
+      {task.epic && task.epic.key !== task.parent?.key ? (
+        <Property label="Epic">
+          <Link
+            href={taskHref(task.epic.key)}
+            className="text-epic-strong flex min-w-0 items-center gap-2 hover:underline"
+          >
+            <TaskKindIcon kind="epic" />
+            <span className="font-mono text-[12.5px]">{task.epic.key}</span>
+            <span className="min-w-0 truncate">{task.epic.title}</span>
+          </Link>
+        </Property>
+      ) : null}
       {task.parent ? (
-        <Property label="Sub-task of">
+        <Property label={task.parent.kind === "epic" ? "Epic" : "Sub-task of"}>
           <MentionLink task={task.parent} />
         </Property>
       ) : null}
@@ -800,6 +829,9 @@ export function TaskDetail({
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div className="flex min-w-0 flex-col gap-2.5">
             <h1 className="text-ink text-[24px] leading-tight font-semibold tracking-tight">
+              <span className="mr-2.5 inline-block align-[-4px]">
+                <TaskKindIcon kind={task.kind} size="lg" />
+              </span>
               <span className="text-ink-faint mr-2.5 font-mono font-medium">
                 {key}
               </span>
@@ -843,7 +875,7 @@ export function TaskDetail({
             <CriteriaList task={task} actions={actions} />
 
             <Section
-              title="Sub-tasks"
+              title={task.kind === "epic" ? "Tasks in this epic" : "Sub-tasks"}
               aside={
                 open ? (
                   <Link
@@ -851,13 +883,17 @@ export function TaskDetail({
                     className="text-ink-soft hover:bg-surface-sunken focus-visible:outline-pr flex h-7 items-center gap-1.5 rounded-lg px-2.5 text-[12px] font-medium focus-visible:outline-2"
                   >
                     <Plus aria-hidden="true" className="size-[13px]" />
-                    Add sub-task
+                    {task.kind === "epic" ? "Add task" : "Add sub-task"}
                   </Link>
                 ) : null
               }
             >
               {task.subtasks.length === 0 ? (
-                <Empty>No sub-tasks.</Empty>
+                <Empty>
+                  {task.kind === "epic"
+                    ? "No tasks in this epic yet."
+                    : "No sub-tasks."}
+                </Empty>
               ) : (
                 <ul className="m-0 flex list-none flex-col gap-1 p-0">
                   {task.subtasks.map((subtask) => (

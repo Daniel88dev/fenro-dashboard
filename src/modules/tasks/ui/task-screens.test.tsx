@@ -1,8 +1,10 @@
 import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
+const push = vi.hoisted(() => vi.fn());
+
 vi.mock("next/navigation", () => ({
-  useRouter: () => ({ push: vi.fn(), prefetch: vi.fn(), back: vi.fn() }),
+  useRouter: () => ({ push, prefetch: vi.fn(), back: vi.fn() }),
 }));
 
 import type {
@@ -19,6 +21,7 @@ import { TasksPanel } from "./tasks-panel";
 
 const item: TaskListItem = {
   key: "T-2",
+  kind: "task",
   title: "Fix the lint job",
   status: "todo",
   state: "blocked",
@@ -26,6 +29,8 @@ const item: TaskListItem = {
   labels: [],
   repository: "Daniel88dev/fenro-dashboard",
   parent: "T-1",
+  epic: null,
+  progress: null,
   blockedBy: ["T-4"],
   hold: null,
   workedOnBy: null,
@@ -38,6 +43,7 @@ const item: TaskListItem = {
 const brief: TaskBrief = {
   key: "T-2",
   id: "00000000-0000-4000-8000-000000000002",
+  kind: "task",
   title: "Fix the lint job",
   status: "todo",
   state: "ready",
@@ -50,10 +56,34 @@ const brief: TaskBrief = {
     { number: 2, text: "Reviewed", met: false, evidence: null },
   ],
   hold: null,
-  parent: { key: "T-1", title: "Ship it", status: "todo", state: "waiting" },
+  parent: {
+    key: "T-1",
+    kind: "task",
+    title: "Ship it",
+    status: "todo",
+    state: "waiting",
+  },
+  epic: null,
+  progress: null,
   subtasks: [],
-  blockedBy: [{ key: "T-4", title: "Upgrade", status: "done", state: "done" }],
-  blocks: [{ key: "T-5", title: "Release", status: "todo", state: "blocked" }],
+  blockedBy: [
+    {
+      key: "T-4",
+      kind: "task",
+      title: "Upgrade",
+      status: "done",
+      state: "done",
+    },
+  ],
+  blocks: [
+    {
+      key: "T-5",
+      kind: "task",
+      title: "Release",
+      status: "todo",
+      state: "blocked",
+    },
+  ],
   relatesTo: [],
   discoveredFrom: null,
   discovered: [],
@@ -190,18 +220,50 @@ describe("TaskList", () => {
       />,
     );
 
-    const filters = screen.getByRole("navigation", { name: "Filter by label" });
-    const bug = within(filters).getByRole("link", { name: "bug" });
-    const docs = within(filters).getByRole("link", { name: "docs" });
-    expect(bug).toHaveAttribute("aria-pressed", "true");
-    expect(bug).toHaveAttribute("href", "/tasks?view=blocked");
-    expect(docs).toHaveAttribute(
-      "href",
+    fireEvent.click(screen.getByRole("button", { name: "Labels: bug" }));
+    const filters = screen.getByRole("dialog", { name: "Filter by label" });
+    const bug = within(filters).getByRole("menuitemcheckbox", { name: /bug/ });
+    const docs = within(filters).getByRole("menuitemcheckbox", {
+      name: /docs/,
+    });
+    expect(bug).toHaveAttribute("aria-checked", "true");
+    expect(docs).toHaveAttribute("aria-checked", "false");
+
+    fireEvent.click(docs);
+    expect(push).toHaveBeenLastCalledWith(
       "/tasks?view=blocked&labels=bug%2Cdocs",
+      { scroll: false },
     );
+    fireEvent.click(bug);
+    expect(push).toHaveBeenLastCalledWith("/tasks?view=blocked", {
+      scroll: false,
+    });
     expect(
       screen.getByRole("link", { name: /Fix the lint job/ }),
     ).toHaveTextContent("bug");
+  });
+
+  it("finds a label by typing", () => {
+    render(
+      <TaskList
+        list={list}
+        filter={{ view: "open", repository: "", text: "", labels: [] }}
+        labels={[
+          { name: "bug", colour: "red", openTasks: 2 },
+          { name: "docs", colour: "blue", openTasks: 1 },
+        ]}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Labels: any" }));
+    fireEvent.change(screen.getByLabelText("Find a label"), {
+      target: { value: "do" },
+    });
+    const filters = screen.getByRole("dialog", { name: "Filter by label" });
+    expect(within(filters).getAllByRole("menuitemcheckbox")).toHaveLength(1);
+    expect(
+      within(filters).getByRole("menuitemcheckbox", { name: /docs/ }),
+    ).toBeInTheDocument();
   });
 
   it("picks one repository from a searchable list, keeping the rest of the filter", () => {

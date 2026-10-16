@@ -7,8 +7,10 @@ import type { ListTasksQuery } from "@/modules/tasks/application/queries/list-ta
 import { listLabelsQuery } from "@/modules/tasks/application/queries/list-labels";
 import { listTaskRepositoriesQuery } from "@/modules/tasks/application/queries/list-task-repositories";
 import { listTasksQuery } from "@/modules/tasks/application/queries/list-tasks";
+import { taskBoardQuery } from "@/modules/tasks/application/queries/task-board";
 import {
   isTaskView,
+  parseEpicParam,
   parseLabelsParam,
   TASK_VIEWS,
   TaskList,
@@ -17,6 +19,7 @@ import {
 } from "@/modules/tasks/ui/task-list";
 
 import { signInWithGitHubAction } from "../sign-in/actions";
+import { moveTaskAction } from "./actions";
 import { SignedInAccount } from "../signed-in-account";
 import { tasksContext } from "./signed-in-owner";
 
@@ -26,6 +29,7 @@ export const metadata = {
 };
 
 const LIST_LIMIT = 100;
+const EPIC_LIMIT = 100;
 
 const VIEW_FILTERS: Record<TaskView, ListTasksQuery["filter"]> = {
   open: {},
@@ -65,6 +69,8 @@ async function TasksScreen({
     repository: one(params.repository),
     text: one(params.q),
     labels: parseLabelsParam(one(params.labels)),
+    epic: parseEpicParam(one(params.epic)),
+    layout: one(params.layout) === "board" ? "board" : "list",
   };
 
   const { container, ownerId } = await tasksContext();
@@ -77,38 +83,71 @@ async function TasksScreen({
     );
   }
 
-  const scope = {
+  const scope: ListTasksQuery["filter"] = {
     repository: filter.repository || undefined,
     text: filter.text || undefined,
     labels: filter.labels,
+    ...epicScope(filter.epic ?? ""),
   };
-  // One small count per tab, asked alongside the list itself.
-  const [labels, repositories, list, ...totals] = await Promise.all([
-    container.queryBus.ask(listLabelsQuery(ownerId)),
-    container.queryBus.ask(listTaskRepositoriesQuery(ownerId)),
-    container.queryBus.ask(
-      listTasksQuery(ownerId, {
-        ...VIEW_FILTERS[filter.view],
-        ...scope,
-        limit: LIST_LIMIT,
-      }),
-    ),
-    ...TASK_VIEWS.map(({ view }) =>
-      container.queryBus.ask(
-        listTasksQuery(ownerId, { ...VIEW_FILTERS[view], ...scope, limit: 1 }),
+  const ask = container.queryBus.ask.bind(container.queryBus);
+  const onBoard = filter.layout === "board";
+  // One small count per tab and per rail scope, asked alongside the rest.
+  const [labels, repositories, epics, content, scopeTotals, ...totals] =
+    await Promise.all([
+      ask(listLabelsQuery(ownerId)),
+      ask(listTaskRepositoriesQuery(ownerId)),
+      ask(listTasksQuery(ownerId, { kinds: ["epic"], limit: EPIC_LIMIT })),
+      onBoard
+        ? ask(taskBoardQuery(ownerId, scope))
+        : ask(
+            listTasksQuery(ownerId, {
+              ...VIEW_FILTERS[filter.view],
+              ...scope,
+              limit: LIST_LIMIT,
+            }),
+          ),
+      Promise.all(
+        (["", "epics", "none"] as const).map((rail) =>
+          ask(listTasksQuery(ownerId, { ...epicScope(rail), limit: 1 })),
+        ),
       ),
-    ),
-  ]);
-  const counts = Object.fromEntries(
-    TASK_VIEWS.map(({ view }, index) => [view, totals[index]!.total]),
-  );
+      ...(onBoard
+        ? []
+        : TASK_VIEWS.map(({ view }) =>
+            ask(
+              listTasksQuery(ownerId, {
+                ...VIEW_FILTERS[view],
+                ...scope,
+                limit: 1,
+              }),
+            ),
+          )),
+    ]);
+  const counts = onBoard
+    ? undefined
+    : Object.fromEntries(
+        TASK_VIEWS.map(({ view }, index) => [view, totals[index]!.total]),
+      );
+  const [all, epicsOnly, none] = scopeTotals.map((result) => result.total);
   return (
     <TaskList
-      list={list}
+      list={"columns" in content ? undefined : content}
+      board={"columns" in content ? content : undefined}
       filter={filter}
       counts={counts}
       labels={labels}
       repositories={repositories}
+      epics={epics.tasks}
+      scopeCounts={{ all: all!, epics: epicsOnly!, none: none! }}
+      move={moveTaskAction}
     />
   );
+}
+
+/** What the rail's scope in the URL asks of the list. */
+function epicScope(scope: string): ListTasksQuery["filter"] {
+  if (!scope) return {};
+  if (scope === "epics") return { kinds: ["epic"] };
+  if (scope === "none") return { outsideEpics: true };
+  return { epic: scope };
 }

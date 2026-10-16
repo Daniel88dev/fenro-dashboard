@@ -76,18 +76,26 @@ const READABLE_PAIRS: readonly [string, string, string][] = [
   ["surface", "pr-strong", "a link in a task dialog"],
   ["neutral-wash", "ink", "inline code in a task description"],
   ["surface-sunken", "ink", "a code block in a task description"],
+  ["surface", "epic-strong", "the epic a task belongs to, on its row or card"],
+  ["surface-raised", "epic-strong", "an epic's progress in the rail"],
+  ["epic-wash", "epic-strong", "the Epic chip on a task"],
+  ["epic", "on-epic", "the lightning in an epic's tile"],
 ];
 
 /**
  * A label's colour is a dot beside its name, so it is a graphic: WCAG asks
  * 3:1 against what it sits on, a chip or a row.
  */
-const GRAPHIC_PAIRS: readonly [string, string][] = LABEL_COLOURS.flatMap(
-  (colour) => [
+const GRAPHIC_PAIRS: readonly [string, string][] = [
+  ...LABEL_COLOURS.flatMap((colour) => [
     ["neutral-wash", `label-${colour}`] as [string, string],
     ["surface", `label-${colour}`] as [string, string],
-  ],
-);
+  ]),
+  // An epic's tile and its progress pips, on a card, a row and the rail.
+  ["surface", "epic"],
+  ["surface-raised", "epic"],
+  ["surface-sunken", "epic"],
+];
 
 /**
  * Surfaces that must not collapse into one another. The step is deliberately
