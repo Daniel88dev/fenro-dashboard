@@ -329,12 +329,12 @@ private S3 bucket made in Terraform, served through the app. Research in
   delete objects in that bucket only. Access keys exist only for the local
   stand-in.
 - **Same keys.** New pictures get a UUID key. Old ones are copied from
-  UploadThing under their existing key (`scripts/copy-pictures-to-s3.sh`), so
+  UploadThing under their existing key (a one-off script, since removed), so
   no row changes and no migration is needed.
 - **Local: S3Mock** in `compose.yaml`, because MinIO stopped publishing a free
   image.
-- UploadThing stays readable only while `PICTURES_S3_BUCKET` is unset, and
-  goes once the copy is done.
+- Once the copy was done (2026-10-16), UploadThing, its token and the copy
+  script were removed.
 
 ### Skills for agents _(2026-10-04)_
 

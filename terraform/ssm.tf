@@ -25,21 +25,18 @@ locals {
     DATABASE_URL         = "database-url"
     BETTER_AUTH_SECRET   = "better-auth-secret"
     GITHUB_CLIENT_SECRET = "github-client-secret"
-    UPLOADTHING_TOKEN    = "uploadthing-token"
   }
 
   secret_values = {
     DATABASE_URL         = local.database_url
     BETTER_AUTH_SECRET   = var.better_auth_secret
     GITHUB_CLIENT_SECRET = var.github_client_secret
-    UPLOADTHING_TOKEN    = var.uploadthing_token
   }
 
   required_secrets = ["DATABASE_URL", "BETTER_AUTH_SECRET", "GITHUB_CLIENT_SECRET"]
 
   # Which secrets are filled in is not itself secret, and for_each cannot take
-  # a sensitive value. Only these reach the service; UPLOADTHING_TOKEN is
-  # optional in the app, which hides pictures without it.
+  # a sensitive value. Only these reach the service.
   filled_secrets = toset([
     for name in keys(local.secret_slugs) : name
     if nonsensitive(local.secret_values[name] != "")

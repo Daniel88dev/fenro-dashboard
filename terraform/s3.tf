@@ -3,8 +3,8 @@
 # gets pictures through /api/pictures/<id>, and nothing here is public. So
 # the bucket needs no CORS rules and the app no access keys.
 #
-# Objects are named by the app (a UUID, or the UploadThing key a picture had
-# before the move, kept so database rows stay as they are).
+# Objects are named by the app: a UUID, or for pictures added before the
+# move to S3 (October 2026) the key UploadThing gave them.
 
 locals {
   # Bucket names are global; the account id keeps this one Fenro's.

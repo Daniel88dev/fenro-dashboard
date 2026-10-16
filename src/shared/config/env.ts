@@ -52,8 +52,8 @@ const envSchema = z.object({
    */
   GITHUB_APP_SLUG: optional(z.string()),
   /**
-   * The private S3 bucket pictures on tasks are kept in. Unset (and no
-   * UPLOADTHING_TOKEN), tasks show no pictures and nothing can be added.
+   * The private S3 bucket pictures on tasks are kept in. Unset, tasks show
+   * no pictures and nothing can be added.
    */
   PICTURES_S3_BUCKET: optional(z.string()),
   PICTURES_S3_REGION: z.string().default("eu-central-1"),
@@ -64,11 +64,6 @@ const envSchema = z.object({
   PICTURES_S3_ENDPOINT: optional(z.string().url()),
   PICTURES_S3_ACCESS_KEY_ID: optional(z.string()),
   PICTURES_S3_SECRET_ACCESS_KEY: optional(z.string()),
-  /**
-   * The UploadThing app pictures were kept in before S3. Read only while
-   * PICTURES_S3_BUCKET is unset; removed once the pictures are copied.
-   */
-  UPLOADTHING_TOKEN: optional(z.string()),
   /**
    * Where errors, traces and logs go (Sentry, Project Settings → Client
    * Keys). Public: the browser sends to it too. Unset, nothing is sent.

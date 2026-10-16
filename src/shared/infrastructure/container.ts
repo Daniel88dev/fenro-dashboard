@@ -249,7 +249,6 @@ import { DrizzleTaskRepository } from "@/modules/tasks/infrastructure/drizzle-ta
 import { HmacUploadTickets } from "@/modules/tasks/infrastructure/hmac-upload-tickets";
 import { S3PictureStorage } from "@/modules/tasks/infrastructure/s3-picture.storage";
 import { UnconfiguredPictureStorage } from "@/modules/tasks/infrastructure/unconfigured-picture.storage";
-import { UploadThingPictureStorage } from "@/modules/tasks/infrastructure/uploadthing-picture.storage";
 import { CommandBus, QueryBus, type MessageTracer } from "@/shared/application";
 import { getEnv, type Env } from "@/shared/config/env";
 import { getDatabase } from "@/shared/infrastructure/database/client";
@@ -602,10 +601,7 @@ function containerFor(
   });
 }
 
-/**
- * The S3 bucket when one is set. UploadThing only while the move to S3 is
- * under way; with neither, pictures are off.
- */
+/** The S3 bucket when one is set; otherwise pictures are off. */
 function pictureStorage(env: Env = getEnv()): PictureStorage {
   if (env.PICTURES_S3_BUCKET) {
     const accessKeyId = env.PICTURES_S3_ACCESS_KEY_ID;
@@ -620,15 +616,12 @@ function pictureStorage(env: Env = getEnv()): PictureStorage {
           : undefined,
     });
   }
-  if (env.UPLOADTHING_TOKEN) {
-    return new UploadThingPictureStorage(env.UPLOADTHING_TOKEN);
-  }
   return new UnconfiguredPictureStorage();
 }
 
 /** Whether pages offer pictures, without building a store to ask. */
 export function picturesEnabled(env: Env = getEnv()): boolean {
-  return Boolean(env.PICTURES_S3_BUCKET || env.UPLOADTHING_TOKEN);
+  return Boolean(env.PICTURES_S3_BUCKET);
 }
 
 /**
