@@ -58,10 +58,10 @@ resource "aws_apprunner_service" "app" {
           var.github_app_slug != "" ? { GITHUB_APP_SLUG = var.github_app_slug } : {},
           # Credentials come from the instance role, so these two are all
           # the app needs to keep pictures in S3 (README, "Pictures").
-          var.serve_pictures_from_s3 ? {
+          {
             PICTURES_S3_BUCKET = aws_s3_bucket.pictures.bucket
             PICTURES_S3_REGION = var.aws_region
-          } : {},
+          },
           # SENTRY_RELEASE is baked into the image: it names the commit the
           # source maps were uploaded for.
           var.sentry_dsn != "" ? {

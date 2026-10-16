@@ -171,7 +171,7 @@ export const taskLabel = fenro.table(
 );
 
 /**
- * Pictures on tasks. The bytes live in the picture store (UploadThing);
+ * Pictures on tasks. The bytes live in the picture store (an S3 bucket);
  * `storage_key` is how that store names them. Rows go with their task.
  */
 export const taskPicture = fenro.table(

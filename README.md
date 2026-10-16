@@ -355,8 +355,7 @@ What would change:
   10 connections) under the `fenro` role's limit of 20.
 - **Pictures.** Done: an S3 adapter for the `PictureStorage` port
   (`src/modules/tasks/infrastructure/s3-picture.storage.ts`), the bucket in
-  `terraform/s3.tf`, and `scripts/copy-pictures-to-s3.sh` to bring the
-  UploadThing pictures over.
+  `terraform/s3.tf`. The UploadThing pictures were copied over in October 2026.
 - **Sign-in.** Point the production GitHub App's callback at the new
   origin and update `APP_URL`. Sessions and tokens live in Postgres, so they
   survive the move as long as `BETTER_AUTH_SECRET` stays the same.

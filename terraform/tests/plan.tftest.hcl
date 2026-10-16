@@ -62,8 +62,8 @@ run "service" {
     error_message = "records"
   }
   assert {
-    condition     = !contains(keys(aws_apprunner_service.app[0].source_configuration[0].image_repository[0].image_configuration[0].runtime_environment_variables), "PICTURES_S3_BUCKET")
-    error_message = "pictures stay on UploadThing until serve_pictures_from_s3"
+    condition     = contains(keys(aws_apprunner_service.app[0].source_configuration[0].image_repository[0].image_configuration[0].runtime_environment_variables), "PICTURES_S3_BUCKET")
+    error_message = "the app always keeps pictures in S3"
   }
 }
 
@@ -76,10 +76,9 @@ run "dns" {
     github_client_secret          = "s"
     github_client_id              = "Iv1.abc"
     github_app_slug               = "fenro"
-    uploadthing_token             = "u"
   }
   assert {
-    condition     = length(aws_route53_record.cert_validation) == 1 && length(aws_ssm_parameter.app) == 4
+    condition     = length(aws_route53_record.cert_validation) == 1 && length(aws_ssm_parameter.app) == 3
     error_message = "validation records / params"
   }
   assert {
@@ -95,12 +94,11 @@ run "dns" {
 run "pictures" {
   command = apply
   variables {
-    create_service         = true
-    serve_pictures_from_s3 = true
-    better_auth_secret     = "0123456789abcdef0123456789abcdef"
-    github_client_secret   = "s"
-    github_client_id       = "Iv1.abc"
-    github_app_slug        = "fenro"
+    create_service       = true
+    better_auth_secret   = "0123456789abcdef0123456789abcdef"
+    github_client_secret = "s"
+    github_client_id     = "Iv1.abc"
+    github_app_slug      = "fenro"
   }
   assert {
     condition     = aws_s3_bucket.pictures.bucket == "fenro-dashboard-production-pictures-123456789012"

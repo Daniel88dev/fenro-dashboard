@@ -75,8 +75,7 @@ After that every change is a normal `terraform apply`.
 ## Secrets
 
 Parameters live under `/fenro/production/`: `database-url`,
-`database-password`, `better-auth-secret`, `github-client-secret` and, while
-pictures move to S3, `uploadthing-token`. App Runner injects each one as the env var of the same
+`database-password`, `better-auth-secret` and `github-client-secret`. App Runner injects each one as the env var of the same
 name in capitals, except `database-password`, which only the bootstrap reads.
 App Runner resolves them when it deploys, so after changing one, run the
 `start_deployment_command` output or the old value stays live.
@@ -99,35 +98,8 @@ and delete objects in it and nothing else, so the app holds no access keys.
 Browsers never reach the bucket: `/api/pictures/<id>` sends the bytes. At
 about 0.5 MB a picture, a thousand of them cost about a cent a month.
 
-### Moving pictures from UploadThing
-
-Run from `terraform/` unless a step says otherwise, with the same AWS profile
-as always. The copy keeps every picture's key, so no database row changes.
-
-1. **Release the code first.** Merge the change that added this section and
-   let the release workflow deploy it. Until step 4 it keeps reading
-   UploadThing, now through the app.
-2. **Create the bucket.** Leave `serve_pictures_from_s3 = false` and keep
-   `uploadthing_token` filled in, then `terraform apply`. It adds the bucket,
-   its settings and the role's access, and changes nothing the app sees.
-3. **Copy, first pass.** From the repository root run the command printed by
-   `terraform -chdir=terraform output -raw copy_pictures_command`. Add
-   `--dry-run` first to see the count. It reads the database and the token from
-   SSM, copies each picture and ends with `failed: 0`. A failure lists the
-   picture; run it again, finished ones are skipped.
-4. **Switch the app.** Set `serve_pictures_from_s3 = true` and apply. App
-   Runner redeploys with `PICTURES_S3_BUCKET` and `PICTURES_S3_REGION` set,
-   and from then on new pictures go to S3.
-5. **Copy, second pass.** Run the same command again for anything added
-   between steps 3 and 4. It should report `copied: 0` or a few.
-6. **Check.** Open a task with pictures on www.fenro-dashboard.com, and add
-   and remove one.
-7. **Drop UploadThing.** Empty `uploadthing_token` and apply: that deletes the
-   `uploadthing-token` parameter and the env var. Then delete the app at
-   uploadthing.com once you no longer want it as a fallback.
-
-Rolling back before step 7 is setting `serve_pictures_from_s3 = false`:
-pictures added in S3 meanwhile would then be missing until switched back.
+Pictures added before October 2026 were copied from UploadThing under the
+keys it gave them, so their database rows did not change.
 
 ## Deploying
 
