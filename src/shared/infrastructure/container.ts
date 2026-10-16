@@ -195,10 +195,6 @@ import {
   type ListTasksQuery,
 } from "@/modules/tasks/application/queries/list-tasks";
 import {
-  TaskBoardHandler,
-  type TaskBoardQuery,
-} from "@/modules/tasks/application/queries/task-board";
-import {
   PictureContentHandler,
   PictureLinkHandler,
   type PictureContentQuery,
@@ -230,6 +226,10 @@ import {
   type TaskBriefQuery,
   type TaskBriefResult,
 } from "@/modules/tasks/application/queries/task-brief";
+import {
+  TaskBoardHandler,
+  type TaskBoardQuery,
+} from "@/modules/tasks/application/queries/task-board";
 import {
   TaskCountsByRepositoryHandler,
   type TaskCountsByRepositoryQuery,
