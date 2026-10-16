@@ -8,11 +8,6 @@ import {
 import type { Command, CommandHandler } from "@/shared/application";
 import { ok, type Result } from "@/shared/domain";
 
-/**
- * Issue a token for an agent. The caller generates the id and the secret, so
- * it can show the secret once without the command returning anything; only
- * its hash is kept.
- */
 export type IssueAccessTokenCommand = Command<
   "identity.issue-access-token",
   AccessTokenError

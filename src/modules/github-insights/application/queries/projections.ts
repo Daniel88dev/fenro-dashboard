@@ -19,13 +19,6 @@ import {
   type ReviewState,
 } from "./read-models";
 
-/**
- * Turns stored GitHub facts into what the screen says to one person. The same
- * snapshot reads differently to its author and to a requested reviewer, which
- * is why none of this is stored.
- */
-
-/** How many items a panel lists before pointing at GitHub for the rest. */
 export const PANEL_LIMIT = 8;
 
 function isViewer(login: string | null, watcher: Watcher): boolean {
@@ -98,7 +91,6 @@ function checkSummaryFor(pullRequest: PullRequestRecord): string {
   }
 }
 
-/** A ready pull request that asks the viewer for a review. */
 function needsViewer(
   pullRequest: Pick<PullRequestRecord, "isDraft" | "requestedReviewers">,
   watcher: Watcher,
@@ -148,11 +140,6 @@ export function countsFrom(
   };
 }
 
-/**
- * What needs the viewer comes first — their review, then their own pull
- * requests that are blocked — then everything else, most recently touched
- * first.
- */
 function attention(pullRequest: PullRequestRecord, watcher: Watcher): number {
   const state = reviewStateFor(pullRequest, watcher);
   if (state === "your-review") return 0;
@@ -226,10 +213,6 @@ function passes(
   return true;
 }
 
-/**
- * Unless asked for oldest first, what is assigned to the viewer leads, then
- * whatever moved most recently.
- */
 function issueOrder(watcher: Watcher, filter: IssueFilter) {
   if (filter.order === "oldest") {
     return (one: IssueRecord, other: IssueRecord) =>
@@ -284,7 +267,6 @@ export function openIssuesFrom(
   };
 }
 
-/** "41 s", "1 m 12 s" — how the prototype writes a check's duration. */
 export function formatDuration(milliseconds: number): string {
   const seconds = Math.max(0, Math.round(milliseconds / 1000));
   if (seconds < 60) return `${seconds} s`;
@@ -311,7 +293,6 @@ function capitalise(sentence: string): string {
   return sentence.charAt(0).toUpperCase() + sentence.slice(1);
 }
 
-/** One or two plain sentences saying what stands between this and a merge. */
 export function blockingReasonFor(
   pullRequest: PullRequestRecord,
   watcher: Watcher,

@@ -29,7 +29,6 @@ import { PICTURE_TYPES } from "@/modules/tasks/domain";
 import type { TaskAction } from "./task-forms";
 import { EMPTY_FORM_STATE } from "./task-form-state";
 
-/** Where a picture loads from: the app checks the owner, then redirects. */
 export function pictureSrc(picture: Pick<PictureItem, "id">): string {
   return `/api/pictures/${picture.id}`;
 }
@@ -39,7 +38,6 @@ export function formatBytes(bytes: number): string {
   return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
 }
 
-/** "claude-code, session 3" or "Daniel". */
 export function addedByLine(picture: PictureItem): string {
   return picture.session
     ? `${picture.addedBy}, session ${picture.session}`
@@ -55,28 +53,20 @@ const TILE_FRAME =
 const TILE_BUTTON =
   "group focus-visible:outline-pr flex min-w-0 cursor-zoom-in flex-col gap-1.5 rounded-lg text-left focus-visible:outline-2 focus-visible:outline-offset-2";
 
-// --- Uploading -----------------------------------------------------------------
-
 type Upload = {
   readonly id: string;
   readonly name: string;
-  /** A local preview while the bytes travel. */
   readonly preview: string;
   readonly progress: number;
   readonly error: string | null;
 };
 
 /**
- * Pasting a picture adds it to the task on screen. When a task dialog opens
- * over a task page both are mounted, and only the one on top should take it.
+ * When a task dialog opens over a task page both are mounted, and only the one
+ * on top should take a paste.
  */
 const pasteTargets: symbol[] = [];
 
-/**
- * Sends files to the task one request each, with progress, and refreshes the
- * page as each lands. What failed stays on screen with the reason until it
- * is dismissed.
- */
 function usePictureUploads(taskKey: string) {
   const router = useRouter();
   const [, startTransition] = useTransition();
@@ -158,7 +148,6 @@ function usePictureUploads(taskKey: string) {
     [taskKey, change, dismiss, router],
   );
 
-  // Pasting a picture anywhere on the page adds it.
   useEffect(() => {
     const me = Symbol(taskKey);
     pasteTargets.push(me);
@@ -181,7 +170,6 @@ function usePictureUploads(taskKey: string) {
   return { uploads, add, dismiss };
 }
 
-/** Dropping files anywhere on the element adds them. */
 function useDropZone(add: (files: readonly File[]) => void) {
   const [over, setOver] = useState(false);
   const carriesFiles = (event: DragEvent) =>
@@ -243,8 +231,6 @@ function FilePicker({
     </>
   );
 }
-
-// --- Tiles ---------------------------------------------------------------------
 
 function PictureTile({
   picture,
@@ -390,13 +376,6 @@ function Count({ count }: { count: number }) {
   ) : null;
 }
 
-// --- The task page and the dialog --------------------------------------------
-
-/**
- * The task page's Pictures section: every picture as a tile, newest last,
- * and three ways to add more: the button, dropping files on the section,
- * and pasting anywhere on the page.
- */
 export function PicturesSection({
   taskKey,
   pictures,
@@ -406,7 +385,6 @@ export function PicturesSection({
   taskKey: string;
   pictures: readonly PictureItem[];
   removeAction: TaskAction;
-  /** False when the app has no picture store configured. */
   enabled: boolean;
 }) {
   const { uploads, add, dismiss } = usePictureUploads(taskKey);
@@ -462,10 +440,8 @@ export function PicturesSection({
   );
 }
 
-/** How many pictures the task dialog shows before sending you to the page. */
 const STRIP = 3;
 
-/** The task dialog's short row of the newest pictures, and a way to add. */
 export function PictureStrip({
   taskKey,
   pictures,
@@ -537,7 +513,6 @@ export function PictureStrip({
   );
 }
 
-/** Small thumbnails, as in a journal line, that open the viewer. */
 export function PictureThumbs({
   taskKey,
   pictures,
@@ -546,7 +521,6 @@ export function PictureThumbs({
 }: {
   taskKey: string;
   pictures: readonly PictureItem[];
-  /** Every picture on the task, so the viewer can step through them. */
   all: readonly PictureItem[];
   removeAction: TaskAction;
 }) {
@@ -583,8 +557,6 @@ export function PictureThumbs({
   );
 }
 
-// --- The viewer ------------------------------------------------------------------
-
 const VIEWER_BUTTON =
   "border-bar-active bg-bar-active text-bar-ink hover:border-bar-ink-muted focus-visible:outline-bar-ink inline-flex h-[34px] cursor-pointer items-center gap-1.5 rounded-lg border px-3 text-[12.5px] font-medium whitespace-nowrap focus-visible:outline-2 disabled:cursor-wait disabled:opacity-70";
 const VIEWER_ICON =
@@ -597,10 +569,6 @@ const VIEWER_ICON =
  */
 const NARROWEST_FIT = 0.6;
 
-/**
- * Whether a picture should scroll rather than shrink to fit: true when fitting
- * all of it on screen would leave it too narrow to read.
- */
 export function scrollsInViewer(
   picture: { readonly width: number; readonly height: number },
   stage: { readonly width: number; readonly height: number },
@@ -615,7 +583,6 @@ export function scrollsInViewer(
   return picture.width * fit < readable * NARROWEST_FIT;
 }
 
-/** The picture itself, fitted to the space, or full width and scrolling. */
 function PictureStage({ picture }: { picture: PictureItem }) {
   const stage = useRef<HTMLDivElement>(null);
   const image = useRef<HTMLImageElement>(null);
@@ -670,11 +637,7 @@ function PictureStage({ picture }: { picture: PictureItem }) {
   );
 }
 
-/**
- * One picture, large, over everything: the arrows (or arrow keys) step
- * through the task's pictures, Escape closes. Dark in both schemes, as a
- * picture reads best on a dark surround.
- */
+/** Dark in both schemes, as a picture reads best on a dark surround. */
 export function PictureViewer({
   pictures,
   index,
@@ -704,7 +667,6 @@ export function PictureViewer({
     if (!picture && element.open) element.close();
   }, [picture]);
 
-  // A removal that went through closes the viewer; the list refreshes.
   const removed = useRef(state.saved);
   useEffect(() => {
     if (state.saved === removed.current) return;

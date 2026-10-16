@@ -1,41 +1,24 @@
 name: Release
 
-# Ships main to App Runner once CI has passed on it: builds the image, pushes
-# it to ECR as :<commit sha> and :latest, then starts an App Runner deployment
-# of :latest and ends. It does not wait for the deployment: polling App Runner
-# for its few minutes kept the job billing Actions minutes, so a deployment
-# that fails or rolls back inside App Runner shows in the service's event log,
-# not here. Database migrations are not run here; they
-# are applied by hand before merging a change that adds one (README,
-# "AWS App Runner").
+# It does not wait for the App Runner deployment: polling kept the job billing
+# Actions minutes, so a deployment that fails or rolls back shows in the
+# service's event log, not here. Migrations are not run here; they are applied
+# by hand before merging a change that adds one (README, "AWS App Runner").
 #
-# Repository variables (Settings → Secrets and variables → Actions → Variables):
-#   AWS_REGION              e.g. eu-central-1
-#   AWS_ROLE_ARN            the OIDC role this workflow assumes
-#   ECR_REPOSITORY          the ECR repository name, e.g. fenro-dashboard
-#   APP_RUNNER_SERVICE_ARN  the service to deploy; required, the release fails
-#                           without it so an undeployed image never looks green
-#   SENTRY_ORG              the Sentry organization slug, e.g. fenro
-#   SENTRY_PROJECT          the Sentry project slug, e.g. fenro-dashboard
-#
-# Repository secret (Settings → Secrets and variables → Actions → Secrets):
-#   SENTRY_AUTH_TOKEN       a Sentry organization token; unset, the image is
-#                           built without uploading source maps
+# APP_RUNNER_SERVICE_ARN is required: the release fails without it so an
+# undeployed image never looks green.
 
 on:
   workflow_run:
     workflows: [CI]
     types: [completed]
     branches: [main]
-  # Redeploys main by hand, for example after the first `terraform apply`.
   workflow_dispatch:
 
 permissions:
   contents: read
   id-token: write
 
-# One release at a time, in order: a newer push waits rather than cancelling a
-# release that is still building or pushing.
 concurrency:
   group: release
   cancel-in-progress: false
@@ -99,7 +82,6 @@ jobs:
         run: |
           set -euo pipefail
           docker buildx create --use --name release
-          # Source maps go to Sentry only when the token is set.
           sentry_secret=()
           if [ -n "${SENTRY_AUTH_TOKEN}" ]; then
             sentry_secret=(--secret id=sentry_auth_token,env=SENTRY_AUTH_TOKEN)

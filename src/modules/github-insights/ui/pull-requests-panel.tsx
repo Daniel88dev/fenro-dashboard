@@ -24,10 +24,6 @@ export type PullRequestView = {
   readonly expanded: boolean;
   readonly href: string;
   readonly checksId: string;
-  /**
-   * The checks view, rendered by the caller behind its own loading and error
-   * states, so an open pull request streams in without holding up the panel.
-   */
   readonly checks: ReactNode;
 };
 

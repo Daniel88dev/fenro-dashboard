@@ -240,10 +240,6 @@ type Content = {
   mimeType?: string;
 };
 
-/**
- * A bare JSON-RPC client over the SDK's in-memory transport: the agent's side
- * of the conversation, without pulling in the client package for a test.
- */
 async function connect(access: AgentAccess) {
   const [agentSide, serverSide] = InMemoryTransport.createLinkedPair();
   const pending = new Map<number, (message: JSONRPCMessage) => void>();
@@ -354,7 +350,6 @@ describe("the tasks MCP server", () => {
   it("lets an agent label tasks, make labels, and filter by them", async () => {
     const agentSide = await connect(agent("labeller"));
 
-    // A name nobody made yet is made on the spot, in one call.
     parse(
       await agentSide.call("save_task", {
         title: "Fix sign-in",
@@ -434,8 +429,6 @@ describe("the tasks MCP server", () => {
       blocked_by: ["T-2"],
     });
 
-    // The parent waits on its sub-task and T-3 on its blocker: only T-2 is
-    // ready, so starting "whatever is next" lands there.
     const ready = parse<TaskList>(
       await planner.call("list_tasks", { ready: true }),
     );
@@ -537,8 +530,6 @@ describe("the tasks MCP server", () => {
     await planner.call("save_task", { title: "Parent" });
     await planner.call("save_task", { title: "Child", parent: "T-1" });
 
-    // The parent cannot finish before its child, so a child blocked by its
-    // parent would wait forever.
     const cycle = await planner.call("link_tasks", {
       task: "T-2",
       kind: "blocked_by",
@@ -638,7 +629,6 @@ describe("the tasks MCP server", () => {
     );
     expect(offer.run).toContain("curl -fsS -T");
     expect(offer.run).toContain(offer.upload_url);
-    // Asking for a link adds nothing yet.
     expect(storage.files.size).toBe(0);
 
     const ticket = offer.upload_url.split("/").pop()!;
@@ -717,8 +707,6 @@ describe("the tasks MCP server", () => {
     const missing = await author.call("save_skill", { name: "half-done" });
     expect(missing.isError).toBe(true);
 
-    // Changing the text without saying which revision was read is refused,
-    // and so is a revision someone else has moved past.
     const blind = await author.call("save_skill", {
       skill: "reviews",
       instructions: "Read the diff once.",
@@ -849,7 +837,6 @@ describe("the tasks MCP server", () => {
   });
 });
 
-/** The smallest bytes that read as a PNG: its signature and a little more. */
 const PNG = new Uint8Array([
   0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 13,
 ]);

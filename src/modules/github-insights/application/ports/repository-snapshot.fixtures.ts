@@ -4,8 +4,6 @@ import type {
   RepositorySnapshot,
 } from "./repository-snapshot";
 
-/** Builders for tests: one plausible record, overridden where a test cares. */
-
 const t = new Date("2026-09-20T12:00:00Z");
 
 export function aPullRequest(

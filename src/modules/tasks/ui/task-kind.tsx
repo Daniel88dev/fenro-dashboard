@@ -9,9 +9,8 @@ export function kindWord(kind: TaskKind): string {
 }
 
 /**
- * The tile before a task's key: a neutral tick for a task, a lightning bolt on
- * the epic violet for an epic. The violet means "epic" and nothing else, so an
- * epic stands out from the teal and rust that already mean things here.
+ * The violet means "epic" and nothing else: teal and rust already mean things
+ * here.
  */
 export function TaskKindIcon({
   kind,
@@ -44,7 +43,6 @@ export function TaskKindIcon({
   );
 }
 
-/** The epic a task belongs to, as a quiet line in its facts. */
 export function EpicTag({ title }: { title: string }) {
   return (
     <span className="text-epic-strong inline-flex min-w-0 items-center gap-1">
@@ -55,16 +53,12 @@ export function EpicTag({ title }: { title: string }) {
   );
 }
 
-/**
- * How far an epic has got: one pip per task, filled when done, with the same
- * fact in words beside it so the colour is never the only signal.
- */
+/** The same fact in words beside the pips, so colour is never the only signal. */
 export function EpicProgress({
   progress,
   pips = 12,
 }: {
   progress: { readonly done: number; readonly total: number };
-  /** Past this many tasks the pips stop; the words still count them all. */
   pips?: number;
 }) {
   const { done, total } = progress;

@@ -13,7 +13,6 @@ const DOTS: Record<LabelColour, string> = {
   pink: "bg-label-pink",
 };
 
-/** The fill for a colour, for anything larger than a dot: a swatch. */
 export function labelFill(colour: LabelColour): string {
   return DOTS[colour];
 }
@@ -23,10 +22,6 @@ export type LabelOption = {
   readonly colour: LabelColour;
 };
 
-/**
- * A name's colour from the catalogue. A name not in it yet (just typed into
- * a picker) gets the colour it will be given when saved.
- */
 export function colourOf(
   catalogue: readonly LabelOption[],
   name: string,
@@ -47,10 +42,8 @@ export function LabelDot({ colour }: { colour: LabelColour }) {
 }
 
 /**
- * A label as it is shown everywhere: its name on the neutral chip, and the
- * colour only in a dot beside it. The accents keep their one meaning (teal
- * for pull requests and healthy, rust for issues and stale); a label never
- * borrows them for its text.
+ * The colour goes only in the dot: the accents keep their one meaning (teal for
+ * pull requests and healthy, rust for issues and stale).
  */
 export function LabelChip({
   name,

@@ -12,7 +12,6 @@ import {
   updateTaskAction,
 } from "./actions";
 
-/** The tasks screens' server actions, handed to the UI as one object. */
 export const TASK_ACTIONS: TaskActions = {
   create: createTaskAction,
   update: updateTaskAction,

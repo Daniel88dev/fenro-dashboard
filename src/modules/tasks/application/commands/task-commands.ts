@@ -12,8 +12,7 @@ import type { Command } from "@/shared/application";
 import { err, ok, type Result } from "@/shared/domain";
 
 /**
- * What every tasks command carries: whose task list it acts on, and who is
- * acting. The owner comes from the signed-in person or the access token, never
+ * The owner comes from the signed-in person or the access token, never
  * from the agent's own arguments.
  */
 export type TaskCommand<TType extends string> = Command<TType, TaskError> & {
@@ -21,7 +20,6 @@ export type TaskCommand<TType extends string> = Command<TType, TaskError> & {
   readonly actor: Actor;
 };
 
-/** A task named the way people and agents name it: `T-12`, or its id. */
 export type TaskReference = string;
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -42,14 +40,8 @@ export async function findTask(
   return task ? ok(task) : err(taskNotFound(trimmed));
 }
 
-/** How many times a change is retried when another request saved first. */
 const ATTEMPTS = 3;
 
-/**
- * Load a task, change it, save it — and when another request saved the same
- * task in between, do it all again on the fresh copy. Two agents noting on one
- * task at once both land; neither sees an error it could do nothing about.
- */
 export async function changeTask(
   tasks: TaskRepository,
   ownerId: string,

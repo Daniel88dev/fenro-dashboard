@@ -23,7 +23,6 @@ import { colourOf, LabelDot, type LabelOption } from "./labels";
 import { EpicProgress, EpicTag, TaskKindIcon } from "./task-kind";
 import { STATE_TONES, taskHref } from "./task-state";
 
-/** A card moved to another column: the server says whether it may go. */
 export type MoveTask = (
   task: string,
   status: TaskStatus,
@@ -75,13 +74,6 @@ function moved(columns: readonly BoardColumn[], move: Move): BoardColumn[] {
   });
 }
 
-/**
- * Tasks by status. A card is dragged to another column, or moved with its
- * menu, which is also the way on a phone and from the keyboard. Each move is
- * `tasks.change-status`: the card moves at once, and if the domain refuses
- * (open tasks under an epic, unmet criteria, a closed task skipping its
- * reopening) it goes back and the refusal is said above the board.
- */
 export function TaskBoard({
   columns,
   labels,
@@ -306,7 +298,7 @@ function CardFacts({
   );
 }
 
-/** The card's own way to move: the path for touch screens and keyboards. */
+/** The way to move a card on touch screens and from the keyboard. */
 function MoveMenu({
   task,
   className,

@@ -17,11 +17,6 @@ import { watchedRepository } from "./persistence/schema";
 
 type Row = typeof watchedRepository.$inferSelect;
 
-/**
- * `WatchedRepository` in Postgres, with optimistic concurrency: the version a
- * repository was loaded at is remembered beside it, and a save only lands if
- * the row still has that version. The domain never sees a version number.
- */
 export class DrizzleWatchedRepositoryRepository implements WatchedRepositoryRepository {
   readonly #loadedVersions = new WeakMap<WatchedRepository, number>();
 
@@ -154,13 +149,11 @@ function toValues(repository: WatchedRepository) {
   };
 }
 
-/** Anything this version does not recognise reads as a plain failure. */
 function failureKind(value: string | null): SyncFailureKind | null {
   if (value === null) return null;
   return value === "rate-limited" ? "rate-limited" : "failed";
 }
 
-/** Anything this version does not recognise is read from GitHub. */
 function sourceOf(value: string): RepositorySource {
   return value === "manual" ? "manual" : "github";
 }

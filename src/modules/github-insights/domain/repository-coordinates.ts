@@ -10,10 +10,6 @@ type Props = {
 const OWNER = /^[A-Za-z0-9](?:[A-Za-z0-9-]{0,38})$/;
 const NAME = /^[A-Za-z0-9._-]{1,100}$/;
 
-/**
- * Owner and repository name, validated. The only place an `owner/name` string
- * is parsed, so no other layer has to guess what a repository is called.
- */
 export class RepositoryCoordinates extends ValueObject<Props> {
   private constructor(props: Props) {
     super(props);
@@ -50,7 +46,6 @@ export class RepositoryCoordinates extends ValueObject<Props> {
     );
   }
 
-  /** Parse the `owner/name` form people type and paste. */
   static parse(
     value: string,
   ): Result<RepositoryCoordinates, InvalidCoordinates> {

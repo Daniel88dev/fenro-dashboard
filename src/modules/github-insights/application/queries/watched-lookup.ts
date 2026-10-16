@@ -10,11 +10,8 @@ import {
 } from "@/modules/github-insights/domain";
 import { err, isErr, ok, type Result } from "@/shared/domain";
 
-/**
- * A panel names its repository by `owner/name`, from the URL. It only reads
- * what this watcher watches, so another user's snapshot is never one guess of
- * a URL away.
- */
+// Only reads what this watcher watches, so another user's snapshot is never
+// one guessed URL away.
 export async function findWatched(
   repositories: WatchedRepositoryRepository,
   watcher: Watcher,

@@ -1,23 +1,11 @@
-# Production image for App Runner: Next.js standalone output on Node 24.
-#
-#   docker build -t fenro-dashboard .
-#   docker run --rm -p 3000:3000 --env-file .env.production fenro-dashboard
-#
-# Nothing secret is baked in. DATABASE_URL, BETTER_AUTH_SECRET and the rest of
-# .env.example are read when the server starts, so one image runs anywhere.
-#
-# The release build also uploads source maps to Sentry (release.yml):
-#   docker build --build-arg SENTRY_RELEASE=<sha> \
-#     --build-arg SENTRY_ORG=<org> --build-arg SENTRY_PROJECT=<project> \
-#     --secret id=sentry_auth_token,env=SENTRY_AUTH_TOKEN .
-# Without the secret nothing is uploaded and the image is otherwise the same.
+# Nothing secret is baked in: .env.example's values are read when the server
+# starts, so one image runs anywhere.
 
 ARG NODE_IMAGE=node:24-alpine
 
 FROM ${NODE_IMAGE} AS base
 ENV NEXT_TELEMETRY_DISABLED=1 \
     COREPACK_ENABLE_DOWNLOAD_PROMPT=0
-# Corepack installs the pnpm pinned in package.json's packageManager.
 RUN corepack enable
 WORKDIR /app
 
@@ -51,9 +39,7 @@ ENV NODE_ENV=production \
 ADD --chmod=644 https://truststore.pki.rds.amazonaws.com/global/global-bundle.pem /etc/ssl/certs/rds-global-bundle.pem
 ENV NODE_EXTRA_CA_CERTS=/etc/ssl/certs/rds-global-bundle.pem
 
-# Events carry the commit this image was built from, the release its source
-# maps were uploaded under. Declared here so a new commit leaves the layers
-# above cached.
+# Declared this late so a new commit leaves the layers above cached.
 ARG SENTRY_RELEASE
 ENV SENTRY_RELEASE=${SENTRY_RELEASE}
 

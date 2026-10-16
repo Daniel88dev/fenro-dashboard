@@ -6,7 +6,6 @@ import { RowSyncIndicator, SyncProgressBar, SyncStatus } from "./sync-status";
 
 const now = new Date("2026-09-23T12:00:00Z");
 
-/** An action that stays pending until the test lets it finish. */
 function deferredAction() {
   const pending: (() => void)[] = [];
   const action = vi.fn(
@@ -91,7 +90,6 @@ describe("SyncStatus", () => {
     const { rerender } = render(<Screen action={action} dueIds={["repo-2"]} />);
     await finish();
 
-    // GitHub failed, so the server still calls the row due.
     rerender(<Screen action={action} dueIds={["repo-2"]} />);
 
     expect(action).toHaveBeenCalledTimes(1);

@@ -9,20 +9,10 @@ import type {
 } from "@/modules/tasks/domain";
 
 /**
- * What the tasks context answers with: plain objects with ISO-string times, so
- * they cross the React Server Component boundary and serialise to an agent
- * as they are.
+ * Plain objects with ISO-string times, so they cross the React Server
+ * Component boundary and serialise to an agent as they are.
  */
 
-/**
- * Where a task stands, all things considered: its status, whether anything
- * holds it back, whether an agent is on it. The one word a list shows.
- *
- * - `ready`: todo, nothing blocking, nobody on it — the next thing to pick up.
- * - `paused`: in progress, but no session is running; ready to resume.
- * - `waiting`: todo, but its sub-tasks come first.
- * - `blocked`: on hold, or blocked by an open task.
- */
 export type TaskState =
   | "backlog"
   | "ready"
@@ -34,41 +24,26 @@ export type TaskState =
   | "done"
   | "cancelled";
 
-/**
- * One of the owner's labels. Tasks carry label names; this is where a name's
- * colour comes from, and how many tasks carry it.
- */
 export type LabelItem = {
   readonly name: string;
   readonly colour: LabelColour;
-  /** Open tasks carrying it. */
   readonly openTasks: number;
-  /** All tasks carrying it, closed ones too. */
   readonly tasks: number;
-  /** Names of the skills it brings to the tasks carrying it, by name. */
   readonly skills: readonly string[];
 };
 
-// --- Skills -------------------------------------------------------------------
-
-/** One of the owner's skills in a list: enough to choose it, not its text. */
 export type SkillItem = {
   readonly id: string;
   readonly name: string;
-  /** When to use it. */
   readonly description: string;
-  /** The labels it applies through, by name. */
   readonly labels: readonly string[];
-  /** Counts changes to the name, description or instructions. */
   readonly revision: number;
-  /** Open tasks carrying one of its labels: the ones it applies to now. */
   readonly openTasks: number;
   readonly updatedBy: string;
   readonly updatedByKind: "agent" | "human";
   readonly updatedAt: string;
 };
 
-/** The text a skill had at one revision, and who wrote it. */
 export type SkillRevisionItem = {
   readonly revision: number;
   readonly name: string;
@@ -80,44 +55,29 @@ export type SkillRevisionItem = {
 };
 
 export type SkillDetail = SkillItem & {
-  /** Markdown. */
   readonly instructions: string;
   readonly createdBy: string;
   readonly createdByKind: "agent" | "human";
   readonly createdAt: string;
-  /** The latest revisions, newest first; the first is the current text. */
   readonly revisions: readonly SkillRevisionItem[];
 };
 
-/**
- * A skill that applies to a task because the task carries one of its labels.
- * `instructions` is the Markdown to follow, or null when the brief was asked
- * for without it, or when the brief's budget for instructions ran out: then
- * fetch the skill by name.
- */
 export type BriefSkill = {
   readonly name: string;
   readonly description: string;
-  /** The task's labels that brought it in. */
   readonly via: readonly string[];
   readonly revision: number;
   readonly instructions: string | null;
 };
 
-/** A repository the owner's tasks name, offered as a filter. */
 export type TaskRepositoryItem = {
-  /** `owner/name`, as the tasks spell it. */
   readonly name: string;
-  /** Open tasks naming it. */
   readonly openTasks: number;
-  /** All tasks naming it, closed ones too. */
   readonly tasks: number;
 };
 
-/** The epic a task belongs to, named so a list can show it. */
 export type EpicMention = { readonly key: string; readonly title: string };
 
-/** One task in a list: enough to choose it, not enough to work it. */
 export type TaskListItem = {
   readonly key: string;
   readonly kind: TaskKind;
@@ -128,17 +88,10 @@ export type TaskListItem = {
   readonly labels: readonly string[];
   readonly repository: string | null;
   readonly parent: string | null;
-  /** The epic above it, however deep; null for an epic and for loose tasks. */
   readonly epic: EpicMention | null;
-  /**
-   * For an epic: its tasks that are done, of those not cancelled. Null for a
-   * plain task, whose sub-tasks are counted in `subtasks`.
-   */
   readonly progress: { readonly done: number; readonly total: number } | null;
-  /** Keys of the open tasks it is blocked by. */
   readonly blockedBy: readonly string[];
   readonly hold: string | null;
-  /** The agent or person with a live session on it. */
   readonly workedOnBy: string | null;
   readonly subtasks: { readonly open: number; readonly total: number };
   readonly criteria: { readonly met: number; readonly total: number };
@@ -147,20 +100,16 @@ export type TaskListItem = {
 };
 
 export type TaskList = {
-  /** How many matched, of which `tasks` holds the first `limit`. */
   readonly total: number;
   readonly tasks: readonly TaskListItem[];
 };
 
-/** One status column of the board. */
 export type BoardColumn = {
   readonly status: TaskStatus;
-  /** How many tasks are in it, of which `tasks` holds the first few. */
   readonly total: number;
   readonly tasks: readonly TaskListItem[];
 };
 
-/** The owner's tasks by status, cancelled ones left out. */
 export type TaskBoard = { readonly columns: readonly BoardColumn[] };
 
 export type TaskMention = {
@@ -179,7 +128,6 @@ export type JournalItem = {
   readonly recordedAt: string;
 };
 
-/** A picture on a task. Its bytes are behind get_picture, or /api/pictures/<id>. */
 export type PictureItem = {
   readonly id: string;
   readonly name: string;
@@ -191,11 +139,6 @@ export type PictureItem = {
   readonly addedAt: string;
 };
 
-/**
- * Everything the next session needs to pick a task up: what it is, how to know
- * it is finished, what stands in its way, and what earlier sessions learned.
- * Derived on every read rather than stored (ticket 08).
- */
 export type TaskBrief = {
   readonly key: string;
   readonly id: string;
@@ -215,9 +158,7 @@ export type TaskBrief = {
   }[];
   readonly hold: { readonly reason: string; readonly since: string } | null;
   readonly parent: TaskMention | null;
-  /** The epic above it, however deep; null for an epic and for loose tasks. */
   readonly epic: EpicMention | null;
-  /** For an epic: its tasks that are done, of those not cancelled. */
   readonly progress: { readonly done: number; readonly total: number } | null;
   readonly subtasks: readonly TaskMention[];
   readonly blockedBy: readonly TaskMention[];
@@ -240,43 +181,31 @@ export type TaskBrief = {
     readonly live: boolean;
   } | null;
   readonly sessions: number;
-  /** The summary the last session left. Read this first. */
   readonly latestHandoff: JournalItem | null;
-  /** Every decision ever recorded: they stay true until a later one says not. */
   readonly decisions: readonly JournalItem[];
-  /** The most recent entries of any kind, oldest first. */
   readonly recentJournal: readonly JournalItem[];
   readonly journalEntries: number;
-  /** Oldest first: designs, screenshots, anything someone showed. */
   readonly pictures: readonly PictureItem[];
-  /**
-   * The skills linked to the task's own labels, each once, by name. Follow
-   * them while working the task; the task's own words win where they differ.
-   */
   readonly skills: readonly BriefSkill[];
   readonly createdAt: string;
   readonly updatedAt: string;
 };
 
-// --- The repository table ---------------------------------------------------
-
 export type TaskCount = {
   readonly total: number;
   readonly running: number;
-  /** "1 running", "none running", "no tasks" */
   readonly hint: string;
 };
 
 /**
- * Open tasks per repository, keyed by `owner/name` in lower case: GitHub
- * names are case-insensitive, and the route joins on this key.
+ * Keyed by `owner/name` in lower case: GitHub names are case-insensitive,
+ * and the route joins on this key.
  */
 export type TaskCountsByRepository = Readonly<Record<string, TaskCount>>;
 
 export type TaskSummary = {
   readonly id: string;
   readonly title: string;
-  /** "Session 1 running, 6 min in" */
   readonly lastActivity: string;
   readonly state: TaskState;
   readonly contextItems: number;

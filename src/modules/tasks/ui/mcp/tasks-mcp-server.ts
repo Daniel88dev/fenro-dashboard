@@ -47,34 +47,18 @@ import {
 import type { CommandBus, QueryBus } from "@/shared/application";
 import { ok, type Result } from "@/shared/domain";
 
-/** Who is calling and what they may do, from the token they presented. */
 export type AgentAccess = {
   readonly ownerId: string;
   readonly actor: Extract<Actor, { kind: "agent" }>;
   readonly canWrite: boolean;
 };
 
-/**
- * What the task page renders, told to the agent once in the instructions and
- * again, briefly, on each field that takes it. People read these fields on
- * the task page, so structure pays; raw HTML is dropped, not rendered.
- */
 export const FORMATTING = `Formatting: descriptions, notes, handoff summaries, criteria and evidence are GitHub-flavoured Markdown, shown rendered to the person on the task page. Use short paragraphs, "## " headings to split a long description (Context, What to build, Out of scope), "- " lists (indent two spaces to nest), \`code\` for paths, identifiers and commands, fenced code blocks with a language, tables for comparisons, "> " for quotes, and "- [ ] " for a checklist. A single newline is a line break. HTML is not rendered. Put each acceptance criterion in add_criteria, not as a checklist in the description, so it can be checked off.`;
 
 const MARKDOWN = "GitHub-flavoured Markdown, rendered for people";
 
-/**
- * Pictures carry what text cannot: a design from a prototype, a screenshot of
- * a bug. They are shown to the person on the task page, and the next session
- * can look at them.
- */
 export const PICTURES = `Pictures: a task can carry PNG, JPEG, WebP or GIF pictures up to 4 MB, such as a design from a prototype or a screenshot of a bug. attach_picture adds one: it returns an upload link, and you send the file with the curl command it gives. get_task lists a task's pictures, and get_picture shows you one.`;
 
-/**
- * Skills are prompts a person wrote for a kind of work, so the agent is told
- * plainly where they rank: below the person and the task, which are specific,
- * above its own habits.
- */
 export const SKILLS = `Skills: a skill is a set of instructions a person linked to labels, such as how frontend work is done here. start_task returns every skill linked to the task's own labels in full: follow them while you work the task. When they conflict, the person's own words in this session win, then the task's description and acceptance criteria, then the skills. A skill whose instructions come back null did not fit in the brief: read it with get_skill. get_task lists the skills by name only; get_skill reads one, and list_skills lists them all. If a skill is wrong or out of date, say so with add_note, and change it with save_skill only when asked to; every change is kept and can be restored.`;
 
 export const INSTRUCTIONS = `Fenro is the task list you work from. Tasks carry context between sessions, so record what you learn as you go.
@@ -99,11 +83,6 @@ ${FORMATTING}
 ${PICTURES}`;
 
 /**
- * The tasks context as an MCP server: the way an agent reads and changes the
- * task list. Built per request for one agent; every tool is a thin mapping
- * onto a command or a query on the buses, and a refusal from the domain comes
- * back as a tool error the agent can read and act on.
- *
  * Output is compact JSON; only `get_task` and `start_task` return a full
  * brief, because tool results are paid for in the agent's context window.
  */
@@ -111,9 +90,7 @@ export function createTasksMcpServer(
   access: AgentAccess,
   buses: { readonly commandBus: CommandBus; readonly queryBus: QueryBus },
   links: {
-    /** The address a picture's bytes go to, for a ticket. */
     readonly upload: (ticket: string) => string;
-    /** A task page's full address, to hand back to people. */
     readonly task: (key: string) => string;
   },
 ): McpServer {
@@ -134,7 +111,6 @@ export function createTasksMcpServer(
     );
   const url = (key: string) => ({ url: links.task(key) });
 
-  /** After a change, answer with where the task now stands. */
   const standing = async (
     task: string,
     outcome: Result<void, TaskError>,
@@ -146,7 +122,6 @@ export function createTasksMcpServer(
       : refused(found.error);
   };
 
-  /** After a skill changes, answer with where it now stands, without its text. */
   const savedSkill = async (
     skill: string,
     outcome: Result<void, TaskError>,
@@ -1086,7 +1061,6 @@ function labelOf(label: LabelItem) {
   };
 }
 
-/** A skill on a task the agent is only looking at: enough to know it is there. */
 function skillSummaryOf(skill: BriefSkill) {
   return {
     name: skill.name,

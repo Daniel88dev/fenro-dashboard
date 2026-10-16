@@ -8,15 +8,8 @@ import {
 
 import { fenro } from "@/shared/infrastructure/database/schema";
 
-/**
- * The tables Better Auth reads and writes, in the shape its Drizzle adapter
- * expects. Better Auth owns their contents; nothing else in the app writes to
- * them. Change them together with the options in `../better-auth.ts`, then run
- * `pnpm db:generate` for the migration.
- *
- * Timestamps carry their time zone, so an instant means the same thing whatever
- * zone the database server or the app runs in.
- */
+// The shape Better Auth's Drizzle adapter expects: change these together with
+// the options in `../better-auth.ts`.
 const createdAt = () =>
   timestamp("created_at", { withTimezone: true }).defaultNow().notNull();
 const updatedAt = () =>
@@ -31,10 +24,6 @@ export const user = fenro.table("user", {
   email: text("email").notNull().unique(),
   emailVerified: boolean("email_verified").default(false).notNull(),
   image: text("image"),
-  /**
-   * The GitHub username, refreshed on every sign-in. The dashboard compares it
-   * with authors and reviewers to decide what reads as "you".
-   */
   githubLogin: text("github_login"),
   createdAt: createdAt(),
   updatedAt: updatedAt(),
@@ -61,7 +50,6 @@ export const account = fenro.table(
   "account",
   {
     id: text("id").primaryKey(),
-    /** The provider's id for the account: GitHub's numeric user id. */
     accountId: text("account_id").notNull(),
     providerId: text("provider_id").notNull(),
     userId: text("user_id")
@@ -78,7 +66,6 @@ export const account = fenro.table(
       withTimezone: true,
     }),
     scope: text("scope"),
-    /** Unused: there is no email and password sign-in. Better Auth expects it. */
     password: text("password"),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
@@ -92,7 +79,6 @@ export const account = fenro.table(
   ],
 );
 
-/** Short-lived values, such as OAuth state, while a sign-in is in flight. */
 export const verification = fenro.table(
   "verification",
   {
@@ -108,11 +94,8 @@ export const verification = fenro.table(
 
 export const identitySchema = { user, session, account, verification };
 
-/**
- * Personal access tokens agents present to the MCP server. Not Better Auth's:
- * the `AccessToken` aggregate owns these rows, which is why this table stays
- * out of `identitySchema`, the set handed to Better Auth's adapter.
- */
+// Owned by the `AccessToken` aggregate, not Better Auth, so it stays out of
+// `identitySchema`, the set handed to Better Auth's adapter.
 export const agentAccessToken = fenro.table(
   "agent_access_token",
   {
@@ -121,7 +104,6 @@ export const agentAccessToken = fenro.table(
       .notNull()
       .references(() => user.id, { onDelete: "cascade" }),
     name: text("name").notNull(),
-    /** SHA-256 of the secret, hex. The secret is never stored. */
     secretHash: text("secret_hash").notNull().unique(),
     hint: text("hint").notNull(),
     scopes: text("scopes").array().notNull(),

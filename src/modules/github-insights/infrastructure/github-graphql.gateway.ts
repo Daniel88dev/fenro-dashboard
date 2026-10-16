@@ -22,14 +22,6 @@ import { err, isErr, ok, type Result } from "@/shared/domain";
 const ENDPOINT = "https://api.github.com/graphql";
 const TIMEOUT_MS = 20_000;
 
-/**
- * How much of a repository one sync copies. The counts are GitHub's totals
- * whatever these are; the lists only feed the panels, which show fewer.
- */
-/**
- * How many of the viewer's repositories the picker offers. Five pages cover
- * most people; whoever has more finds the recently pushed ones first.
- */
 export const REPOSITORY_LIST_LIMITS = { perPage: 100, pages: 5 } as const;
 
 export const SNAPSHOT_LIMITS = {
@@ -39,17 +31,11 @@ export const SNAPSHOT_LIMITS = {
   reviewers: 20,
 } as const;
 
-/**
- * One query per repository covers everything the table and its panels show:
- * both totals, each open pull request with its reviews and the checks on its
- * head commit, and the open issues. GraphQL's `issues` excludes pull requests,
- * unlike REST's, so the issue count is not inflated.
- *
- * No field of `Team` is selected: GitHub checks permissions against the query
- * text, and any Team field needs the organization Members permission, which
- * the GitHub App does not have. With one in the query every sync is refused,
- * team review request or not.
- */
+// GraphQL's `issues` excludes pull requests, unlike REST's.
+//
+// No field of `Team` is selected: GitHub checks permissions against the
+// query text, any Team field needs the organization Members permission the
+// GitHub App lacks, and with one in the query every sync is refused.
 const SNAPSHOT_QUERY = /* GraphQL */ `
   query RepositorySnapshot($owner: String!, $name: String!) {
     repository(owner: $owner, name: $name) {
@@ -119,7 +105,6 @@ const SNAPSHOT_QUERY = /* GraphQL */ `
   }
 `;
 
-/** Most recently pushed first, which is the order people look for them in. */
 const LIST_QUERY = /* GraphQL */ `
   query ViewerRepositories($after: String) {
     viewer {
@@ -266,10 +251,6 @@ const graphQlResponse = z.object({
 
 type Fetch = typeof fetch;
 
-/**
- * GitHub's GraphQL API, read with one viewer's GitHub App user token. The token is bound
- * here by the composition root and never leaves this class.
- */
 export class GitHubGraphqlGateway implements GitHubGateway {
   constructor(
     private readonly accessToken: string | null,
@@ -428,10 +409,6 @@ export class GitHubGraphqlGateway implements GitHubGateway {
 
 type GraphQlError = { readonly type?: string; readonly message: string };
 
-/**
- * GitHub's own words go on the row, so a person can act on them — an
- * organization that has to approve the app says so in its message.
- */
 function failureFromErrors(errors: readonly GraphQlError[]): GitHubFailure {
   const said = gitHubSaid(errors[0]?.message);
   if (errors.some((error) => error.type === "RATE_LIMITED")) {
@@ -491,10 +468,6 @@ function messageOf(body: unknown): string | undefined {
   return parsed.success ? parsed.data.message : undefined;
 }
 
-/**
- * The row shows the failure; the server log keeps it too, with the detail a
- * person does not need, so it can be diagnosed without reproducing it.
- */
 function logged(failure: GitHubFailure, detail?: unknown): GitHubFailure {
   console.warn(`[github] ${failure.code}: ${failure.message}`, detail ?? "");
   return failure;
@@ -511,10 +484,6 @@ function rateLimited(): GitHubFailure {
   );
 }
 
-/**
- * The GitHub App reads only where it is installed, so a repository the viewer
- * can open on GitHub can still be missing here; the row says which fix to try.
- */
 function notFound(coordinates: RepositoryCoordinates): GitHubFailure {
   return gitHubFailure(
     "github-not-found",
@@ -576,7 +545,6 @@ function toReviewDecision(value: string | null): ReviewDecision | null {
   }
 }
 
-/** GitHub's `StatusState`, the rollup over every check and status. */
 function toCheckRollup(state: string | null): CheckRollup {
   switch (state) {
     case "SUCCESS":
@@ -610,10 +578,8 @@ function toCheckRecord(context: CheckContext): CheckRecord {
   };
 }
 
-/**
- * A check run is running until it completes. Neutral reads as passed, as it
- * does on GitHub's own merge box; cancelled and timed out read as failed.
- */
+// Neutral reads as passed, as on GitHub's own merge box; cancelled and timed
+// out read as failed.
 function toCheckConclusion(
   status: string,
   conclusion: string | null,

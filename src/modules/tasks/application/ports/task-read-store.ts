@@ -10,29 +10,17 @@ import type {
   TaskStatus,
 } from "@/modules/tasks/domain";
 
-/**
- * The read side of the tasks context. Queries read stored rows through this
- * port and shape them in `queries/projections.ts`; they never load an
- * aggregate. Every read is scoped to one owner.
- */
 export interface TaskReadStore {
-  /** Every one of the owner's tasks, without descriptions or journals. */
   records(ownerId: string): Promise<TaskRecord[]>;
-  /** One task in full. */
   detail(ownerId: string, id: string): Promise<TaskDetailRecord | undefined>;
-  /** The owner's label catalogue. */
   labels(ownerId: string): Promise<LabelRecord[]>;
-  /** One picture, wherever it is. */
   picture(ownerId: string, id: string): Promise<PictureRecord | undefined>;
-  /** Every one of the owner's skills with its labels, without the text. */
   skills(ownerId: string): Promise<SkillRecord[]>;
-  /** One skill in full, found by id or by name, with its latest revisions. */
   skill(
     ownerId: string,
     reference: { readonly id: string } | { readonly name: string },
     revisions: number,
   ): Promise<SkillDetailRecord | undefined>;
-  /** The skills linked to any of these labels, with their instructions. */
   skillsLinkedTo(
     ownerId: string,
     labels: readonly string[],
@@ -43,7 +31,6 @@ export type SkillRecord = {
   readonly id: string;
   readonly name: string;
   readonly description: string;
-  /** Label names, as linked. */
   readonly labels: readonly string[];
   readonly revision: number;
   readonly createdByKind: "agent" | "human";
@@ -110,10 +97,8 @@ export type TaskRecord = {
   readonly labels: readonly string[];
   readonly repository: { readonly owner: string; readonly name: string } | null;
   readonly parentId: string | null;
-  /** Ids of the tasks this one is blocked by, open or not. */
   readonly blockedBy: readonly string[];
   readonly hold: { readonly reason: string; readonly since: Date } | null;
-  /** The most recent session, ended or not. */
   readonly latestSession: SessionRecord | null;
   readonly criteriaMet: number;
   readonly criteriaTotal: number;
@@ -134,7 +119,6 @@ export type TaskDetailRecord = TaskRecord & {
     readonly kind: LinkKind;
     readonly taskId: string;
   }[];
-  /** Links other tasks hold to this one: the tasks it blocks, and so on. */
   readonly incoming: readonly {
     readonly kind: LinkKind;
     readonly taskId: string;

@@ -5,24 +5,19 @@ import { getEnv } from "@/shared/config/env";
 
 import { serverSentryOptions } from "./sentry-options";
 
-/**
- * Starts the SDK in the server or edge runtime. `@sentry/nextjs` resolves to
- * the build for whichever runtime imports it, so both share this.
- */
+// `@sentry/nextjs` resolves to the build for whichever runtime imports it, so
+// the server and edge runtimes share this.
 export function initSentry(): void {
   const options = serverSentryOptions(getEnv());
   if (!options) return;
   Sentry.init({
     ...options,
-    // The adapters report trouble with console.warn and console.error; those
-    // become searchable logs, tied to the trace they happened in.
     integrations: [
       Sentry.consoleLoggingIntegration({ levels: ["warn", "error"] }),
     ],
   });
 }
 
-/** Each command and query becomes a span named by its type. */
 export const sentryMessageTracer: MessageTracer = {
   traceCommand: (command, handle) =>
     Sentry.startSpan(
@@ -46,7 +41,6 @@ export const sentryMessageTracer: MessageTracer = {
     ),
 };
 
-/** A refused command answers `err(...)`; name the refusal by its code. */
 function refusalOf(outcome: unknown): string | undefined {
   if (typeof outcome !== "object" || outcome === null) return undefined;
   if (!("ok" in outcome) || outcome.ok !== false) return undefined;

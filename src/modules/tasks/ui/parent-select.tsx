@@ -9,30 +9,20 @@ import { TaskKindIcon } from "./task-kind";
 import { FLOATING_PANEL, useFloatingPanel } from "./floating-panel";
 
 export type ParentOption = {
-  /** `T-12` */
   readonly key: string;
   readonly title: string;
   readonly kind?: TaskKind;
 };
 
-/**
- * The task this one belongs under, like an epic in Jira, picked from the
- * open tasks or none. Searchable by key or title, since a task list only
- * grows. The pick goes to the server as the `parent` field, "" for none; the
- * domain still refuses a parent that would make the two wait on each other.
- */
 export function ParentSelect({
   id,
   options,
   defaultValue = "",
   exclude,
 }: {
-  /** For the field's `<label>`. */
   id?: string;
   options: readonly ParentOption[];
-  /** A key, or "" for a top-level task. */
   defaultValue?: string;
-  /** The task being edited: it cannot be its own parent. */
   exclude?: string;
 }) {
   const [picked, setPicked] = useState(defaultValue.trim().toUpperCase());

@@ -9,14 +9,8 @@ import { picturesEnabled } from "@/shared/infrastructure/container";
 import { tasksContext } from "../../../tasks/signed-in-owner";
 import { TASK_ACTIONS } from "../../../tasks/task-actions";
 
-/** The dialog reads the same brief as the page, trimmed to what it shows. */
 const JOURNAL_LIMIT = 20;
 
-/**
- * A task clicked from a list opens here, over that list. Loaded directly
- * (a reload, a shared link), the same address renders the full page in
- * `tasks/[key]` instead.
- */
 export default async function TaskDialogPage({
   params,
 }: PageProps<"/tasks/[key]">) {

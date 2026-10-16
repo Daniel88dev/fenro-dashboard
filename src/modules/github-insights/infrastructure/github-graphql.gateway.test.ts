@@ -112,7 +112,6 @@ function queryOf(fetchImpl: ReturnType<typeof respond>, call = 0) {
 
 describe("GitHubGraphqlGateway", () => {
   beforeEach(() => {
-    // Every failure is logged for the server's operator; not for the test run.
     vi.spyOn(console, "warn").mockImplementation(() => {});
   });
 
@@ -180,8 +179,6 @@ describe("GitHubGraphqlGateway", () => {
   });
 
   it("asks for nothing that needs a scope sign-in does not request", async () => {
-    // Any Team field needs the organization Members permission, which the
-    // GitHub App does not have, and GitHub refuses the whole query for it.
     const fetchImpl = respond({ data: { repository } });
 
     await new GitHubGraphqlGateway("gho_token", fetchImpl).fetchSnapshot(

@@ -14,11 +14,9 @@ export type ExternalSystem = (typeof EXTERNAL_SYSTEMS)[number];
 
 type Props = {
   readonly system: ExternalSystem;
-  /** `owner/repo#12`, `PROJ-4`, or the URL itself for a plain link. */
   readonly key: string;
   readonly url: string;
   readonly title: string | null;
-  /** The ticket or issue this task was made from, as opposed to one it mentions. */
   readonly isSource: boolean;
 };
 
@@ -26,16 +24,6 @@ const GITHUB = /^\/([^/]+)\/([^/]+)\/(issues|pull)\/(\d+)(?:\/|$)/;
 const JIRA = /\/browse\/([A-Z][A-Z0-9_]*-\d+)(?:\/|$)/;
 const LINEAR = /^\/[^/]+\/issue\/([A-Z][A-Z0-9]*-\d+)(?:\/|$)/;
 
-/**
- * Where a task came from, or what it points at, outside fenro: a GitHub issue
- * or pull request, a Jira or Linear ticket, any other page. Recognised from its
- * URL, so an agent only has to paste the link; `system` and `key` are what let
- * the same link be added twice without duplicating it, like Jira's remote
- * links.
- *
- * Fenro never reads these systems itself. The agent follows the link with its
- * own GitHub or Jira tools.
- */
 export class ExternalReference extends ValueObject<Props> {
   private constructor(props: Props) {
     super(props);

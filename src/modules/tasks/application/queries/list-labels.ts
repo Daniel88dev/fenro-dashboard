@@ -4,10 +4,6 @@ import type { Query, QueryHandler } from "@/shared/application";
 import type { TaskReadStore } from "../ports/task-read-store";
 import type { LabelItem } from "./read-models";
 
-/**
- * The owner's labels by name, with how many tasks carry each and which skills
- * each brings.
- */
 export type ListLabelsQuery = Query<"tasks.list-labels", LabelItem[]> & {
   readonly ownerId: string;
 };

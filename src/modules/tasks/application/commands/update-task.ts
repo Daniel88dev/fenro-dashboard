@@ -21,24 +21,13 @@ import {
   type TaskReference,
 } from "./task-commands";
 
-/**
- * Everything about a task that is plain editing: what it says, where it sits,
- * what it must meet and what it links to outside. Fields left out stay as they
- * are; `null` clears the repository or the parent.
- */
 export type UpdateTaskCommand = TaskCommand<"tasks.update-task"> & {
   readonly task: TaskReference;
-  /** Make it an epic or a plain task. */
   readonly kind?: TaskKind;
   readonly title?: string;
   readonly description?: string;
   readonly priority?: Priority;
-  /**
-   * Replaces every label. Names the owner has no label for yet are added to
-   * their labels, here and in `addLabels`.
-   */
   readonly labels?: readonly string[];
-  /** Applied after `labels`, so an agent need not repeat what is there. */
   readonly addLabels?: readonly string[];
   readonly removeLabels?: readonly string[];
   readonly repository?: string | null;
@@ -46,7 +35,6 @@ export type UpdateTaskCommand = TaskCommand<"tasks.update-task"> & {
   readonly addCriteria?: readonly string[];
   readonly removeCriteria?: readonly number[];
   readonly attach?: readonly ReferenceInput[];
-  /** URLs of references to remove. */
   readonly detach?: readonly string[];
 };
 
@@ -153,7 +141,6 @@ export class UpdateTaskHandler implements CommandHandler<UpdateTaskCommand> {
   }
 }
 
-/** The names a task ends up with, or `undefined` when labels are untouched. */
 function labelsAfter(
   current: readonly string[],
   command: UpdateTaskCommand,

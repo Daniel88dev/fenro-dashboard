@@ -3,11 +3,8 @@
 import { useRouter } from "next/navigation";
 import { useTransition } from "react";
 
-/**
- * A chip on a panel that narrows or reorders its list. Like the counts, it is
- * a navigation, because which chips are pressed lives in the URL; the button
- * stays mounted across it, so focus stays on the chip.
- */
+// A navigation, since pressed chips live in the URL; the button stays
+// mounted across it so focus stays on the chip.
 export function FilterChip({
   label,
   href,

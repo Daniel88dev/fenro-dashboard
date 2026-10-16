@@ -4,11 +4,8 @@ import * as Sentry from "@sentry/nextjs";
 import NextError from "next/error";
 import { useEffect } from "react";
 
-/**
- * The last boundary: an error that breaks the root layout lands here instead
- * of reaching window.onerror, so it is reported by hand. It shows the same
- * page Next.js shows without this file.
- */
+// An error that breaks the root layout never reaches window.onerror, so it is
+// reported by hand.
 export default function GlobalError({
   error,
 }: {

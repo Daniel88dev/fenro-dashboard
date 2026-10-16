@@ -91,7 +91,6 @@ async function TasksScreen({
   };
   const ask = container.queryBus.ask.bind(container.queryBus);
   const onBoard = filter.layout === "board";
-  // One small count per tab and per rail scope, asked alongside the rest.
   const [labels, repositories, epics, content, scopeTotals, ...totals] =
     await Promise.all([
       ask(listLabelsQuery(ownerId)),
@@ -144,7 +143,6 @@ async function TasksScreen({
   );
 }
 
-/** What the rail's scope in the URL asks of the list. */
 function epicScope(scope: string): ListTasksQuery["filter"] {
   if (!scope) return {};
   if (scope === "epics") return { kinds: ["epic"] };

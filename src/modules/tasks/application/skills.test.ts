@@ -117,7 +117,6 @@ describe("skills", () => {
     );
     const again = await createSkill({ name: "UI-Work" });
     expect(!again.ok && again.error.code).toBe("skill-exists");
-    // Another person's library is their own.
     expect((await createSkill({ name: "ui-work" }, "user-2")).ok).toBe(true);
 
     expect(await labels()).toMatchObject([
@@ -351,7 +350,6 @@ describe("managing labels", () => {
   });
 
   it("renames a name tasks carry from before the catalogue, and refuses an unknown one", async () => {
-    // Labels written before the catalogue existed are only on tasks.
     await store.save(
       unwrap(
         Task.create({

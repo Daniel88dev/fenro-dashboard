@@ -21,34 +21,22 @@ export type RepositoryRowView = {
   readonly id: string;
   readonly owner: string;
   readonly name: string;
-  /** Pinned rows come first; the screen has already put them there. */
   readonly pinned: boolean;
-  /**
-   * Added by hand and never read from GitHub, so its pull request and issue
-   * columns say so instead of showing a count.
-   */
   readonly manual: boolean;
   readonly lastActivityAt: Date | null;
-  /** Why the latest sync failed, while the counts are from an older one. */
   readonly syncFailure: string | null;
-  /** The header already explains the rate limit; the row only points at it. */
   readonly rateLimited: boolean;
   readonly pullRequests: ColumnToggle;
   readonly issues: ColumnToggle;
   readonly tasks: ColumnToggle;
-  /** The panels this row currently has open, already rendered. */
   readonly panels: readonly {
     readonly key: string;
     readonly node: ReactNode;
   }[];
 };
 
-/*
- * One grid, two arrangements. On a phone the name and the menu share the first
- * line and the three counts sit under it; from md up it is the table the
- * prototype drew. Areas rather than two copies of the row keep one element per
- * thing, so focus and tests see each count once.
- */
+// Grid areas rather than two copies of the row keep one element per thing,
+// so focus and tests see each count once.
 const GRID =
   "grid grid-cols-3 items-center gap-x-2 px-3.5 [grid-template-areas:'name_name_menu'_'prs_issues_tasks'] md:grid-cols-[minmax(0,1fr)_148px_148px_148px_112px_40px] md:pr-4 md:pl-5 md:[grid-template-areas:'name_prs_issues_tasks_activity_menu']";
 
@@ -64,9 +52,7 @@ export function RepositoryTable({
   now: Date;
   pinAction?: (formData: FormData) => Promise<void>;
   unwatchAction?: (formData: FormData) => Promise<void>;
-  /** The Add repositories control, shown when nothing is watched yet. */
   emptyAction?: ReactNode;
-  /** Rows are watched, but the filter hides every one of them. */
   filteredOut?: boolean;
 }) {
   if (rows.length === 0 && filteredOut) {
@@ -186,7 +172,6 @@ export function RepositoryTable({
                     {formatRelativeTime(row.lastActivityAt, now)}
                   </time>
                 ) : row.manual ? (
-                  // Nobody reads its activity, so "never" would be a guess.
                   <>
                     <span aria-hidden="true">–</span>
                     <span className="sr-only">unknown</span>
@@ -224,10 +209,6 @@ export function RepositoryTable({
   );
 }
 
-/**
- * Where a count would be for a repository added by hand: a dash rather than a
- * zero, because nobody knows how many there are.
- */
 function NotConnected({ what }: { what: string }) {
   return (
     <span className="flex flex-col items-start gap-px py-2">

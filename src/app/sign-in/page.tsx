@@ -44,7 +44,6 @@ export default async function SignInPage({
   );
 }
 
-/** Invented rows showing what the dashboard looks like; screen readers skip it. */
 const PREVIEW = [
   { owner: "acme", name: "billing-core", prs: 6, issues: 23, tasks: 3 },
   { owner: "acme", name: "web-app", prs: 11, issues: 41, tasks: 2 },

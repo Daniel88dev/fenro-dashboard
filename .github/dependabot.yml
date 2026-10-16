@@ -7,7 +7,6 @@ updates:
       day: monday
     open-pull-requests-limit: 5
     groups:
-      # One PR per ecosystem keeps the review surface small.
       production:
         dependency-type: production
         update-types: [minor, patch]

@@ -8,18 +8,14 @@ const OWNER = /^[A-Za-z0-9](?:[A-Za-z0-9-]{0,38})$/;
 const NAME = /^[A-Za-z0-9._-]{1,100}$/;
 
 /**
- * The GitHub repository a task is about, as a plain `owner/name` pair. It is
- * the join key the dashboard uses to put task counts beside pull requests, and
- * deliberately not an id from github-insights: the two contexts stay unaware
- * of each other (ticket 09). A task keeps its repository when the repository
- * is unwatched.
+ * Deliberately `owner/name`, not an id from github-insights: the two
+ * contexts stay unaware of each other.
  */
 export class RepositoryReference extends ValueObject<Props> {
   private constructor(props: Props) {
     super(props);
   }
 
-  /** Parse the `owner/name` form. */
   static parse(value: string): Result<RepositoryReference, TaskError> {
     const [owner = "", name = "", ...rest] = value
       .trim()

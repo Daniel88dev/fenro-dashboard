@@ -1,7 +1,3 @@
-/**
- * An explicit success/failure value, so domain and application code can return
- * expected failures without throwing.
- */
 export type Result<T, E = Error> =
   | { readonly ok: true; readonly value: T }
   | { readonly ok: false; readonly error: E };
@@ -33,7 +29,6 @@ export function map<T, U, E>(
   return result.ok ? ok(fn(result.value)) : result;
 }
 
-/** Escape hatch for boundaries that can only signal failure by throwing. */
 export function unwrap<T, E>(result: Result<T, E>): T {
   if (result.ok) return result.value;
   throw result.error instanceof Error

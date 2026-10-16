@@ -8,7 +8,6 @@ import {
   type TaskReference,
 } from "./task-commands";
 
-/** Claim a task by opening a session on it; resumes the actor's own session. */
 export type StartTaskCommand = TaskCommand<"tasks.start-task"> & {
   readonly task: TaskReference;
 };

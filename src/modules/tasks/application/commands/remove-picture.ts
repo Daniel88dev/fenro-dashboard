@@ -9,7 +9,6 @@ import { err, ok, type Result } from "@/shared/domain";
 import type { PictureStorage } from "../ports/picture-storage";
 import type { TaskCommand } from "./task-commands";
 
-/** Take a picture off its task, and out of storage. */
 export type RemovePictureCommand = TaskCommand<"tasks.remove-picture"> & {
   readonly picture: string;
 };

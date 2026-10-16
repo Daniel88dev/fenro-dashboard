@@ -18,16 +18,7 @@ import {
 import { getEnv } from "@/shared/config/env";
 import { getAgentContainer } from "@/shared/infrastructure/container";
 
-/**
- * The MCP server agents connect to, over Streamable HTTP and stateless: every
- * request stands alone, so any instance on any host can answer it.
- *
- *   claude mcp add --transport http fenro <APP_URL>/api/mcp \
- *     --header "Authorization: Bearer fenro_pat_…"
- *
- * The route only authenticates. The token names the person and the agent,
- * and the tasks context's MCP server does the rest through the buses.
- */
+// Stateless, so any instance on any host can answer any request.
 const mcp = createMcpHandler(
   ({ authInfo }) =>
     createTasksMcpServer(toAccess(authInfo!), getAgentContainer(), {

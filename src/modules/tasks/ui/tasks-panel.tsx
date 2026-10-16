@@ -11,11 +11,6 @@ import {
 
 import { STATE_TONES, taskHref } from "./task-state";
 
-/**
- * The column that makes this a dashboard for your work rather than a second
- * GitHub. Agents work these tasks through the MCP server; a person opens them
- * here, or starts a new one already scoped to the repository.
- */
 export function TasksPanel({
   id,
   data,
@@ -23,7 +18,6 @@ export function TasksPanel({
 }: {
   id: string;
   data: RepositoryTasks;
-  /** `owner/name`, as GitHub spells it. */
   repository: string;
 }) {
   const hidden = data.total - data.shown.length;

@@ -18,5 +18,4 @@ if (config) {
   });
 }
 
-/** Turns App Router navigations into spans of their own. */
 export const onRouterTransitionStart = Sentry.captureRouterTransitionStart;

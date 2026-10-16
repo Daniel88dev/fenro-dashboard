@@ -8,12 +8,10 @@ import {
 } from "@/modules/tasks/domain";
 import { err, ok, type Result } from "@/shared/domain";
 
-/** A skill named the way people and agents name it: its name, or its id. */
 export type SkillReference = string;
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-/** How a reference is looked up: an id when it looks like one, else a name. */
 export function skillLookup(
   reference: SkillReference,
 ): { readonly id: string } | { readonly name: string } {
@@ -36,14 +34,11 @@ export async function findSkill(
   return skill ? ok(skill) : err(skillNotFound(reference.trim()));
 }
 
-/** How many times a change is retried when another request saved first. */
 const ATTEMPTS = 3;
 
 /**
- * Load a skill, change it, save it — and when another request saved it in
- * between, do it all again on the fresh copy, as `changeTask` does. A revise
- * still refuses when the text moved on, because it checks the revision its
- * editor read against the fresh copy; links added at the same time both land.
+ * Retrying is safe for a revise: it still checks the revision its editor
+ * read against the fresh copy.
  */
 export async function changeSkill(
   skills: SkillRepository,

@@ -10,7 +10,6 @@ import type { Database } from "@/shared/infrastructure/database/client";
 
 import { taskPicture } from "./persistence/schema";
 
-/** Pictures' records in Postgres. A picture is added and removed, never changed. */
 export class DrizzlePictureRepository implements PictureRepository {
   constructor(private readonly db: Database) {}
 

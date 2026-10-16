@@ -28,10 +28,6 @@ export function unwatchRepositoryCommand(
   };
 }
 
-/**
- * Unwatching something that is not watched is a no-op, not a failure. The
- * stored snapshot goes with the repository.
- */
 export class UnwatchRepositoryHandler implements CommandHandler<UnwatchRepositoryCommand> {
   constructor(private readonly repositories: WatchedRepositoryRepository) {}
 

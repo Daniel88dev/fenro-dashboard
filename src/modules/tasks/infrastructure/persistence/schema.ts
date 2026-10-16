@@ -14,18 +14,11 @@ import {
 import { fenro } from "@/shared/infrastructure/database/schema";
 
 /**
- * The `Task` aggregate across six tables: the task itself, and the parts of it
- * that are either queried on their own (links, external references) or grow
- * without bound (sessions, the journal). Acceptance criteria are few and only
- * ever read with their task, so they ride along as JSON.
- *
  * Owners are the identity context's user ids, deliberately not foreign keys:
- * the contexts share a database, not a schema (as in github-insights).
- * Timestamps carry their time zone.
+ * the contexts share a database, not a schema.
  */
 const instant = (name: string) => timestamp(name, { withTimezone: true });
 
-/** A criterion as stored in `criteria`, with ISO timestamps. */
 export type StoredCriterion = {
   readonly number: number;
   readonly text: string;
@@ -38,16 +31,14 @@ export const task = fenro.table(
   {
     id: text("id").primaryKey(),
     ownerId: text("owner_id").notNull(),
-    /** Per owner: T-1, T-2… */
     number: integer("number").notNull(),
-    /** `task` or `epic`; rows from before epics existed are tasks. */
     kind: text("kind").notNull().default("task"),
     title: text("title").notNull(),
     description: text("description").notNull(),
     status: text("status").notNull(),
     priority: text("priority").notNull(),
     labels: text("labels").array().notNull(),
-    /** As written when the task was made; compared case-insensitively. */
+    /** Compared case-insensitively. */
     repositoryOwner: text("repository_owner"),
     repositoryName: text("repository_name"),
     parentId: text("parent_id").references((): AnyPgColumn => task.id, {
@@ -59,7 +50,6 @@ export const task = fenro.table(
     createdAt: instant("created_at").notNull(),
     updatedAt: instant("updated_at").notNull(),
     completedAt: instant("completed_at"),
-    /** Bumped on every save, so a save over someone else's fails. */
     version: integer("version").notNull(),
   },
   (table) => [
@@ -79,7 +69,6 @@ const taskId = () =>
     .notNull()
     .references(() => task.id, { onDelete: "cascade" });
 
-/** "`taskId` is blocked by / relates to / was discovered from `targetId`". */
 export const taskLink = fenro.table(
   "task_link",
   {
@@ -108,7 +97,6 @@ export const taskExternalReference = fenro.table(
   },
   (table) => [
     primaryKey({ columns: [table.taskId, table.system, table.key] }),
-    // "Is there a task for this issue already?"
     index("task_external_reference_target_idx").on(table.system, table.key),
   ],
 );
@@ -132,7 +120,6 @@ export const taskSession = fenro.table(
   ],
 );
 
-/** Append-only: rows are inserted and never updated. */
 export const taskJournalEntry = fenro.table(
   "task_journal_entry",
   {
@@ -152,9 +139,8 @@ export const taskJournalEntry = fenro.table(
 );
 
 /**
- * Each person's label catalogue. Tasks carry label names in `task.labels`
- * rather than ids: the name is unique per owner, and it is what agents,
- * filters and URLs use.
+ * Tasks carry label names rather than ids: the name is unique per owner, and it
+ * is what agents, filters and URLs use.
  */
 export const taskLabel = fenro.table(
   "task_label",
@@ -170,10 +156,6 @@ export const taskLabel = fenro.table(
   ],
 );
 
-/**
- * Pictures on tasks. The bytes live in the picture store (an S3 bucket);
- * `storage_key` is how that store names them. Rows go with their task.
- */
 export const taskPicture = fenro.table(
   "task_picture",
   {
@@ -194,9 +176,8 @@ export const taskPicture = fenro.table(
 );
 
 /**
- * Each person's skills: Markdown instructions that apply to tasks through
- * their labels. `revision` counts changes to the text; `version` is bumped on
- * every save, links included, so a save over someone else's fails.
+ * `revision` counts changes to the text; `version` is bumped on every save,
+ * links included.
  */
 export const taskSkill = fenro.table(
   "task_skill",
@@ -227,10 +208,7 @@ const skillId = () =>
     .notNull()
     .references(() => taskSkill.id, { onDelete: "cascade" });
 
-/**
- * The labels a skill applies through, by name as tasks carry them. The owner
- * rides along so "which skills does this label bring" is one index lookup.
- */
+/** The owner rides along so "which skills does this label bring" is one lookup. */
 export const taskSkillLabel = fenro.table(
   "task_skill_label",
   {
@@ -247,7 +225,6 @@ export const taskSkillLabel = fenro.table(
   ],
 );
 
-/** Append-only: the text of every revision, so any can be read or restored. */
 export const taskSkillRevision = fenro.table(
   "task_skill_revision",
   {

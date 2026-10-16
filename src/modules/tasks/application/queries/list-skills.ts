@@ -5,12 +5,9 @@ import type { TaskReadStore } from "../ports/task-read-store";
 import { skillItem, TaskIndex } from "./projections";
 import type { SkillItem } from "./read-models";
 
-/** The owner's skills by name, without their instructions. */
 export type ListSkillsQuery = Query<"tasks.list-skills", SkillItem[]> & {
   readonly ownerId: string;
-  /** Only skills linked to this label. */
   readonly label?: string;
-  /** Words that must all appear in the name or the description. */
   readonly text?: string;
 };
 

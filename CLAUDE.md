@@ -101,4 +101,17 @@ component. A test should fail without the change it covers.
 
 Prettier decides formatting — don't hand-format, run `pnpm format`. Named
 exports except where Next.js requires a default (pages, layouts, route
-handlers). Comments explain why, not what.
+handlers).
+
+## Comments
+
+Write code that needs no comment. Add one only for a non-obvious why that a
+reader would otherwise get wrong: a library or browser quirk, a security or
+cost constraint, a gotcha that makes the obvious fix wrong. Keep it to a line
+or two.
+
+Never write comments that say what the code, a type or a function does,
+JSDoc that restates a signature, section banners, step-by-step narration,
+references to tickets, threads or who decided something, or history of how
+the code got here. Documentation belongs in Markdown files (`README.md`,
+`docs/`), not in code comments.

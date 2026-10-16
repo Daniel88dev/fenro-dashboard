@@ -35,16 +35,6 @@ const SCREENS: readonly {
   { screen: "settings", label: "Settings", href: "/settings", icon: Gear },
 ];
 
-/**
- * The near-black bar from the design.
- *
- * At phone width the nav drops below the bar as a row of four buttons, so the
- * bar itself only has to fit the brand, the colour scheme toggle and the
- * account menu.
- *
- * `account` is a slot rather than something this component fetches: who is
- * signed in belongs to the identity context, and the route composes the two.
- */
 export function DashboardChrome({
   children,
   account,

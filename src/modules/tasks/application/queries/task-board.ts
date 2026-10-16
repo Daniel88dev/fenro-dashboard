@@ -5,10 +5,6 @@ import { resolveFilter, type TaskListFilterInput } from "./list-tasks";
 import { board, BOARD_STATUSES, TaskIndex } from "./projections";
 import type { TaskBoard } from "./read-models";
 
-/**
- * The owner's tasks as board columns, one per status, under the same filters
- * as the list. Moving a card is `tasks.change-status`; the board only reads.
- */
 export type TaskBoardQuery = Query<"tasks.task-board", TaskBoard> & {
   readonly ownerId: string;
   readonly filter: Omit<

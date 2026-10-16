@@ -10,15 +10,9 @@ import { ok, type Result } from "@/shared/domain";
 
 import type { TaskCommand } from "./task-commands";
 
-/**
- * Add a label to the owner's catalogue. A task given a name the catalogue
- * lacks adds it too, so this is for labels made ahead of use, or in a colour
- * of the maker's choosing.
- */
 export type CreateLabelCommand = TaskCommand<"tasks.create-label"> & {
   readonly labelId: string;
   readonly name: string;
-  /** Left out, the name decides it. */
   readonly colour?: LabelColour;
 };
 
@@ -42,10 +36,8 @@ export class CreateLabelHandler implements CommandHandler<CreateLabelCommand> {
 }
 
 /**
- * Make sure every name a task is about to carry is in the owner's catalogue,
- * adding the missing ones in the colours the others use least. It runs before
- * the task is saved: the label and the task are separate aggregates, so the
- * worst a failed task save leaves behind is a label nothing carries yet.
+ * It runs before the task is saved: the label and the task are separate
+ * aggregates, so the worst a failed task save leaves is an unused label.
  */
 export async function ensureLabels(
   labels: LabelRepository,

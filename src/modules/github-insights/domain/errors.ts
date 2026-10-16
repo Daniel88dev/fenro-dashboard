@@ -1,8 +1,6 @@
-/**
- * Domain failures are plain objects rather than `Error` subclasses: a `Result`
- * returned by a query handler crosses a React Server Component boundary, and a
- * class instance cannot. See docs/research/nextjs-16-rendering-strategy.md.
- */
+// Plain objects rather than `Error` subclasses: a `Result` from a query
+// handler crosses a React Server Component boundary, and a class instance
+// cannot.
 export type InvalidCoordinates = {
   readonly code: "invalid-coordinates";
   readonly message: string;
@@ -12,7 +10,6 @@ export function invalidCoordinates(message: string): InvalidCoordinates {
   return { code: "invalid-coordinates", message };
 }
 
-/** Why a sync may not start now. None of these is an error to show anyone. */
 export type SyncRefusalReason =
   "in-progress" | "not-due" | "cooling-down" | "not-connected";
 
@@ -29,7 +26,6 @@ export function syncRefused(
   return { code: "sync-refused", reason, message };
 }
 
-/** The watcher already has this repository on their dashboard. */
 export type AlreadyWatched = {
   readonly code: "already-watched";
   readonly message: string;

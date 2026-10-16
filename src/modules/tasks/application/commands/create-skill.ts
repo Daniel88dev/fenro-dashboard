@@ -10,17 +10,10 @@ import type { Result } from "@/shared/domain";
 import { ensureLabels } from "./create-label";
 import type { TaskCommand } from "./task-commands";
 
-/**
- * Add a skill to the owner's library, optionally linked to labels already.
- * Label names the catalogue lacks are added to it, as saving a task does.
- */
 export type CreateSkillCommand = TaskCommand<"tasks.create-skill"> & {
   readonly skillId: string;
-  /** Lower-case words joined by hyphens, like `frontend-conventions`. */
   readonly name: string;
-  /** When to use it, in a sentence or two. */
   readonly description: string;
-  /** Markdown. */
   readonly instructions: string;
   readonly labels?: readonly string[];
 };

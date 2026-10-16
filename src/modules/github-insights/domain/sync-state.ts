@@ -4,54 +4,28 @@ import { syncRefused, type SyncRefused } from "./errors";
 
 const MINUTE = 60_000;
 
-/**
- * How often this app is willing to ask GitHub about one repository. GitHub
- * rations calls per user token, and it is often slow or down, so the dashboard
- * serves what it last stored and only goes back to GitHub when this allows.
- */
 export const SYNC_POLICY = {
-  /** Older than this, the stored numbers are refreshed on the next visit. */
   staleAfterMs: 60 * MINUTE,
-  /** A failed sync is not retried on its own until this has passed. */
   retryAfterFailureMs: 5 * MINUTE,
-  /**
-   * Longer after GitHub said the rate limit is used up: it resets within the
-   * hour, and asking again sooner only spends the calls it has left.
-   */
+  // Longer: the rate limit resets within the hour, and asking sooner only
+  // spends the calls it has left.
   retryAfterRateLimitMs: 15 * MINUTE,
-  /** Refresh pressed again this soon after the last attempt does nothing. */
   manualCooldownMs: 1 * MINUTE,
-  /**
-   * A sync that started longer ago than this is assumed dead (a crashed
-   * process, a timed-out function), so another one may start.
-   */
   leaseMs: 2 * MINUTE,
 } as const;
 
-/** Refresh pressed by a person, or a visit finding the numbers stale. */
 export type SyncTrigger = "manual" | "automatic";
 
-/**
- * Why a sync failed, as far as the policy cares: GitHub rationing calls is
- * waited out differently from anything else going wrong.
- */
 export type SyncFailureKind = "rate-limited" | "failed";
 
 type Props = {
   readonly lastSyncedAt: Date | null;
   readonly lastAttemptedAt: Date | null;
-  /** Why the latest attempt failed; cleared by the next success. */
   readonly lastFailure: string | null;
   readonly lastFailureKind: SyncFailureKind | null;
-  /** When the sync in flight started, or null when none is. */
   readonly startedAt: Date | null;
 };
 
-/**
- * Where one watched repository's copy of GitHub stands. Every rule about when
- * GitHub may be asked again lives here, so neither a route nor a component can
- * decide to spend the user's rate limit on its own.
- */
 export class SyncState extends ValueObject<Props> {
   private constructor(props: Props) {
     super(props);
@@ -87,7 +61,6 @@ export class SyncState extends ValueObject<Props> {
     return this.props.lastFailureKind;
   }
 
-  /** The latest attempt was refused because GitHub's rate limit ran out. */
   get isRateLimited(): boolean {
     return (
       this.props.lastFailure !== null &&
@@ -113,12 +86,8 @@ export class SyncState extends ValueObject<Props> {
     );
   }
 
-  /**
-   * Whether a visit should start a sync by itself: the numbers are stale,
-   * nobody is syncing them, and the last attempt did not just fail. The last
-   * condition is what stops a GitHub outage from turning every page view into
-   * another failed call.
-   */
+  // Not right after a failure, so a GitHub outage does not turn every page
+  // view into another failed call.
   isDueAutomatically(now: Date): boolean {
     if (!this.isStale(now) || this.isInProgress(now)) return false;
     const wait = this.isRateLimited
@@ -130,7 +99,6 @@ export class SyncState extends ValueObject<Props> {
     );
   }
 
-  /** The state once a sync has started, or why one may not start now. */
   start(trigger: SyncTrigger, now: Date): Result<SyncState, SyncRefused> {
     if (this.isInProgress(now)) {
       return err(syncRefused("in-progress", "A sync is already running."));

@@ -11,11 +11,9 @@ export type SkillResult = Result<SkillDetail, TaskError>;
 
 export const DEFAULT_SKILL_REVISIONS = 20;
 
-/** One skill in full, named by name or id, with its latest revisions. */
 export type SkillQuery = Query<"tasks.skill", SkillResult> & {
   readonly ownerId: string;
   readonly skill: string;
-  /** How many of the latest revisions to include, the current one first. */
   readonly revisions?: number;
 };
 

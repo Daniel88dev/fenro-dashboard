@@ -51,10 +51,6 @@ export function unpinRepositoryCommand(
   };
 }
 
-/**
- * Pinning keeps a repository at the top of its watcher's table. Pinning one
- * that is pinned, or one that is not watched, changes nothing.
- */
 export class PinRepositoryHandler implements CommandHandler<PinRepositoryCommand> {
   constructor(private readonly repositories: WatchedRepositoryRepository) {}
 
@@ -77,11 +73,8 @@ export class UnpinRepositoryHandler implements CommandHandler<UnpinRepositoryCom
   }
 }
 
-/**
- * A sync saves the same aggregate when it starts and when it ends, so a pin
- * pressed while one runs can lose the race for the version. The person asked
- * for nothing the sync contradicts, so it loads again and tries once more.
- */
+// A sync saves the aggregate when it starts and ends, so a pin pressed
+// mid-sync can lose the version race; it reloads and tries once more.
 async function change(
   repositories: WatchedRepositoryRepository,
   command: { watcherId: string; owner: string; name: string },

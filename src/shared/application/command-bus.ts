@@ -1,10 +1,6 @@
 import { untracedMessages, type MessageTracer } from "./message-tracer";
 import type { AnyCommand, CommandHandler, CommandOutcome } from "./messages";
 
-/**
- * In-memory command dispatcher. Each command type has exactly one handler, so a
- * route handler or server action never reaches into a module's internals.
- */
 export class CommandBus {
   readonly #handlers = new Map<string, CommandHandler<never>>();
   readonly #tracer: MessageTracer;

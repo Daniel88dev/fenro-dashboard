@@ -1,10 +1,5 @@
 import { AggregateRoot, err, ok, UniqueId, type Result } from "@/shared/domain";
 
-/**
- * What a token lets an agent do. The same strings will name the OAuth scopes
- * if agents later sign in through OAuth, so a token and an OAuth grant mean
- * the same thing to the MCP server.
- */
 export const ACCESS_SCOPES = ["tasks:read", "tasks:write"] as const;
 
 export type AccessScope = (typeof ACCESS_SCOPES)[number];
@@ -22,23 +17,18 @@ function invalid(message: string): AccessTokenError {
   return { code: "invalid-access-token", message };
 }
 
-/** Every token expires; a year is the longest anyone may ask for. */
 export const MAX_LIFETIME_DAYS = 366;
 export const NAME_LIMIT = 60;
 
-/** How often a token's last use is written down. */
 const USE_RECORDING_INTERVAL_MS = 5 * 60 * 1000;
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 type Props = {
   readonly ownerId: string;
-  /** What the person called it: "Claude Code on my laptop". */
   readonly name: string;
   readonly scopes: readonly AccessScope[];
-  /** SHA-256 of the secret. The secret itself is shown once and never kept. */
   readonly secretHash: string;
-  /** The secret's last four characters, so a person can tell tokens apart. */
   readonly hint: string;
   readonly createdAt: Date;
   readonly expiresAt: Date;
@@ -49,11 +39,6 @@ type Usage = {
   readonly revokedAt: Date | null;
 };
 
-/**
- * A personal access token an agent presents to the MCP server, standing in for
- * the person who issued it. Each token is an agent's identity too: an agent's
- * session on a task belongs to the token it started with.
- */
 export class AccessToken extends AggregateRoot<Props> {
   #usage: Usage;
 
@@ -128,11 +113,8 @@ export class AccessToken extends AggregateRoot<Props> {
     this.#usage = { ...this.#usage, revokedAt: now };
   }
 
-  /**
-   * Note that the token was used, at most every few minutes: an agent calls
-   * the server many times a minute, and "last used" only needs to answer
-   * "is this token still in use?". True when something changed.
-   */
+  // Written at most every few minutes: an agent calls the server many times a
+  // minute, and "last used" only needs to say whether the token is in use.
   recordUse(now: Date): boolean {
     const last = this.#usage.lastUsedAt;
     if (last && now.getTime() - last.getTime() < USE_RECORDING_INTERVAL_MS) {

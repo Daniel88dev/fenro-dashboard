@@ -1,4 +1,3 @@
-# General
 variable "aws_region" {
   description = "AWS region for every resource. eu-central-1 is where flexi-day-be's RDS instance runs, so the app sits next to its database."
   type        = string
@@ -17,7 +16,6 @@ variable "project_name" {
   default     = "fenro-dashboard"
 }
 
-# Rollout switches (README, "First rollout")
 variable "create_service" {
   description = "Set to true once CI has pushed the first image to ECR. App Runner refuses to create a service whose image does not exist yet."
   type        = bool
@@ -30,7 +28,6 @@ variable "manage_dns_validation_records" {
   default     = false
 }
 
-# ECR
 variable "ecr_repository_name" {
   description = "ECR repository the release pipeline pushes to"
   type        = string
@@ -49,7 +46,6 @@ variable "docker_image_tag" {
   default     = "latest"
 }
 
-# App Runner
 variable "app_port" {
   description = "Port the container listens on (PORT in the Dockerfile)"
   type        = number
@@ -80,14 +76,12 @@ variable "auto_deployments_enabled" {
   default     = false
 }
 
-# Domain
 variable "domain_name" {
   description = "Apex domain. Registering it in Route 53 creates the public hosted zone this configuration looks up. The app is served on www.<domain> only, which is APP_URL."
   type        = string
   default     = "fenro-dashboard.com"
 }
 
-# GitHub Actions
 variable "github_repository" {
   description = "owner/name of the repository whose workflows may deploy"
   type        = string
@@ -106,7 +100,6 @@ variable "github_deploy_subjects" {
   default     = ["ref:refs/heads/main"]
 }
 
-# Plain runtime settings (public values)
 variable "github_client_id" {
   description = "Client ID of the production GitHub App (public; plain env var)"
   type        = string
@@ -119,14 +112,12 @@ variable "github_app_slug" {
   default     = ""
 }
 
-# Pictures (s3.tf)
 variable "pictures_noncurrent_days" {
   description = "Days a removed or replaced picture stays recoverable as an old object version"
   type        = number
   default     = 30
 }
 
-# Sentry (public values; the DSN reaches every browser anyway)
 variable "sentry_dsn" {
   description = "DSN of the Sentry project (Project Settings → Client Keys). Empty sends nothing to Sentry."
   type        = string
@@ -144,7 +135,6 @@ variable "sentry_traces_sample_rate" {
   }
 }
 
-# Shared database (flexi-day-be's RDS instance, read only)
 variable "rds_instance_identifier" {
   description = "Identifier of flexi-day-be's RDS instance Fenro's schema lives on"
   type        = string
@@ -163,7 +153,6 @@ variable "db_role" {
   default     = "fenro"
 }
 
-# Secrets (SSM Parameter Store SecureString; README, "Secrets")
 variable "better_auth_secret" {
   description = "BETTER_AUTH_SECRET copied from Vercel production. It encrypts the stored GitHub tokens, so a new value would make every migrated token unreadable."
   type        = string

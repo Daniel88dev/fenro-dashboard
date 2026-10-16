@@ -282,14 +282,12 @@ describe("panelOffset", () => {
   const desktop = { panelWidth: 520, viewportWidth: 1280 };
 
   it("hangs from the toggle's right edge when there is room on the left", () => {
-    // The header: the toggle sits at the right of the page.
     expect(
       panelOffset({ toggleLeft: 1100, toggleRight: 1250, ...desktop }),
     ).toBe(150 - 520);
   });
 
   it("opens to the right when hanging left would leave the screen", () => {
-    // The empty state: the toggle sits at the left of the page.
     expect(panelOffset({ toggleLeft: 120, toggleRight: 270, ...desktop })).toBe(
       0,
     );

@@ -4,11 +4,8 @@ import { signedInUserQuery } from "@/modules/identity/application/queries/signed
 import { isErr } from "@/shared/domain";
 import { getContainer } from "@/shared/infrastructure/container";
 
-/**
- * The repositories the picker offers. A route handler rather than a server
- * action because it only reads, and server actions queue behind each other: a
- * sync already running would hold the list up.
- */
+// A route handler, not a server action: server actions queue behind each
+// other, so a running sync would hold the list up.
 export async function GET(): Promise<Response> {
   const { queryBus } = await getContainer();
   const user = await queryBus.ask(signedInUserQuery());

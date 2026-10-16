@@ -1,6 +1,5 @@
 import { Spinner } from "@/modules/github-insights/ui/spinner";
 
-/** What a tasks screen shows while it reads the database. */
 export function TaskLoading({ what }: { what: string }) {
   return (
     <div

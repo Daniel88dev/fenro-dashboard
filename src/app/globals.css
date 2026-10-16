@@ -1,11 +1,9 @@
 @import "tailwindcss";
 
 :root {
-  /* Let form controls, scrollbars and the caret follow the scheme too. */
   color-scheme: light dark;
 }
 
-/* A scheme picked with the toggle in the top bar outranks the OS setting. */
 :root[data-theme="light"] {
   color-scheme: light;
 }
@@ -19,15 +17,6 @@
   --font-mono: var(--font-geist-mono);
 }
 
-/*
- * The dashboard palette from docs/ui/repository-table.md. Two accents carry
- * meaning everywhere: teal for pull requests and healthy states, rust for
- * issues and things going stale. A colour always means the same thing, in
- * either scheme.
- *
- * Every pair a reader has to read clears WCAG AA for small text in both
- * schemes; src/app/palette.test.ts is what keeps that true.
- */
 @theme {
   --color-ground: #f6f5f1;
   --color-surface: #ffffff;
@@ -54,10 +43,7 @@
   --color-pr-wash: #e4efeb;
   --color-issue-wash: #f6e9e1;
   --color-neutral-wash: #efede7;
-  /* Text on a solid teal fill: the brand mark, a ticked checkbox. */
   --color-on-pr: #ffffff;
-  /* Epics: their own violet, so an epic never reads as a pull request (teal),
-     an issue (rust) or a running check (amber). Used for epics only. */
   --color-epic: #6b48c8;
   --color-epic-strong: #55389f;
   --color-epic-wash: #eee9fb;
@@ -75,11 +61,6 @@
   --color-label-pink: #cc4a8c;
 }
 
-/*
- * The bar that runs along the table while a sync is fetching from GitHub. It
- * only moves where the reader has not asked for reduced motion; the words in
- * the header say the same thing either way.
- */
 @theme {
   --animate-sync-bar: sync-bar 1.4s ease-in-out infinite;
 
@@ -93,15 +74,6 @@
   }
 }
 
-/*
- * Dark is the same palette, not a second one: the ground goes to warm
- * near-black, the paper surfaces step up from it rather than down, and each
- * accent is lifted until it carries the same meaning at the same strength.
- * The tokens keep their names, so no component knows which scheme it is in.
- *
- * The OS decides unless the reader picked Light or Dark in the top bar, which
- * sets `data-theme` on the html element.
- */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     --color-ground: #121210;
@@ -144,11 +116,8 @@
   }
 }
 
-/*
- * The same dark tokens again for a reader who picked Dark whatever their OS
- * says. CSS cannot share one block between a media query and a selector, so
- * palette.test.ts checks the two copies stay identical.
- */
+/* CSS cannot share one block between a media query and a selector, so the
+   dark tokens are copied; palette.test.ts checks the copies stay identical. */
 :root[data-theme="dark"] {
   --color-ground: #121210;
   --color-surface: #1b1b18;
@@ -189,17 +158,12 @@
   --color-label-pink: #ef7fb4;
 }
 
-/*
- * Radii follow one rule: containers 12px (rounded-xl), controls 8px
- * (rounded-lg), chips 6px (rounded-md), filter pills full.
- */
 body {
   background: var(--color-ground);
   color: var(--color-ink);
   font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
 }
 
-/* The page behind an open dialog stays where it is. */
 html:has(dialog[open]) {
   overflow: hidden;
 }

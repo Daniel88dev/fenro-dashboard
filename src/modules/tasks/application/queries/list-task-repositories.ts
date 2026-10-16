@@ -4,7 +4,6 @@ import type { Query, QueryHandler } from "@/shared/application";
 import type { TaskReadStore } from "../ports/task-read-store";
 import type { TaskRepositoryItem } from "./read-models";
 
-/** The repositories the owner's tasks name, with how many tasks name each. */
 export type ListTaskRepositoriesQuery = Query<
   "tasks.list-task-repositories",
   TaskRepositoryItem[]

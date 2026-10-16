@@ -25,12 +25,6 @@ export function repositoryRowsQuery(watcher: Watcher): RepositoryRowsQuery {
   return { type: "github-insights.repository-rows", watcher };
 }
 
-/**
- * The write side owns which repositories are watched, which are pinned, and
- * how fresh their copy is; the reader owns what is happening inside them. A repository nobody has
- * synced yet still gets a row, with zeroes, so watching one is visible
- * immediately.
- */
 export async function loadRepositoryRows(
   repositories: WatchedRepositoryRepository,
   insights: RepositoryInsightsReader,
@@ -71,7 +65,6 @@ export async function loadRepositoryRows(
           needsSync: repository.isDueAutomatically(now),
         };
       })
-      // Pinned rows first; within each group the order stays alphabetical.
       .sort(
         (one, other) =>
           Number(other.pinned) - Number(one.pinned) ||

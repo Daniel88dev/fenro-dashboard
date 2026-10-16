@@ -11,11 +11,6 @@ import type {
 import { changedBy } from "./skill-views";
 import { ButtonForm, type TaskAction } from "./task-forms";
 
-/**
- * What one revision changed against the one before it, in words. The oldest
- * one shown has nothing before it on screen: it says "Created" only when it
- * really is the first.
- */
 export function revisionChange(
   revision: SkillRevisionItem,
   before: SkillRevisionItem | undefined,
@@ -31,11 +26,6 @@ export function revisionChange(
   return `Changed ${fields.length ? `${fields.join(", ")} and ${last}` : last}`;
 }
 
-/**
- * Every revision kept for the skill, newest first, each but the current one
- * with Restore. Restoring asks once, then puts that text back as a new
- * revision, so nothing is lost either way.
- */
 export function SkillHistory({
   skill,
   restore,

@@ -17,11 +17,8 @@ type SessionUser = {
   githubLogin?: string | null;
 };
 
-/**
- * Maps Better Auth's user onto the port's. A user without a GitHub login can
- * only be a row written before the login was captured; treating it as signed
- * out sends them through sign-in once more, which fills it in.
- */
+// A user without a GitHub login is a row written before the login was
+// captured; treating it as signed out makes sign-in fill it in.
 export function toSignedInUser(user: SessionUser): SignedInUser | null {
   if (!user.githubLogin) return null;
   return {
@@ -32,10 +29,6 @@ export function toSignedInUser(user: SessionUser): SignedInUser | null {
   };
 }
 
-/**
- * The GitHub App reads only the repositories it is installed on. This page is
- * where a user picks more, or asks an organization's owner to install it.
- */
 export function gitHubAppInstallUrl(slug: string | undefined): string | null {
   return slug
     ? `https://github.com/apps/${encodeURIComponent(slug)}/installations/new`
@@ -43,20 +36,13 @@ export function gitHubAppInstallUrl(slug: string | undefined): string | null {
 }
 
 export class BetterAuthAuthenticator implements Authenticator {
-  /**
-   * One session lookup per request, however many components and the
-   * composition root ask. React's `cache` is scoped to the request.
-   *
-   * `headers()` comes first on purpose: it is what tells `next build` the page
-   * is per request, so the build stops there instead of trying to create
-   * Better Auth without its settings.
-   */
+  // `headers()` comes first on purpose: it tells `next build` the page is per
+  // request, so the build never tries to create Better Auth without its settings.
   readonly #session = cache(async () => {
     const requestHeaders = await headers();
     return this.auth().api.getSession({ headers: requestHeaders });
   });
 
-  /** Per request too: the top bar and the table both build a container. */
   readonly #gitHubAccessToken = cache(async (): Promise<string | null> => {
     const session = await this.#session();
     if (!session) return null;

@@ -83,8 +83,6 @@ async function Screen({
     container.queryBus.ask(listLabelsQuery(ownerId)),
   ]);
 
-  // With nothing picked, the first of the list is open, so the editor is
-  // never an empty half of the screen while there is something to show.
   const wanted = one(params.skill);
   let skill: SkillDetail | null | undefined;
   if (tab === "skills") {

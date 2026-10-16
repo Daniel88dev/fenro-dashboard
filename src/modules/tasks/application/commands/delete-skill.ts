@@ -5,10 +5,6 @@ import { ok, type Result } from "@/shared/domain";
 import { findSkill, type SkillReference } from "./skill-commands";
 import type { TaskCommand } from "./task-commands";
 
-/**
- * Delete a skill with its links and revisions. Tasks keep their labels; they
- * simply stop bringing this skill.
- */
 export type DeleteSkillCommand = TaskCommand<"tasks.delete-skill"> & {
   readonly skill: SkillReference;
 };

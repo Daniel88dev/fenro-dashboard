@@ -12,11 +12,8 @@ export const metadata = {
     "Open pull requests, issues and tasks for the repositories you watch.",
 };
 
-/**
- * The page never awaits `searchParams`: it hands the promise down so the chrome
- * around the table can be part of the static shell. See
- * docs/research/nextjs-16-rendering-strategy.md.
- */
+// Never await `searchParams` here: handing the promise down keeps the chrome
+// around the table in the static shell.
 export default function RepositoriesPage({
   searchParams,
 }: PageProps<"/repositories">) {

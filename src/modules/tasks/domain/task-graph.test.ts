@@ -50,7 +50,6 @@ describe("TaskGraph", () => {
     ]);
 
     expect(graph.wouldCycleByBlocking("t3", "t1")).toBe(true);
-    // A parent waiting on its own sub-task is what it does anyway.
     expect(graph.wouldCycleByBlocking("t1", "t3")).toBe(false);
   });
 
@@ -71,8 +70,6 @@ describe("TaskGraph", () => {
       node("t2"),
     ]);
 
-    // t1 under t2 makes t2 wait on t1, which already waits on t2. t2 under
-    // t1 only makes t1 wait on t2 a second way.
     expect(graph.wouldCycleByParent("t1", "t2")).toBe(true);
     expect(graph.wouldCycleByParent("t2", "t1")).toBe(false);
   });

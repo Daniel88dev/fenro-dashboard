@@ -12,16 +12,8 @@ terraform {
     }
   }
 
-  # State is a local file (terraform.tfstate, gitignored), the same as
-  # flexi-day-be. It holds every secret value in plain text, so keep the
-  # checkout it lives in private and backed up. To share it later, create a
-  # bucket and uncomment:
-  # backend "s3" {
-  #   bucket       = "your-terraform-state-bucket"
-  #   key          = "fenro-dashboard/terraform.tfstate"
-  #   region       = "eu-central-1"
-  #   use_lockfile = true
-  # }
+  # State is a local file holding every secret value in plain text, so keep
+  # the checkout it lives in private and backed up.
 }
 
 provider "aws" {

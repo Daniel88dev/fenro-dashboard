@@ -1,9 +1,4 @@
-/**
- * The Fenro mark: an F drawn as a task list, a column of checkboxes for the
- * stem and two rows of text for the arms, the first box done.
- * `src/app/icon.svg` is the same drawing in fixed colours; here it takes the
- * pull-request tokens so it follows the colour scheme.
- */
+// `src/app/icon.svg` is the same drawing in fixed colours; keep them in step.
 export function FenroMark({ className }: { className?: string }) {
   return (
     <svg

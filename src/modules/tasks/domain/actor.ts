@@ -1,7 +1,6 @@
 /**
- * Who is acting on a task. An agent is known by the access token it presented,
- * so two agents sharing a token are one actor — which is what lets an agent
- * that lost its context claim its own task again.
+ * An agent is known by its access token, so two agents sharing a token are
+ * one actor; that lets an agent that lost its context reclaim its task.
  */
 export type Actor =
   | { readonly kind: "agent"; readonly id: string; readonly name: string }

@@ -58,12 +58,6 @@ type Stored = {
   readonly version: number;
 };
 
-/**
- * Both sides of the tasks store, in memory, for tests. It keeps what a save
- * wrote rather than the aggregate itself, and checks versions the way the
- * Postgres adapter does, so a handler that forgets to save — or saves over a
- * newer copy — fails here too.
- */
 export class InMemoryTaskStore
   implements TaskRepository, TaskReadStore, LabelRepository, PictureRepository
 {
@@ -74,8 +68,6 @@ export class InMemoryTaskStore
   readonly #pictures: Picture[] = [];
   readonly #journal: (JournalEntry & { taskId: string })[] = [];
   readonly #loadedVersions = new WeakMap<Task, number>();
-
-  // --- TaskRepository ----------------------------------------------------------
 
   async findById(ownerId: string, id: string): Promise<Task | undefined> {
     const stored = this.#tasks.get(id);
@@ -150,8 +142,6 @@ export class InMemoryTaskStore
     task.pullDomainEvents();
     return ok(undefined);
   }
-
-  // --- LabelRepository ---------------------------------------------------------
 
   async all(ownerId: string): Promise<Label[]> {
     return this.#labels
@@ -241,9 +231,6 @@ export class InMemoryTaskStore
     return ok(undefined);
   }
 
-  // --- SkillRepository ---------------------------------------------------------
-
-  /** The skill side, sharing this store's tasks and labels. */
   readonly skillRepository: SkillRepository = {
     findById: async (ownerId, id) => {
       const stored = this.#skills.get(id);
@@ -316,8 +303,6 @@ export class InMemoryTaskStore
     return skill;
   }
 
-  // --- PictureRepository -------------------------------------------------------
-
   async pictureById(ownerId: string, id: string): Promise<Picture | undefined> {
     return this.#pictures.find(
       (picture) => picture.ownerId === ownerId && picture.id.value === id,
@@ -337,8 +322,6 @@ export class InMemoryTaskStore
     );
     if (index >= 0) this.#pictures.splice(index, 1);
   }
-
-  // --- TaskReadStore -----------------------------------------------------------
 
   async picture(
     ownerId: string,
@@ -454,8 +437,6 @@ export class InMemoryTaskStore
       completedAt: state.completedAt,
     };
   }
-
-  // --- Internals ---------------------------------------------------------------
 
   #pictureRecord(picture: Picture): PictureRecord {
     const sessions = this.#tasks.get(picture.taskId)?.state.sessions ?? [];

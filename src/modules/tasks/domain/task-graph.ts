@@ -2,7 +2,6 @@ import { formatTaskKey } from "./task-key";
 import type { TaskSurroundings } from "./task";
 import { isOpen, type TaskStatus } from "./task-status";
 
-/** What the graph needs to know about each of one person's tasks. */
 export type TaskNode = {
   readonly id: string;
   readonly number: number;
@@ -12,13 +11,8 @@ export type TaskNode = {
 };
 
 /**
- * The rules that span tasks, over one person's whole task graph: a task may
- * not end up waiting on itself, through `blocked-by` links or through its
- * parents. Each task is its own aggregate, so no single task can see a cycle;
- * this service is asked before a link or a new parent is saved.
- *
- * It is small enough to load whole: one person's tasks, their parents and
- * their blocking links, without descriptions or journals.
+ * Each task is its own aggregate, so no single task can see a cycle; this
+ * service is asked before a link or a new parent is saved.
  */
 export class TaskGraph {
   readonly #nodes: ReadonlyMap<string, TaskNode>;
@@ -34,12 +28,10 @@ export class TaskGraph {
     }
   }
 
-  /** The same graph with one more task in it, to check a task before it exists. */
   with(node: TaskNode): TaskGraph {
     return new TaskGraph([...this.#nodes.values(), node]);
   }
 
-  /** What `Task` must be told about the world around it. */
   surroundingsOf(id: string): TaskSurroundings {
     const node = this.#nodes.get(id);
     const openBlockers = (node?.blockedBy ?? [])
@@ -53,29 +45,17 @@ export class TaskGraph {
     return { openBlockers, openSubtasks };
   }
 
-  /**
-   * Would "`taskId` is blocked by `blockerId`" leave a task waiting on itself?
-   * True when `blockerId` already waits on `taskId`.
-   */
   wouldCycleByBlocking(taskId: string, blockerId: string): boolean {
     return taskId === blockerId || this.#waitsOn(blockerId, taskId);
   }
 
-  /**
-   * Would making `parentId` the parent of `childId` leave a task waiting on
-   * itself? A parent waits on its new child, so this is true when the child
-   * already waits on the parent: it is the parent's ancestor, or blocked by
-   * it or by one of its ancestors.
-   */
   wouldCycleByParent(childId: string, parentId: string): boolean {
     return childId === parentId || this.#waitsOn(childId, parentId);
   }
 
   /**
-   * Whether `from` cannot finish before `target` does. A task waits on what
-   * blocks it and on its sub-tasks, since a parent is not done until they
-   * are. Treating both as one relation is what catches a sub-task blocked by
-   * its own parent, which would never become ready.
+   * Treating blocking and sub-tasks as one relation is what catches a
+   * sub-task blocked by its own parent, which would never become ready.
    */
   #waitsOn(from: string, target: string): boolean {
     const seen = new Set<string>();

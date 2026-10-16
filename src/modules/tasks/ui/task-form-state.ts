@@ -1,7 +1,4 @@
-/**
- * What a task form's server action answers. `saved` counts successful saves,
- * so a form can clear itself after each one without guessing.
- */
+/** `saved` counts successful saves, so a form can clear itself after each one. */
 export type TaskFormState = {
   readonly error: string | null;
   readonly saved: number;

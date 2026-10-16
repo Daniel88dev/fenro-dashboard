@@ -1,13 +1,4 @@
-# App Runner service running the image from ECR.
-#
-# Deploys: the pipeline pushes an image, moves docker_image_tag onto it and
-# calls `aws apprunner start-deployment` with the deploy role (iam.tf). App
-# Runner then pulls whatever the tag points at. Rollback is moving the tag back
-# to an older SHA tag and starting a deployment.
-#
-# Networking: default public egress, as in flexi-day-be. The app reaches RDS
-# on its public, TLS-only endpoint, GitHub over the internet, and S3 through
-# its public endpoint with the instance role. No VPC connector, so no NAT gateway to pay for.
+# Default public egress and no VPC connector, so no NAT gateway to pay for.
 #
 # Created only when create_service is true: App Runner fails to create a
 # service whose image is not in ECR yet (README, "First rollout").
@@ -56,8 +47,6 @@ resource "aws_apprunner_service" "app" {
           },
           var.github_client_id != "" ? { GITHUB_CLIENT_ID = var.github_client_id } : {},
           var.github_app_slug != "" ? { GITHUB_APP_SLUG = var.github_app_slug } : {},
-          # Credentials come from the instance role, so these two are all
-          # the app needs to keep pictures in S3 (README, "Pictures").
           {
             PICTURES_S3_BUCKET = aws_s3_bucket.pictures.bucket
             PICTURES_S3_REGION = var.aws_region
@@ -71,8 +60,6 @@ resource "aws_apprunner_service" "app" {
           } : {}
         )
 
-        # Resolved at deployment through the instance role; each env var gets
-        # the referenced secret's whole value.
         runtime_environment_secrets = {
           for name in local.filled_secrets : name => aws_ssm_parameter.app[name].arn
         }

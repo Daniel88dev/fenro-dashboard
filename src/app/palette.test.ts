@@ -5,13 +5,8 @@ import { describe, expect, it } from "vitest";
 
 import { LABEL_COLOURS } from "@/modules/tasks/domain";
 
-/**
- * The design doc asks for 4.5:1 on every pair a reader has to read, and its own
- * note says `#9A9AA0` does not clear it. These are the pairs the screen
- * actually renders, checked against the stylesheet rather than against a copy
- * of the values, so darkening a token in one scheme and forgetting the other
- * fails here.
- */
+// Read from the stylesheet rather than a copy of the values, so darkening a
+// token in one scheme and forgetting the other fails here.
 
 const css = readFileSync(join(process.cwd(), "src/app/globals.css"), "utf8");
 
@@ -49,7 +44,6 @@ function contrast(one: string, other: string): number {
   return (lighter! + 0.05) / (darker! + 0.05);
 }
 
-/** background, foreground, and where the reader meets it. */
 const READABLE_PAIRS: readonly [string, string, string][] = [
   ["surface", "ink", "a repository name in a row"],
   ["surface", "ink-muted", "a hint under a count"],
@@ -82,26 +76,19 @@ const READABLE_PAIRS: readonly [string, string, string][] = [
   ["epic", "on-epic", "the lightning in an epic's tile"],
 ];
 
-/**
- * A label's colour is a dot beside its name, so it is a graphic: WCAG asks
- * 3:1 against what it sits on, a chip or a row.
- */
+// Label dots are graphics, not text: WCAG asks 3:1 against a chip or a row.
 const GRAPHIC_PAIRS: readonly [string, string][] = [
   ...LABEL_COLOURS.flatMap((colour) => [
     ["neutral-wash", `label-${colour}`] as [string, string],
     ["surface", `label-${colour}`] as [string, string],
   ]),
-  // An epic's tile and its progress pips, on a card, a row and the rail.
   ["surface", "epic"],
   ["surface-raised", "epic"],
   ["surface-sunken", "epic"],
 ];
 
-/**
- * Surfaces that must not collapse into one another. The step is deliberately
- * faint — the panel tint the prototype drew is barely off white — so this only
- * catches a token that has become another token, not a design opinion.
- */
+// The step between surfaces is deliberately faint, so this only catches a
+// token that has become another token, not a design opinion.
 const DISTINCT_PAIRS: readonly [string, string][] = [
   ["ground", "surface"],
   ["surface", "surface-raised"],

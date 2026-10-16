@@ -1,11 +1,3 @@
-# Three roles:
-#
-# 1. ECR access role: assumed by App Runner's build service to pull the image.
-# 2. Instance role: assumed by the running app; it reads the SSM parameters
-#    injected as env vars and keeps pictures in their bucket (s3.tf).
-# 3. Deploy role: assumed by GitHub Actions through OIDC to push images and
-#    start deployments. No long-lived AWS keys live in GitHub.
-
 locals {
   service_name = "${var.project_name}-${var.environment}"
 
@@ -14,7 +6,6 @@ locals {
   service_arn_pattern = "arn:aws:apprunner:${var.aws_region}:${data.aws_caller_identity.current.account_id}:service/${local.service_name}/*"
 }
 
-# --- 1. ECR access role -----------------------------------------------------
 resource "aws_iam_role" "apprunner_ecr_access" {
   name = "${local.service_name}-apprunner-ecr-access"
 
@@ -39,7 +30,6 @@ resource "aws_iam_role_policy_attachment" "apprunner_ecr_access" {
   policy_arn = "arn:aws:iam::aws:policy/service-role/AWSAppRunnerServicePolicyForECRAccess"
 }
 
-# --- 2. Instance role -------------------------------------------------------
 resource "aws_iam_role" "apprunner_instance" {
   name = "${local.service_name}-apprunner-instance"
 
@@ -110,7 +100,6 @@ resource "aws_iam_role_policy" "apprunner_pictures" {
   })
 }
 
-# --- 3. GitHub Actions deploy role -------------------------------------------
 resource "aws_iam_role" "github_deploy" {
   name = "${local.service_name}-github-deploy"
 

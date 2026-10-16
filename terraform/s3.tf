@@ -1,10 +1,5 @@
-# The private bucket pictures on tasks are kept in. Only the app touches it:
-# the instance role (iam.tf) may read, write and delete objects, the browser
-# gets pictures through /api/pictures/<id>, and nothing here is public. So
-# the bucket needs no CORS rules and the app no access keys.
-#
-# Objects are named by the app: a UUID, or for pictures added before the
-# move to S3 (October 2026) the key UploadThing gave them.
+# The browser gets pictures through /api/pictures/<id>, never from the bucket,
+# so it needs no CORS rules.
 
 locals {
   # Bucket names are global; the account id keeps this one Fenro's.
@@ -28,7 +23,6 @@ resource "aws_s3_bucket_public_access_block" "pictures" {
   restrict_public_buckets = true
 }
 
-# No ACLs at all: access is decided by IAM and the bucket policy only.
 resource "aws_s3_bucket_ownership_controls" "pictures" {
   bucket = aws_s3_bucket.pictures.id
 
@@ -47,8 +41,6 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "pictures" {
   }
 }
 
-# A removed picture stays recoverable as an old version for
-# pictures_noncurrent_days, for cents.
 resource "aws_s3_bucket_versioning" "pictures" {
   bucket = aws_s3_bucket.pictures.id
 

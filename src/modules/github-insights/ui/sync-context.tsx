@@ -17,11 +17,8 @@ import type { SyncTrigger } from "@/modules/github-insights/domain";
 export type SyncAction = (trigger: SyncTrigger) => Promise<void>;
 
 type SyncContextValue = {
-  /** A sync is running: the numbers on screen are about to change. */
   readonly syncing: boolean;
-  /** The rows this sync is expected to touch, for their own indicator. */
   readonly isSyncing: (repositoryId: string) => boolean;
-  /** How many rows the running sync is expected to touch. */
   readonly updating: number;
   readonly refresh: () => void;
 };
@@ -37,16 +34,6 @@ export function useSync(): SyncContextValue {
   return useContext(SyncContext);
 }
 
-/**
- * The page renders what the database holds; this starts the refresh from
- * GitHub once that page is on screen. When rows are due — never synced, or
- * older than an hour — it asks the server to sync on its own, and Refresh asks
- * for everything. The server decides which repositories it actually reads, so
- * nothing here can spend the rate limit by itself.
- *
- * The action re-renders the page from the database in the same response, so
- * the numbers stay on screen throughout and change once, when the sync lands.
- */
 export function SyncProvider({
   action,
   repositoryIds,

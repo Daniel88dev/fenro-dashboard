@@ -1,10 +1,7 @@
 import { z } from "zod";
 
-/**
- * `.env.example` lists every key with an empty value, and dotenv reads `KEY=`
- * as an empty string. Treat that as "not set", or copying the example file
- * would fail validation before anyone filled it in.
- */
+// dotenv reads `KEY=` from `.env.example` as an empty string; treat it as unset
+// so a copied example file does not fail validation.
 function optional<T extends z.ZodType>(schema: T) {
   return z.preprocess(
     (value) => (value === "" ? undefined : value),
@@ -12,82 +9,37 @@ function optional<T extends z.ZodType>(schema: T) {
   );
 }
 
-/**
- * Every setting the app reads comes from a plain environment variable, so the
- * same build runs on a container or on a laptop.
- */
 const envSchema = z.object({
   NODE_ENV: z
     .enum(["development", "test", "production"])
     .default("development"),
-  /** Public origin of the app, used for absolute URLs and OAuth callbacks. */
   APP_URL: z.string().url().default("http://localhost:3000"),
-  /**
-   * Optional fallback token. Sign-in is the normal path: GitHub is read with
-   * the signed-in viewer's own token.
-   */
   GITHUB_TOKEN: optional(z.string()),
-  /** Postgres connection string, e.g. postgres://user:pass@host:5432/fenro. */
   DATABASE_URL: optional(z.string()),
-  /**
-   * A throwaway Postgres for the adapter tests, which migrate it and empty
-   * its tables. Never point it at a database whose data you want. Unset, those
-   * tests are skipped.
-   */
+  // Its tables are emptied by the adapter tests: never point it at real data.
   TEST_DATABASE_URL: optional(z.string()),
-  /**
-   * Signs session cookies and encrypts the stored GitHub tokens. Rotating it
-   * signs everybody out and makes stored tokens unreadable until they sign in
-   * again.
-   */
+  // Rotating it signs everybody out and makes stored GitHub tokens unreadable.
   BETTER_AUTH_SECRET: optional(
     z.string().min(32, "must be at least 32 characters"),
   ),
-  /** The GitHub App that "Sign in with GitHub" goes through. */
   GITHUB_CLIENT_ID: optional(z.string()),
   GITHUB_CLIENT_SECRET: optional(z.string()),
-  /**
-   * The GitHub App's URL name (github.com/apps/<slug>), for the link that
-   * installs it on more repositories. Unset, the link is not shown.
-   */
   GITHUB_APP_SLUG: optional(z.string()),
-  /**
-   * The private S3 bucket pictures on tasks are kept in. Unset, tasks show
-   * no pictures and nothing can be added.
-   */
   PICTURES_S3_BUCKET: optional(z.string()),
   PICTURES_S3_REGION: z.string().default("eu-central-1"),
-  /**
-   * A local S3 stand-in (S3Mock in compose.yaml) and keys for it. On AWS all
-   * three stay unset: the app signs in with the App Runner instance role.
-   */
+  // Unset on AWS: the app signs in with the App Runner instance role.
   PICTURES_S3_ENDPOINT: optional(z.string().url()),
   PICTURES_S3_ACCESS_KEY_ID: optional(z.string()),
   PICTURES_S3_SECRET_ACCESS_KEY: optional(z.string()),
-  /**
-   * Where errors, traces and logs go (Sentry, Project Settings → Client
-   * Keys). Public: the browser sends to it too. Unset, nothing is sent.
-   */
+  // Public: the browser sends to it too.
   SENTRY_DSN: optional(z.string().url()),
-  /** The environment events are tagged with; defaults to NODE_ENV. */
   SENTRY_ENVIRONMENT: optional(z.string()),
-  /**
-   * The release events are tagged with. The image sets it to the commit it
-   * was built from, the name its source maps were uploaded under.
-   */
   SENTRY_RELEASE: optional(z.string()),
-  /**
-   * Share of requests traced, 0 to 1. Health checks and the event tunnel are
-   * never traced, whatever this says.
-   */
   SENTRY_TRACES_SAMPLE_RATE: z.preprocess(
     (value) => (value === "" ? undefined : value),
     z.coerce.number().min(0).max(1).default(1),
   ),
-  /**
-   * Build time only: `next build` uploads source maps when all three are set.
-   * The token is an organization token (Sentry, Settings → Auth Tokens).
-   */
+  // Build time only: `next build` uploads source maps when all three are set.
   SENTRY_AUTH_TOKEN: optional(z.string()),
   SENTRY_ORG: optional(z.string()),
   SENTRY_PROJECT: optional(z.string()),
@@ -116,11 +68,8 @@ export function getEnv(env: EnvSource = process.env): Env {
 
 type Present<K extends keyof Env> = { [P in K]-?: NonNullable<Env[P]> };
 
-/**
- * Settings are optional in the schema so the app builds and its tests run
- * without a database or a GitHub App. Code that needs them asks here, so a
- * missing one fails with its name rather than somewhere inside a driver.
- */
+// Settings are optional in the schema so the app builds and tests run without
+// them; a missing one fails here with its name rather than inside a driver.
 export function requireEnv<K extends keyof Env>(
   keys: readonly K[],
   env: Env = getEnv(),

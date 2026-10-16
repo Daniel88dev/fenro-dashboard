@@ -22,11 +22,6 @@ import {
 type LabelRow = typeof taskLabel.$inferSelect;
 type Transaction = Parameters<Parameters<Database["transaction"]>[0]>[0];
 
-/**
- * The label catalogue in Postgres. The unique index on owner and name is what
- * turns a second label of one name into `label-exists`, on create and on
- * rename alike.
- */
 export class DrizzleLabelRepository implements LabelRepository {
   constructor(private readonly db: Database) {}
 
@@ -127,9 +122,8 @@ function restore(row: LabelRow): Label {
 }
 
 /**
- * Carry a rename to every task and skill holding the old name. A task or
- * skill that already holds the new name too keeps it once. Both bump their
- * version, so a copy loaded before the rename cannot save the old name back.
+ * Both bump their version, so a copy loaded before the rename cannot save the
+ * old name back.
  */
 async function renameEverywhere(
   tx: Transaction,

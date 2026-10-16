@@ -9,7 +9,6 @@ import type { AccessTokenSummary } from "@/modules/identity/application/queries/
 
 export type IssueTokenState = {
   readonly error: string | null;
-  /** The secret, present only in the response that created it. */
   readonly issued: { readonly name: string; readonly secret: string } | null;
 };
 
@@ -43,16 +42,10 @@ const DATE = new Intl.DateTimeFormat("en", {
 
 const formatDate = (iso: string) => DATE.format(new Date(iso));
 
-/** The command a person pastes into Claude Code to connect it. */
 export function connectCommand(serverUrl: string, secret: string): string {
   return `claude mcp add --transport http fenro ${serverUrl} --header "Authorization: Bearer ${secret}"`;
 }
 
-/**
- * Where a person lets an agent in: each token is one agent's key to the MCP
- * server, acting as this person on their tasks. The secret is shown once,
- * right after it is made, because only its hash is kept.
- */
 export function AgentAccess({
   serverUrl,
   tokens,
@@ -283,10 +276,6 @@ function CopyLine({
   );
 }
 
-/**
- * One grid for the header and the rows, so the columns line up. Under `md`
- * a row stacks: name on top, facts below with their own labels.
- */
 const TOKEN_GRID =
   "md:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)_minmax(0,0.9fr)_minmax(0,0.9fr)_minmax(0,0.9fr)_80px_80px] items-center gap-x-4 px-4";
 

@@ -34,15 +34,6 @@ type SessionRow = typeof taskSession.$inferSelect;
 type ReferenceRow = typeof taskExternalReference.$inferSelect;
 type LinkRow = typeof taskLink.$inferSelect;
 
-/**
- * `Task` in Postgres, with optimistic concurrency as `WatchedRepository` has
- * it: the version a task was loaded at is remembered beside it, and a save only
- * lands if the row still has that version. A new task that loses the race for
- * its number fails the same way, and the handler takes the next one.
- *
- * The journal is never loaded into the aggregate — nothing it enforces reads
- * old entries — so a save only inserts the entries appended since.
- */
 export class DrizzleTaskRepository implements TaskRepository {
   readonly #loadedVersions = new WeakMap<Task, number>();
 

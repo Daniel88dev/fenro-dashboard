@@ -18,15 +18,12 @@ type Claims = {
   readonly e: number;
 };
 
-/**
- * Upload tickets as signed tokens: the claims in base64url, a dot, and an
- * HMAC over them. The key is derived from the app's secret for this one
- * purpose, so a ticket can never pass for anything else the secret signs.
- */
 export class HmacUploadTickets implements UploadTickets {
   readonly #key: Buffer;
 
   constructor(secret: string) {
+    // A key for this one purpose, so a ticket can never pass for anything else
+    // the secret signs.
     this.#key = createHmac("sha256", secret)
       .update("fenro:picture-upload-ticket")
       .digest();

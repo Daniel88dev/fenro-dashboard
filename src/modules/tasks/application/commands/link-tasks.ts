@@ -14,12 +14,10 @@ import {
   type TaskReference,
 } from "./task-commands";
 
-/** "`task` is blocked by / relates to / was discovered from `target`". */
 export type LinkTasksCommand = TaskCommand<"tasks.link-tasks"> & {
   readonly task: TaskReference;
   readonly kind: LinkKind;
   readonly target: TaskReference;
-  /** Remove the link instead of adding it. */
   readonly remove?: boolean;
 };
 

@@ -13,11 +13,6 @@ import { SKILLS_PATH, type SkillActions } from "./skill-views";
 
 export type SkillsTab = "skills" | "labels";
 
-/**
- * Skills & labels: a tab for each, each a searchable list beside the one item
- * open in it. Which tab and which item are in the address, so a reload or a
- * shared link opens the same thing.
- */
 export function SkillsScreen({
   tab,
   skills,
@@ -32,7 +27,6 @@ export function SkillsScreen({
   labels: readonly LabelItem[];
   /** The skill in the editor: null for a new one, undefined for none. */
   skill: SkillDetail | null | undefined;
-  /** The label beside the list, if any. */
   label: LabelItem | undefined;
   actions: SkillActions;
   now: Date;

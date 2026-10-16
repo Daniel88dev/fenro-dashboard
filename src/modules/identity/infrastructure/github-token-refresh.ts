@@ -18,13 +18,8 @@ const refused = z.object({
 
 type Fetch = typeof fetch;
 
-/**
- * Trades a GitHub App refresh token for a new pair. GitHub answers a refused
- * refresh (expired, revoked, or already spent by another request) with a 200
- * and an `error` field, so this throws on that rather than handing Better Auth
- * a token-less answer to store. Better Auth turns the throw into "no token",
- * and the viewer is asked to sign in again.
- */
+// GitHub answers a refused refresh with a 200 and an `error` field, so throw
+// rather than hand Better Auth a token-less answer to store.
 export async function refreshGitHubToken(
   refreshToken: string,
   client: { readonly clientId: string; readonly clientSecret: string },

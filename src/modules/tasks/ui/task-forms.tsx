@@ -29,7 +29,6 @@ export type TaskAction = (
   formData: FormData,
 ) => Promise<TaskFormState>;
 
-/** Every server action the task screens use, handed down by the route. */
 export type TaskActions = {
   readonly create: TaskAction;
   readonly update: TaskAction;
@@ -72,10 +71,6 @@ export const PRIORITY_OPTIONS = [
   ["low", "Low"],
 ] as const;
 
-/**
- * A form bound to one server action: shows the domain's refusal in words,
- * and clears itself after each save unless it edits something in place.
- */
 function ActionForm({
   action,
   label,
@@ -142,7 +137,6 @@ function Field({
 }
 
 export type NewTaskDefaults = {
-  /** `?type=epic` starts the form as an epic. */
   readonly kind?: TaskKind;
   readonly repository: string;
   readonly parent: string;
@@ -150,11 +144,6 @@ export type NewTaskDefaults = {
   readonly title: string;
 };
 
-/**
- * Task or epic, as two segments. An epic gathers tasks and sits at the top,
- * so picking it takes the parent field away; the domain refuses an epic with
- * a parent either way.
- */
 function KindSegments({
   value,
   onChange,
@@ -203,7 +192,6 @@ function KindSegments({
   );
 }
 
-/** Priority as a row of segments rather than a select: all five fit. */
 function PrioritySegments({
   defaultValue = "none",
 }: {
@@ -238,8 +226,8 @@ function PrioritySegments({
 }
 
 /**
- * A source link can be long: the field grows to a second line rather than
- * clipping, as Daniel asked, and Enter still submits instead of breaking it.
+ * Grows to a second line rather than clipping a long link, and Enter still
+ * submits instead of breaking it.
  */
 function SourceField({
   id,
@@ -267,11 +255,6 @@ function SourceField({
   );
 }
 
-/**
- * A task written by hand: what it is, how to know it is done, where from.
- * On its page the form has room for every field; in the dialog the rarer
- * ones fold away under one disclosure.
- */
 export function NewTaskForm({
   action,
   defaults,
@@ -283,14 +266,10 @@ export function NewTaskForm({
 }: {
   action: TaskAction;
   defaults: NewTaskDefaults;
-  /** The open tasks a new one can go under. */
   parents?: readonly ParentOption[];
-  /** The owner's labels, to pick from. */
   labels?: readonly LabelOption[];
-  /** The repositories the owner watches, to pick from. */
   repositories?: readonly RepositoryOption[];
   variant?: "page" | "dialog";
-  /** The way out: a link on the page, a close button in the dialog. */
   cancel?: ReactNode;
 }) {
   const dialog = variant === "dialog";
@@ -489,7 +468,6 @@ export type TaskDetails = {
   readonly parent: { readonly key: string } | null;
 };
 
-/** Editing what the task says, behind a disclosure so reading comes first. */
 export function EditTaskForm({
   action,
   task,
@@ -498,9 +476,7 @@ export function EditTaskForm({
 }: {
   action: TaskAction;
   task: TaskDetails;
-  /** The repositories the owner watches, to pick from. */
   repositories?: readonly RepositoryOption[];
-  /** The open tasks it can go under. */
   parents?: readonly ParentOption[];
 }) {
   const [kind, setKind] = useState<TaskKind>(task.kind);
@@ -609,10 +585,6 @@ export function EditTaskForm({
   );
 }
 
-/**
- * A task's labels, saved as soon as one is ticked or unticked: labels are
- * quick to change and there is nothing else in this form to wait for.
- */
 export function TaskLabelsForm({
   action,
   task,
@@ -652,7 +624,6 @@ const NOTE_OPTIONS = [
   ["question", "Question"],
 ] as const;
 
-/** A person adds to the journal the same way an agent does. */
 export function NoteForm({
   action,
   task,
@@ -703,10 +674,6 @@ export function NoteForm({
   );
 }
 
-/**
- * Tick or untick one criterion. The box is the submit button; evidence is
- * shown when an agent recorded it.
- */
 export function CriterionForm({
   action,
   task,
@@ -767,7 +734,6 @@ export function CriterionForm({
   );
 }
 
-/** One field, one button: adding criteria, links, or blocking tasks. */
 export function InlineForm({
   action,
   task,
@@ -834,7 +800,6 @@ const BUTTON_TONES = {
   link: LINK,
 } as const;
 
-/** A single button that posts fixed values: remove a link, change status. */
 export function ButtonForm({
   action,
   task,

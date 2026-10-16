@@ -18,7 +18,6 @@ import {
   type TaskReference,
 } from "./task-commands";
 
-/** Add a picture to a task: a screenshot, a design, a photo. */
 export type AddPictureCommand = TaskCommand<"tasks.add-picture"> & {
   readonly pictureId: string;
   readonly task: TaskReference;
@@ -89,11 +88,6 @@ export class AddPictureHandler implements CommandHandler<AddPictureCommand> {
   }
 }
 
-/**
- * The bytes of a picture an agent was given an upload link for. Who is adding
- * it, to which task and under what name all come from the ticket, so the link
- * is all the request needs to carry.
- */
 export type UploadPictureCommand = Command<
   "tasks.upload-picture",
   TaskError

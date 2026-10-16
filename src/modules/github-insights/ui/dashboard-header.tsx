@@ -7,7 +7,6 @@ import { AddRepositories, type AddRepositoriesState } from "./add-repositories";
 import { formatAbsolute, formatRelativeTime } from "./format";
 import { SyncStatus } from "./sync-status";
 
-/** One labelled number; the labels replace the old dotted totals line. */
 function Stat({
   value,
   label,
@@ -63,8 +62,6 @@ export function DashboardHeader({
     />
   );
 
-  // With nothing watched, the empty state carries the one action; the stats,
-  // the sync line and the filter would only describe nothing.
   if (totals.watchedRepositories === 0) {
     return (
       <header>
@@ -149,10 +146,6 @@ export function DashboardHeader({
   );
 }
 
-/**
- * Said once, above the table, instead of squeezed into the header: the
- * numbers below are still the last ones GitHub gave.
- */
 export function RateLimitBanner({
   syncedAt,
   now,

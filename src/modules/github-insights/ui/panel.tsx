@@ -3,11 +3,6 @@ import type { ReactNode } from "react";
 
 import { Spinner } from "./spinner";
 
-/**
- * The chrome every expanded panel shares: one sunken level under the row, a
- * title with its summary, then a single list. The rows inside are separated by
- * hairlines rather than boxed one by one.
- */
 export function Panel({
   id,
   title,
@@ -19,7 +14,6 @@ export function Panel({
   id: string;
   title: string;
   summary: ReactNode;
-  /** What sits at the right of the title: Open on GitHub, New task here. */
   action?: ReactNode;
   children: ReactNode;
   footer?: ReactNode;
@@ -58,12 +52,10 @@ function PanelHeading({
   );
 }
 
-/** The muted line beside a panel's title. */
 export function PanelSummary({ children }: { children: ReactNode }) {
   return <p className="text-ink-muted text-[12px]">{children}</p>;
 }
 
-/** The one container inside a panel. */
 export function PanelList({ children }: { children: ReactNode }) {
   return (
     <ul className="border-hairline bg-surface divide-hairline-soft m-0 list-none divide-y overflow-hidden rounded-xl border p-0">
@@ -72,7 +64,6 @@ export function PanelList({ children }: { children: ReactNode }) {
   );
 }
 
-/** One panel failing must not take the table down with it. */
 export function PanelError({
   id,
   title,
@@ -101,11 +92,6 @@ export function PanelError({
   );
 }
 
-/**
- * A panel whose detail is still on its way: the same chrome, so the row does
- * not jump when it lands, and a line saying so. No placeholder rows: Daniel
- * asked for a quiet indicator rather than skeletons.
- */
 export function PanelLoading({
   id,
   title,
@@ -144,7 +130,6 @@ const CHECKS_TONES = {
 
 const CHECKS_INDENT = "px-3.5 pb-3.5 md:pl-[76px]";
 
-/** Where a pull request's checks would be, saying why they are not. */
 export function ChecksMessage({
   id,
   tone,
@@ -205,7 +190,6 @@ export function MoreOnGitHub({
   );
 }
 
-/** The quiet link at the right of a panel's title. */
 export function OpenOnGitHub({ href, what }: { href: string; what: string }) {
   return (
     <a
@@ -221,10 +205,6 @@ export function OpenOnGitHub({ href, what }: { href: string; what: string }) {
   );
 }
 
-/**
- * A pull request or issue number that is itself the link to GitHub, as Daniel
- * asked on the prototypes, so the rest of the row is free to toggle.
- */
 export function GitHubNumberLink({
   href,
   number,

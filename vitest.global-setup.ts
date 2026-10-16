@@ -5,11 +5,8 @@ import { Pool } from "pg";
 import { getEnv } from "./src/shared/config/env";
 import { migrationConfig } from "./src/shared/infrastructure/database/migrations";
 
-/**
- * Brings the adapter tests' database up to date once, before any test file
- * runs. Files run in parallel, and Drizzle's migrator takes no lock, so two
- * files migrating a fresh database at once collide.
- */
+// Migrate once here: test files run in parallel and Drizzle's migrator takes
+// no lock, so two files migrating a fresh database at once collide.
 export async function setup(): Promise<void> {
   const url = getEnv().TEST_DATABASE_URL;
   if (!url) return;

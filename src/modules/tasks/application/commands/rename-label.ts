@@ -11,13 +11,7 @@ import { err, ok, type Result } from "@/shared/domain";
 import { ensureLabels } from "./create-label";
 import type { TaskCommand } from "./task-commands";
 
-/**
- * Give a label a new name. Every task and skill carrying the old name carries
- * the new one afterwards, in one transaction, so no link drops. Refused with
- * `label-exists` when the new name is another label's.
- */
 export type RenameLabelCommand = TaskCommand<"tasks.rename-label"> & {
-  /** The label's current name. */
   readonly label: string;
   readonly name: string;
 };
@@ -44,9 +38,8 @@ export class RenameLabelHandler implements CommandHandler<RenameLabelCommand> {
 }
 
 /**
- * The catalogue entry for a label name. Labels written before the catalogue
- * existed are only on tasks, yet listed like the rest, so a name in use gets
- * its entry here rather than being refused.
+ * Labels written before the catalogue existed are only on tasks, so a
+ * name in use gets its entry here rather than being refused.
  */
 export async function catalogued(
   labels: LabelRepository,

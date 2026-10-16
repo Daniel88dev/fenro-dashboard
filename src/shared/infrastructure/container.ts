@@ -254,16 +254,8 @@ import { getEnv, type Env } from "@/shared/config/env";
 import { getDatabase } from "@/shared/infrastructure/database/client";
 import { sentryMessageTracer } from "@/shared/infrastructure/observability/sentry";
 
-/**
- * The composition root: the one place allowed to know every module, so nothing
- * else has to.
- *
- * It is rebuilt per request rather than shared, because the GitHub adapter is
- * constructed with the signed-in viewer's token (ticket 03), and the watched
- * repository store remembers which version of each aggregate this request
- * loaded. Per docs/research/nextjs-16-rendering-strategy.md it must be built
- * *outside* every `use cache` scope and passed plain arguments in.
- */
+// Rebuilt per request, not shared: the GitHub adapter holds the viewer's token
+// and repositories remember aggregate versions. Build it outside `use cache`.
 export type Container = {
   readonly commandBus: CommandBus;
   readonly queryBus: QueryBus;
@@ -272,7 +264,6 @@ export type Container = {
 export type ContainerParts = {
   readonly watchedRepositories: WatchedRepositoryRepository;
   readonly snapshots: RepositorySnapshotStore;
-  /** Already bound to the viewer's token, or to none when signed out. */
   readonly gitHub: GitHubGateway;
   readonly tasks: TaskRepository;
   readonly labels: LabelRepository;
@@ -284,7 +275,6 @@ export type ContainerParts = {
   readonly accessTokens: AccessTokenRepository;
   readonly authenticator: Authenticator;
   readonly clock: () => Date;
-  /** Sees every command and query; tests leave it out. */
   readonly tracer?: MessageTracer;
 };
 
@@ -538,14 +528,11 @@ function registerAccessTokens(
   );
 }
 
-/**
- * Sign-in is Better Auth over Postgres. Both are created on first use, so a
- * build or a test that never signs anybody in needs neither configured.
- */
+// Created on first use, so a build or test that never signs in needs neither
+// Better Auth nor Postgres configured.
 const auth = () => getAuth(getDatabase);
 const authenticator: Authenticator = new BetterAuthAuthenticator(auth);
 
-/** The identity context answers the two questions github-insights asks. */
 const viewerProvider = new SignedInViewerProvider({
   user: async () => {
     const user = await authenticator.signedInUser();
@@ -554,11 +541,8 @@ const viewerProvider = new SignedInViewerProvider({
   accessToken: () => authenticator.gitHubAccessToken(),
 });
 
-/**
- * `now` pins the clock for a render, so the relative times on screen and the
- * "is it stale" answers agree. Commands leave it out and get a live clock, so
- * a sync records when it actually finished.
- */
+// `now` pins the clock for a render so relative times and staleness agree;
+// commands get a live clock so a sync records when it actually finished.
 export async function getContainer(now?: Date): Promise<Container> {
   // Who is asking comes first: it reads the request, which is also what keeps
   // `next build` from reaching the database below.
@@ -569,11 +553,8 @@ export async function getContainer(now?: Date): Promise<Container> {
   );
 }
 
-/**
- * For the MCP server. An agent proves who it is with an access token rather
- * than a session cookie, so nothing here reads the request, and nothing reads
- * GitHub on its behalf.
- */
+// An agent authenticates with an access token, not a session cookie, so
+// nothing here reads the request or reads GitHub on its behalf.
 export function getAgentContainer(): Container {
   return containerFor(null, () => new Date());
 }
@@ -601,7 +582,6 @@ function containerFor(
   });
 }
 
-/** The S3 bucket when one is set; otherwise pictures are off. */
 function pictureStorage(env: Env = getEnv()): PictureStorage {
   if (env.PICTURES_S3_BUCKET) {
     const accessKeyId = env.PICTURES_S3_ACCESS_KEY_ID;
@@ -619,16 +599,12 @@ function pictureStorage(env: Env = getEnv()): PictureStorage {
   return new UnconfiguredPictureStorage();
 }
 
-/** Whether pages offer pictures, without building a store to ask. */
 export function picturesEnabled(env: Env = getEnv()): boolean {
   return Boolean(env.PICTURES_S3_BUCKET);
 }
 
-/**
- * Upload links are signed with a key derived from the app's secret. Without
- * one (a laptop without sign-in set up), a key made at start-up still signs
- * them safely; links then last only as long as the process.
- */
+// Without BETTER_AUTH_SECRET a start-up key still signs upload links safely;
+// they then last only as long as the process.
 const processSecret = crypto.randomUUID() + crypto.randomUUID();
 function uploadTickets(): UploadTickets {
   return new HmacUploadTickets(getEnv().BETTER_AUTH_SECRET ?? processSecret);
@@ -638,7 +614,6 @@ export function getAuthenticator(): Authenticator {
   return authenticator;
 }
 
-/** Better Auth's own endpoints: the OAuth callback, session and sign-out. */
 export function handleAuthRequest(request: Request): Promise<Response> {
   return auth().handler(request);
 }

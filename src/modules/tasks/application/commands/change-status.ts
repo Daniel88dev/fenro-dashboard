@@ -12,10 +12,6 @@ import {
   type TaskReference,
 } from "./task-commands";
 
-/**
- * Move a task between statuses outside a session, or put it on hold and take
- * it off again. `hold` is the reason it is waiting; `null` releases it.
- */
 export type ChangeStatusCommand = TaskCommand<"tasks.change-status"> & {
   readonly task: TaskReference;
   readonly status?: StatusTarget;

@@ -1,10 +1,6 @@
 /**
- * Why the tasks domain refused something. Plain objects rather than `Error`
- * subclasses, as in github-insights: a refusal crosses the command bus, the MCP
- * server and React Server Component boundaries, and a class instance cannot.
- *
- * The messages are written for whoever reads them next — usually an agent — so
- * each says what to do instead, not only what went wrong.
+ * Plain objects rather than `Error` subclasses: a refusal crosses the command
+ * bus, MCP server and RSC boundaries, and a class instance cannot.
  */
 export type TaskErrorCode =
   | "invalid-task"

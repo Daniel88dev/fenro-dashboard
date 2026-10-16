@@ -2,7 +2,6 @@ import { SignOut } from "@phosphor-icons/react/ssr";
 
 import type { SignedInUser } from "@/modules/identity/application/ports/authenticator";
 
-/** Who is signed in on the settings page, what that lets Fenro read, and the way out. */
 export function AccountSection({
   user,
   signOutAction,
