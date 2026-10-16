@@ -10,8 +10,8 @@ name: Release
 #   AWS_REGION              e.g. eu-central-1
 #   AWS_ROLE_ARN            the OIDC role this workflow assumes
 #   ECR_REPOSITORY          the ECR repository name, e.g. fenro-dashboard
-#   APP_RUNNER_SERVICE_ARN  the service to deploy; unset, the image is pushed
-#                           and nothing is deployed
+#   APP_RUNNER_SERVICE_ARN  the service to deploy; required, the release fails
+#                           without it so an undeployed image never looks green
 #   SENTRY_ORG              the Sentry organization slug, e.g. fenro
 #   SENTRY_PROJECT          the Sentry project slug, e.g. fenro-dashboard
 #
@@ -120,9 +120,12 @@ jobs:
           echo "Pushed ${IMAGE}:${RELEASE_SHA} and :latest" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Deploy to App Runner
-        if: env.SERVICE_ARN != ''
         run: |
           set -euo pipefail
+          if [ -z "${SERVICE_ARN}" ]; then
+            echo "::error::APP_RUNNER_SERVICE_ARN is not set, so the image was pushed but not deployed. Set it to terraform output -raw apprunner_service_arn."
+            exit 1
+          fi
           operation=$(aws apprunner start-deployment \
             --service-arn "$SERVICE_ARN" \
             --query OperationId --output text)

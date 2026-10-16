@@ -389,7 +389,7 @@ which Terraform outputs:
 | `AWS_REGION`             | The region of the ECR repository and the service                                  |
 | `AWS_ROLE_ARN`           | The deploy role; it trusts `repo:Daniel88dev/fenro-dashboard:ref:refs/heads/main` |
 | `ECR_REPOSITORY`         | The ECR repository name                                                           |
-| `APP_RUNNER_SERVICE_ARN` | The service; leave unset to push images without deploying                         |
+| `APP_RUNNER_SERVICE_ARN` | The service; without it the release fails after pushing the image                 |
 
 The deploy role needs ECR push to that repository (`ecr:GetAuthorizationToken`,
 `ecr:BatchCheckLayerAvailability`, `ecr:InitiateLayerUpload`,
