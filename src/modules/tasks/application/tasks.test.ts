@@ -28,6 +28,7 @@ import {
   listTaskRepositoriesQuery,
 } from "./queries/list-task-repositories";
 import { ListTasksHandler, listTasksQuery } from "./queries/list-tasks";
+import { TaskBoardHandler, taskBoardQuery } from "./queries/task-board";
 import {
   TaskCountsByRepositoryHandler,
   taskCountsByRepositoryQuery,
@@ -314,5 +315,135 @@ describe("labels", () => {
       listTasksQuery(OWNER, { labels: ["docs", "Bug"] }),
     );
     expect(list.tasks.map((task) => task.key)).toEqual(["T-1", "T-2"]);
+  });
+});
+
+const update = (
+  fields: Omit<UpdateTaskCommand, "type" | "ownerId" | "actor">,
+) =>
+  new UpdateTaskHandler(store, store, clock).handle({
+    type: "tasks.update-task",
+    ownerId: OWNER,
+    actor: DANIEL,
+    ...fields,
+  });
+
+describe("epics", () => {
+  async function anEpic() {
+    await create({ title: "Ship tasks v2", kind: "epic" });
+    await create({ title: "Board", parent: "T-1" });
+    await create({ title: "Drag a card", parent: "T-2" });
+    await create({ title: "Label select", parent: "T-1" });
+    await create({ title: "Loose end" });
+  }
+
+  it("scopes the list to an epic's tasks at any depth, or to loose work", async () => {
+    await anEpic();
+    const list = new ListTasksHandler(store, clock);
+    const keys = async (filter: Parameters<typeof listTasksQuery>[1]) =>
+      (await list.handle(listTasksQuery(OWNER, filter))).tasks
+        .map((task) => task.key)
+        .sort();
+
+    expect(await keys({ epic: "T-1" })).toEqual(["T-2", "T-3", "T-4"]);
+    expect(await keys({ kinds: ["epic"] })).toEqual(["T-1"]);
+    expect(await keys({ outsideEpics: true })).toEqual(["T-5"]);
+    expect(await keys({ epic: "T-2" })).toEqual([]);
+  });
+
+  it("names the epic above each task and counts an epic's progress", async () => {
+    await anEpic();
+    await changeStatus({ actor: DANIEL, task: "T-4", status: "done" });
+    const { tasks } = await new ListTasksHandler(store, clock).handle(
+      listTasksQuery(OWNER, { includeClosed: true }),
+    );
+    const byKey = new Map(tasks.map((task) => [task.key, task]));
+
+    expect(byKey.get("T-3")?.epic).toEqual({
+      key: "T-1",
+      title: "Ship tasks v2",
+    });
+    expect(byKey.get("T-5")?.epic).toBeNull();
+    expect(byKey.get("T-1")?.progress).toEqual({ done: 1, total: 2 });
+  });
+
+  it("never offers an epic as ready work", async () => {
+    await create({ title: "Ship tasks v2", kind: "epic" });
+    await create({ title: "Loose end" });
+
+    const ready = await new ListTasksHandler(store, clock).handle(
+      listTasksQuery(OWNER, { ready: true }),
+    );
+
+    expect(ready.tasks.map((task) => task.key)).toEqual(["T-2"]);
+  });
+
+  it("makes a sub-task an epic by taking it out from under its parent", async () => {
+    await create({ title: "Big" });
+    await create({ title: "Bigger still", parent: "T-1" });
+
+    const changed = await update({ task: "T-2", kind: "epic", parent: null });
+
+    expect(changed.ok).toBe(true);
+    const task = await store.findByNumber(OWNER, 2);
+    expect(task?.kind).toBe("epic");
+    expect(task?.state.parentId ?? null).toBeNull();
+  });
+});
+
+describe("the board", () => {
+  it("puts open and done tasks in their status columns, under the same scope", async () => {
+    await create({ title: "Ship tasks v2", kind: "epic" });
+    await create({ title: "Board", parent: "T-1" });
+    await create({ title: "Later", parent: "T-1", status: "backlog" });
+    await create({ title: "Elsewhere" });
+    await changeStatus({ actor: DANIEL, task: "T-2", status: "in_progress" });
+
+    const { columns } = await new TaskBoardHandler(store, clock).handle(
+      taskBoardQuery(OWNER, { epic: "T-1" }),
+    );
+    const keysIn = (status: string) =>
+      columns
+        .find((column) => column.status === status)
+        ?.tasks.map((task) => task.key);
+
+    expect(columns.map((column) => column.status)).toEqual([
+      "backlog",
+      "todo",
+      "in_progress",
+      "in_review",
+      "done",
+    ]);
+    expect(keysIn("backlog")).toEqual(["T-3"]);
+    expect(keysIn("in_progress")).toEqual(["T-2"]);
+    expect(keysIn("todo")).toEqual([]);
+  });
+
+  it("shows a task moved into progress by hand as paused", async () => {
+    await create({ title: "Board" });
+
+    const moved = await changeStatus({
+      actor: DANIEL,
+      task: "T-1",
+      status: "in_progress",
+    });
+
+    expect(moved.ok).toBe(true);
+    const { tasks } = await new ListTasksHandler(store, clock).handle(
+      listTasksQuery(OWNER),
+    );
+    expect(tasks[0]?.state).toBe("paused");
+  });
+
+  it("refuses an agent dragging a task into progress", async () => {
+    await create({ title: "Board" });
+
+    const moved = await changeStatus({
+      actor: AGENT,
+      task: "T-1",
+      status: "in_progress",
+    });
+
+    expect(!moved.ok && moved.error.code).toBe("invalid-transition");
   });
 });

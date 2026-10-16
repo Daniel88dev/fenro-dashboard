@@ -8,6 +8,10 @@ import {
   themeAttribute,
 } from "@/modules/github-insights/ui/theme";
 import { getEnv } from "@/shared/config/env";
+import {
+  BROWSER_SENTRY_META,
+  browserSentryConfig,
+} from "@/shared/infrastructure/observability/sentry-options";
 
 import "./globals.css";
 
@@ -41,6 +45,7 @@ export default async function RootLayout({
   modal,
 }: LayoutProps<"/">) {
   const theme = parseTheme((await cookies()).get(THEME_COOKIE)?.value);
+  const sentry = browserSentryConfig(getEnv());
 
   return (
     <html
@@ -48,6 +53,11 @@ export default async function RootLayout({
       data-theme={themeAttribute(theme)}
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
+      <head>
+        {sentry && (
+          <meta name={BROWSER_SENTRY_META} content={JSON.stringify(sentry)} />
+        )}
+      </head>
       <body className="flex min-h-full flex-col">
         {children}
         {modal}

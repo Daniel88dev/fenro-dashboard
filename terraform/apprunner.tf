@@ -61,6 +61,13 @@ resource "aws_apprunner_service" "app" {
           var.serve_pictures_from_s3 ? {
             PICTURES_S3_BUCKET = aws_s3_bucket.pictures.bucket
             PICTURES_S3_REGION = var.aws_region
+          } : {},
+          # SENTRY_RELEASE is baked into the image: it names the commit the
+          # source maps were uploaded for.
+          var.sentry_dsn != "" ? {
+            SENTRY_DSN                = var.sentry_dsn
+            SENTRY_ENVIRONMENT        = var.environment
+            SENTRY_TRACES_SAMPLE_RATE = tostring(var.sentry_traces_sample_rate)
           } : {}
         )
 

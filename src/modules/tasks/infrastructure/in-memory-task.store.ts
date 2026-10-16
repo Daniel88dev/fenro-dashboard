@@ -503,6 +503,7 @@ export class InMemoryTaskStore
     return {
       id: stored.id,
       number: stored.number,
+      kind: state.kind,
       title: state.title,
       status: state.status,
       priority: state.priority,

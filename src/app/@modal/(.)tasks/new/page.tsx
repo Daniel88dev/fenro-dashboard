@@ -32,6 +32,7 @@ export default async function NewTaskDialogPage({
   ]);
   const query = new URLSearchParams(
     Object.entries({
+      type: defaults.kind === "epic" ? "epic" : "",
       repository: defaults.repository,
       parent: defaults.parent,
       from: defaults.source,
@@ -48,7 +49,7 @@ export default async function NewTaskDialogPage({
             id="new-task-title"
             className="text-ink text-[18px] font-semibold tracking-tight"
           >
-            New task
+            {defaults.kind === "epic" ? "New epic" : "New task"}
           </h2>
           <p className="text-ink-muted text-[12.5px]">
             {defaults.repository ? (

@@ -69,6 +69,33 @@ const envSchema = z.object({
    * PICTURES_S3_BUCKET is unset; removed once the pictures are copied.
    */
   UPLOADTHING_TOKEN: optional(z.string()),
+  /**
+   * Where errors, traces and logs go (Sentry, Project Settings → Client
+   * Keys). Public: the browser sends to it too. Unset, nothing is sent.
+   */
+  SENTRY_DSN: optional(z.string().url()),
+  /** The environment events are tagged with; defaults to NODE_ENV. */
+  SENTRY_ENVIRONMENT: optional(z.string()),
+  /**
+   * The release events are tagged with. The image sets it to the commit it
+   * was built from, the name its source maps were uploaded under.
+   */
+  SENTRY_RELEASE: optional(z.string()),
+  /**
+   * Share of requests traced, 0 to 1. Health checks and the event tunnel are
+   * never traced, whatever this says.
+   */
+  SENTRY_TRACES_SAMPLE_RATE: z.preprocess(
+    (value) => (value === "" ? undefined : value),
+    z.coerce.number().min(0).max(1).default(1),
+  ),
+  /**
+   * Build time only: `next build` uploads source maps when all three are set.
+   * The token is an organization token (Sentry, Settings → Auth Tokens).
+   */
+  SENTRY_AUTH_TOKEN: optional(z.string()),
+  SENTRY_ORG: optional(z.string()),
+  SENTRY_PROJECT: optional(z.string()),
 });
 
 export type Env = z.infer<typeof envSchema>;

@@ -209,6 +209,7 @@ import type {
   RepositoryTasks,
   SkillItem,
   TaskCountsByRepository,
+  TaskBoard,
   TaskList,
   TaskRepositoryItem,
 } from "@/modules/tasks/application/queries/read-models";
@@ -222,6 +223,10 @@ import {
   type TaskBriefQuery,
   type TaskBriefResult,
 } from "@/modules/tasks/application/queries/task-brief";
+import {
+  TaskBoardHandler,
+  type TaskBoardQuery,
+} from "@/modules/tasks/application/queries/task-board";
 import {
   TaskCountsByRepositoryHandler,
   type TaskCountsByRepositoryQuery,
@@ -245,9 +250,10 @@ import { HmacUploadTickets } from "@/modules/tasks/infrastructure/hmac-upload-ti
 import { S3PictureStorage } from "@/modules/tasks/infrastructure/s3-picture.storage";
 import { UnconfiguredPictureStorage } from "@/modules/tasks/infrastructure/unconfigured-picture.storage";
 import { UploadThingPictureStorage } from "@/modules/tasks/infrastructure/uploadthing-picture.storage";
-import { CommandBus, QueryBus } from "@/shared/application";
+import { CommandBus, QueryBus, type MessageTracer } from "@/shared/application";
 import { getEnv, type Env } from "@/shared/config/env";
 import { getDatabase } from "@/shared/infrastructure/database/client";
+import { sentryMessageTracer } from "@/shared/infrastructure/observability/sentry";
 
 /**
  * The composition root: the one place allowed to know every module, so nothing
@@ -279,13 +285,15 @@ export type ContainerParts = {
   readonly accessTokens: AccessTokenRepository;
   readonly authenticator: Authenticator;
   readonly clock: () => Date;
+  /** Sees every command and query; tests leave it out. */
+  readonly tracer?: MessageTracer;
 };
 
 export function buildContainer(parts: ContainerParts): Container {
   const { watchedRepositories, snapshots, gitHub, clock } = parts;
   const insights = new SnapshotInsightsReader(snapshots, clock);
 
-  const commandBus = new CommandBus();
+  const commandBus = new CommandBus(parts.tracer);
   commandBus.register<AddRepositoryManuallyCommand>(
     "github-insights.add-repository-manually",
     new AddRepositoryManuallyHandler(watchedRepositories),
@@ -316,7 +324,7 @@ export function buildContainer(parts: ContainerParts): Container {
     ),
   );
 
-  const queryBus = new QueryBus();
+  const queryBus = new QueryBus(parts.tracer);
   queryBus.register<RepositoryRowsQuery, RepositoryRowsResult>(
     "github-insights.repository-rows",
     new RepositoryRowsHandler(watchedRepositories, insights, clock),
@@ -457,6 +465,10 @@ function registerTasks(
     "tasks.list-tasks",
     new ListTasksHandler(taskReads, clock),
   );
+  queryBus.register<TaskBoardQuery, TaskBoard>(
+    "tasks.task-board",
+    new TaskBoardHandler(taskReads, clock),
+  );
   queryBus.register<ListLabelsQuery, LabelItem[]>(
     "tasks.list-labels",
     new ListLabelsHandler(taskReads),
@@ -586,6 +598,7 @@ function containerFor(
     accessTokens: new DrizzleAccessTokenRepository(db),
     authenticator,
     clock,
+    tracer: sentryMessageTracer,
   });
 }
 

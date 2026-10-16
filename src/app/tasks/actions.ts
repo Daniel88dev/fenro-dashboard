@@ -15,6 +15,7 @@ import {
   LINK_KINDS,
   NOTE_KINDS,
   PRIORITIES,
+  isTaskKind,
   type Actor,
   type LinkKind,
   type NoteKind,
@@ -36,6 +37,7 @@ import { getContainer } from "@/shared/infrastructure/container";
 const STATUS_TARGETS: readonly StatusTarget[] = [
   "backlog",
   "todo",
+  "in_progress",
   "in_review",
   "done",
   "cancelled",
@@ -103,6 +105,7 @@ export async function createTaskAction(
     ownerId,
     actor,
     taskId,
+    kind: text(formData, "kind") === "epic" ? "epic" : "task",
     title: text(formData, "title"),
     description: text(formData, "description"),
     status: text(formData, "status") === "backlog" ? "backlog" : "todo",
@@ -141,11 +144,13 @@ export async function updateTaskAction(
 
   const task = text(formData, "task");
   const priority = text(formData, "priority");
+  const kind = text(formData, "kind");
   const command: UpdateTaskCommand = {
     type: "tasks.update-task",
     ownerId,
     actor,
     task,
+    kind: isTaskKind(kind) ? kind : undefined,
     title: text(formData, "title"),
     description: text(formData, "description"),
     priority: PRIORITIES.includes(priority as Priority)
@@ -282,6 +287,34 @@ export async function changeStatusAction(
   const outcome = await container.commandBus.dispatch(command);
   if (outcome.ok) revalidatePath("/tasks");
   return answer(state, outcome, task);
+}
+
+/**
+ * A card dropped on another column of the board, or moved with its menu. Not
+ * a form: the board calls it directly and shows the refusal on the card.
+ */
+export async function moveTaskAction(
+  task: string,
+  status: string,
+): Promise<{ readonly error: string | null }> {
+  const session = await signedIn();
+  if (!session) return { error: SIGNED_OUT };
+  const { ownerId, actor, container } = session;
+
+  const target = STATUS_TARGETS.find((candidate) => candidate === status);
+  if (!target) return { error: "Pick a column to move the task to." };
+  const command: ChangeStatusCommand = {
+    type: "tasks.change-status",
+    ownerId,
+    actor,
+    task,
+    status: target,
+  };
+  const outcome = await container.commandBus.dispatch(command);
+  if (!outcome.ok) return { error: outcome.error.message };
+  revalidatePath("/tasks");
+  revalidatePath(`/tasks/${task}`);
+  return { error: null };
 }
 
 export async function linkTasksAction(

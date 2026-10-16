@@ -123,3 +123,20 @@ run "pictures" {
     error_message = "TLS only"
   }
 }
+
+run "sentry" {
+  command = apply
+  variables {
+    create_service            = true
+    better_auth_secret        = "0123456789abcdef0123456789abcdef"
+    github_client_secret      = "s"
+    github_client_id          = "Iv1.abc"
+    github_app_slug           = "fenro"
+    sentry_dsn                = "https://public@o1.ingest.de.sentry.io/2"
+    sentry_traces_sample_rate = 0.5
+  }
+  assert {
+    condition     = aws_apprunner_service.app[0].source_configuration[0].image_repository[0].image_configuration[0].runtime_environment_variables["SENTRY_DSN"] == "https://public@o1.ingest.de.sentry.io/2" && aws_apprunner_service.app[0].source_configuration[0].image_repository[0].image_configuration[0].runtime_environment_variables["SENTRY_ENVIRONMENT"] == "production" && aws_apprunner_service.app[0].source_configuration[0].image_repository[0].image_configuration[0].runtime_environment_variables["SENTRY_TRACES_SAMPLE_RATE"] == "0.5"
+    error_message = "sentry settings"
+  }
+}

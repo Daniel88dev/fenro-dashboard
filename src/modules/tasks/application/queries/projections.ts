@@ -5,6 +5,7 @@ import {
   priorityRank,
   SESSION_LEASE_MS,
   type Priority,
+  type TaskKind,
   type TaskStatus,
 } from "@/modules/tasks/domain";
 
@@ -19,11 +20,13 @@ import type {
 } from "../ports/task-read-store";
 import type {
   BriefSkill,
+  EpicMention,
   JournalItem,
   PictureItem,
   RepositoryTasks,
   SkillItem,
   SkillRevisionItem,
+  TaskBoard,
   TaskBrief,
   TaskCountsByRepository,
   TaskList,
@@ -46,6 +49,12 @@ export type TaskFilter = {
   readonly labels?: readonly string[];
   /** Only the sub-tasks of this task (its id). */
   readonly parentId?: string;
+  /** Only tasks or only epics. */
+  readonly kinds?: readonly TaskKind[];
+  /** Only the tasks under this epic (its id), at any depth. */
+  readonly epicId?: string;
+  /** Only plain tasks that belong to no epic. */
+  readonly outsideEpics?: boolean;
   /** Words that must all appear in the title or the key. */
   readonly text?: string;
   readonly limit?: number;
@@ -111,10 +120,41 @@ export class TaskIndex {
     if (record.hold || this.openBlockers(record).length > 0) return "blocked";
     if (record.status === "in_review") return "in-review";
     if (record.status === "in_progress") return "paused";
+    // An epic is never picked up: with nothing open under it, it is just
+    // ready to be closed, which a person does.
     const openChildren = this.children(record.id).filter((child) =>
       isOpen(child.status),
     );
     return openChildren.length > 0 ? "waiting" : "ready";
+  }
+
+  /** The nearest epic above a task, walking up its parents. */
+  epicOf(record: TaskRecord): TaskRecord | null {
+    const seen = new Set<string>([record.id]);
+    let parent = record.parentId ? this.#byId.get(record.parentId) : undefined;
+    while (parent && !seen.has(parent.id)) {
+      if (parent.kind === "epic") return parent;
+      seen.add(parent.id);
+      parent = parent.parentId ? this.#byId.get(parent.parentId) : undefined;
+    }
+    return null;
+  }
+
+  epicMention(record: TaskRecord): EpicMention | null {
+    if (record.kind === "epic") return null;
+    const epic = this.epicOf(record);
+    return epic ? { key: formatTaskKey(epic.number), title: epic.title } : null;
+  }
+
+  progress(record: TaskRecord): { done: number; total: number } | null {
+    if (record.kind !== "epic") return null;
+    const counted = this.children(record.id).filter(
+      (child) => child.status !== "cancelled",
+    );
+    return {
+      done: counted.filter((child) => child.status === "done").length,
+      total: counted.length,
+    };
   }
 
   item(record: TaskRecord): TaskListItem {
@@ -122,6 +162,7 @@ export class TaskIndex {
     const live = this.liveSession(record);
     return {
       key: formatTaskKey(record.number),
+      kind: record.kind,
       title: record.title,
       status: record.status,
       state: this.state(record),
@@ -129,6 +170,8 @@ export class TaskIndex {
       labels: record.labels,
       repository: fullName(record),
       parent: this.#keyOf(record.parentId),
+      epic: this.epicMention(record),
+      progress: this.progress(record),
       blockedBy: this.openBlockers(record).map((blocker) =>
         formatTaskKey(blocker.number),
       ),
@@ -149,6 +192,7 @@ export class TaskIndex {
     if (!record) return null;
     return {
       key: formatTaskKey(record.number),
+      kind: record.kind,
       title: record.title,
       status: record.status,
       state: this.state(record),
@@ -205,10 +249,6 @@ function listOrder(a: TaskListItem, b: TaskListItem) {
 }
 
 export function listTasks(index: TaskIndex, filter: TaskFilter): TaskList {
-  const words = (filter.text ?? "").toLowerCase().split(/\s+/).filter(Boolean);
-  const repository = filter.repository?.toLowerCase();
-  const labels = new Set((filter.labels ?? []).map(normaliseLabelName));
-
   const matching = index.records
     .filter((record) => {
       if (filter.statuses?.length) {
@@ -216,25 +256,15 @@ export function listTasks(index: TaskIndex, filter: TaskFilter): TaskList {
       } else if (!filter.includeClosed && !isOpen(record.status)) {
         return false;
       }
-      if (repository && fullName(record)?.toLowerCase() !== repository) {
-        return false;
-      }
-      if (
-        labels.size > 0 &&
-        !record.labels.some((label) => labels.has(label))
-      ) {
-        return false;
-      }
-      if (filter.parentId && record.parentId !== filter.parentId) return false;
-      if (words.length > 0) {
-        const haystack =
-          `${formatTaskKey(record.number)} ${record.title}`.toLowerCase();
-        if (!words.every((word) => haystack.includes(word))) return false;
-      }
-      return true;
+      return matchesScope(index, record, filter);
     })
     .map((record) => index.item(record))
-    .filter((item) => !filter.ready || READY_STATES.includes(item.state))
+    // Nobody starts a session on an epic, so the queue never offers one.
+    .filter(
+      (item) =>
+        !filter.ready ||
+        (item.kind !== "epic" && READY_STATES.includes(item.state)),
+    )
     .filter(
       (item) => !filter.states?.length || filter.states.includes(item.state),
     )
@@ -242,6 +272,80 @@ export function listTasks(index: TaskIndex, filter: TaskFilter): TaskList {
 
   const limit = Math.min(Math.max(filter.limit ?? DEFAULT_LIMIT, 1), MAX_LIMIT);
   return { total: matching.length, tasks: matching.slice(0, limit) };
+}
+
+/** Every filter but status and state: what the list and the board share. */
+function matchesScope(
+  index: TaskIndex,
+  record: TaskRecord,
+  filter: TaskFilter,
+): boolean {
+  const words = (filter.text ?? "").toLowerCase().split(/\s+/).filter(Boolean);
+  const repository = filter.repository?.toLowerCase();
+  const labels = new Set((filter.labels ?? []).map(normaliseLabelName));
+  if (filter.kinds?.length && !filter.kinds.includes(record.kind)) {
+    return false;
+  }
+  if (filter.epicId && index.epicOf(record)?.id !== filter.epicId) {
+    return false;
+  }
+  if (
+    filter.outsideEpics &&
+    (record.kind === "epic" || index.epicOf(record) !== null)
+  ) {
+    return false;
+  }
+  if (repository && fullName(record)?.toLowerCase() !== repository) {
+    return false;
+  }
+  if (labels.size > 0 && !record.labels.some((label) => labels.has(label))) {
+    return false;
+  }
+  if (filter.parentId && record.parentId !== filter.parentId) return false;
+  if (words.length > 0) {
+    const haystack =
+      `${formatTaskKey(record.number)} ${record.title}`.toLowerCase();
+    if (!words.every((word) => haystack.includes(word))) return false;
+  }
+  return true;
+}
+
+/** The columns of the board, left to right. Cancelled tasks are not on it. */
+export const BOARD_STATUSES: readonly TaskStatus[] = [
+  "backlog",
+  "todo",
+  "in_progress",
+  "in_review",
+  "done",
+];
+
+/** How many cards a column shows; the rest are counted. */
+export const BOARD_COLUMN_LIMIT = 50;
+
+/**
+ * The board: tasks by status. Open columns keep the list's order; Done shows
+ * the most recently finished first, since that is the end that matters.
+ */
+export function board(
+  index: TaskIndex,
+  filter: Omit<TaskFilter, "statuses" | "states" | "ready" | "limit">,
+  limit = BOARD_COLUMN_LIMIT,
+): TaskBoard {
+  const scoped = index.records.filter((record) =>
+    matchesScope(index, record, filter),
+  );
+  return {
+    columns: BOARD_STATUSES.map((status) => {
+      const records = scoped.filter((record) => record.status === status);
+      const items =
+        status === "done"
+          ? [...records]
+              .sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime())
+              .map((record) => index.item(record))
+          : records.map((record) => index.item(record)).sort(listOrder);
+      return { status, total: items.length, tasks: items.slice(0, limit) };
+    }),
+  };
 }
 
 // --- The brief --------------------------------------------------------------
@@ -278,6 +382,7 @@ export function brief(
   return {
     key: formatTaskKey(detail.number),
     id: detail.id,
+    kind: detail.kind,
     title: detail.title,
     status: detail.status,
     state: index.state(detail),
@@ -295,6 +400,8 @@ export function brief(
       ? { reason: detail.hold.reason, since: detail.hold.since.toISOString() }
       : null,
     parent: detail.parentId ? index.mention(detail.parentId) : null,
+    epic: index.epicMention(detail),
+    progress: index.progress(detail),
     subtasks: mentions(index.children(detail.id).map((child) => child.id)),
     blockedBy: mentions(linked("blocked-by")),
     blocks: mentions(incoming("blocked-by")),

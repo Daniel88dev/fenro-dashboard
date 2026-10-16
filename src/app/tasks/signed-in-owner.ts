@@ -33,7 +33,11 @@ export async function tasksContext(now?: Date) {
       const { tasks } = await container.queryBus.ask(
         listTasksQuery(user.id, { limit: 100 }),
       );
-      return tasks.map(({ key, title }) => ({ key, title }));
+      // Epics first: they are what most tasks go under.
+      return [
+        ...tasks.filter((task) => task.kind === "epic"),
+        ...tasks.filter((task) => task.kind !== "epic"),
+      ].map(({ key, title, kind }) => ({ key, title, kind }));
     },
   };
 }

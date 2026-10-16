@@ -1,6 +1,7 @@
 import { BaseDomainEvent } from "@/shared/domain";
 
 import type { SessionOutcome } from "./session";
+import type { TaskKind } from "./task-kind";
 import type { TaskStatus } from "./task-status";
 
 export class TaskCreated extends BaseDomainEvent {
@@ -22,6 +23,19 @@ export class TaskStatusChanged extends BaseDomainEvent {
     aggregateId: string,
     readonly from: TaskStatus,
     readonly to: TaskStatus,
+    occurredAt?: Date,
+  ) {
+    super(aggregateId, occurredAt);
+  }
+}
+
+export class TaskKindChanged extends BaseDomainEvent {
+  readonly name = "tasks.task-kind-changed";
+
+  constructor(
+    aggregateId: string,
+    readonly from: TaskKind,
+    readonly to: TaskKind,
     occurredAt?: Date,
   ) {
     super(aggregateId, occurredAt);

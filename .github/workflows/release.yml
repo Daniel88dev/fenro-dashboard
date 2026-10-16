@@ -10,8 +10,14 @@ name: Release
 #   AWS_REGION              e.g. eu-central-1
 #   AWS_ROLE_ARN            the OIDC role this workflow assumes
 #   ECR_REPOSITORY          the ECR repository name, e.g. fenro-dashboard
-#   APP_RUNNER_SERVICE_ARN  the service to deploy; unset, the image is pushed
-#                           and nothing is deployed
+#   APP_RUNNER_SERVICE_ARN  the service to deploy; required, the release fails
+#                           without it so an undeployed image never looks green
+#   SENTRY_ORG              the Sentry organization slug, e.g. fenro
+#   SENTRY_PROJECT          the Sentry project slug, e.g. fenro-dashboard
+#
+# Repository secret (Settings → Secrets and variables → Actions → Secrets):
+#   SENTRY_AUTH_TOKEN       a Sentry organization token; unset, the image is
+#                           built without uploading source maps
 
 on:
   workflow_run:
@@ -84,9 +90,17 @@ jobs:
       - name: Build and push the image
         env:
           IMAGE: ${{ steps.ecr.outputs.registry }}/${{ vars.ECR_REPOSITORY }}
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_ORG: ${{ vars.SENTRY_ORG }}
+          SENTRY_PROJECT: ${{ vars.SENTRY_PROJECT }}
         run: |
           set -euo pipefail
           docker buildx create --use --name release
+          # Source maps go to Sentry only when the token is set.
+          sentry_secret=()
+          if [ -n "${SENTRY_AUTH_TOKEN}" ]; then
+            sentry_secret=(--secret id=sentry_auth_token,env=SENTRY_AUTH_TOKEN)
+          fi
           # --provenance=false keeps a single-platform manifest: with
           # provenance, buildx pushes an image index, which App Runner cannot
           # pull.
@@ -95,6 +109,10 @@ jobs:
             --provenance=false \
             --label "org.opencontainers.image.revision=${RELEASE_SHA}" \
             --label "org.opencontainers.image.source=${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}" \
+            --build-arg "SENTRY_RELEASE=${RELEASE_SHA}" \
+            --build-arg "SENTRY_ORG=${SENTRY_ORG}" \
+            --build-arg "SENTRY_PROJECT=${SENTRY_PROJECT}" \
+            "${sentry_secret[@]}" \
             --tag "${IMAGE}:${RELEASE_SHA}" \
             --tag "${IMAGE}:latest" \
             --push \
@@ -102,9 +120,12 @@ jobs:
           echo "Pushed ${IMAGE}:${RELEASE_SHA} and :latest" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Deploy to App Runner
-        if: env.SERVICE_ARN != ''
         run: |
           set -euo pipefail
+          if [ -z "${SERVICE_ARN}" ]; then
+            echo "::error::APP_RUNNER_SERVICE_ARN is not set, so the image was pushed but not deployed. Set it to terraform output -raw apprunner_service_arn."
+            exit 1
+          fi
           operation=$(aws apprunner start-deployment \
             --service-arn "$SERVICE_ARN" \
             --query OperationId --output text)

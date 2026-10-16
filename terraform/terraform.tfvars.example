@@ -49,6 +49,12 @@ github_deploy_subjects      = ["ref:refs/heads/main"]
 github_client_id = ""
 github_app_slug  = ""
 
+# Sentry project's DSN (Project Settings → Client Keys); public. Empty sends
+# nothing. The free plan holds 5M spans a month: lower the rate if Usage
+# shows spans running out.
+sentry_dsn                = ""
+sentry_traces_sample_rate = 1
+
 # Secrets, each stored as an SSM SecureString under /fenro/production/ and
 # injected by App Runner.
 #

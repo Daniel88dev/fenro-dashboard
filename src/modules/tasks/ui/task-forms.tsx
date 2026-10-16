@@ -5,10 +5,18 @@ import {
   useEffect,
   useId,
   useRef,
+  useState,
   type ReactNode,
 } from "react";
 
-import { CaretRight, Check, PencilSimple } from "@phosphor-icons/react/ssr";
+import {
+  CaretRight,
+  Check,
+  Lightning,
+  PencilSimple,
+} from "@phosphor-icons/react/ssr";
+
+import type { TaskKind } from "@/modules/tasks/domain";
 
 import { LabelPicker } from "./label-picker";
 import type { LabelOption } from "./labels";
@@ -134,11 +142,66 @@ function Field({
 }
 
 export type NewTaskDefaults = {
+  /** `?type=epic` starts the form as an epic. */
+  readonly kind?: TaskKind;
   readonly repository: string;
   readonly parent: string;
   readonly source: string;
   readonly title: string;
 };
+
+/**
+ * Task or epic, as two segments. An epic gathers tasks and sits at the top,
+ * so picking it takes the parent field away; the domain refuses an epic with
+ * a parent either way.
+ */
+function KindSegments({
+  value,
+  onChange,
+}: {
+  value: TaskKind;
+  onChange: (kind: TaskKind) => void;
+}) {
+  return (
+    <fieldset className="m-0 min-w-0 border-0 p-0">
+      <legend className="text-ink mb-1.5 p-0 text-[12.5px] font-medium">
+        Type
+      </legend>
+      <div className="border-hairline bg-surface grid grid-cols-2 overflow-hidden rounded-lg border">
+        {(
+          [
+            ["task", "Task"],
+            ["epic", "Epic"],
+          ] as const
+        ).map(([kind, label]) => (
+          <label
+            key={kind}
+            className={`border-hairline text-ink-soft has-focus-visible:outline-pr relative flex cursor-pointer items-center justify-center gap-1.5 border-l py-1.5 text-[12px] first:border-l-0 has-checked:font-medium has-focus-visible:outline-2 has-focus-visible:-outline-offset-2 ${
+              kind === "epic"
+                ? "has-checked:bg-epic has-checked:text-on-epic"
+                : "has-checked:bg-ink has-checked:text-ground"
+            }`}
+          >
+            <input
+              type="radio"
+              name="kind"
+              value={kind}
+              checked={value === kind}
+              onChange={() => onChange(kind)}
+              className="sr-only"
+            />
+            {kind === "epic" ? (
+              <Lightning aria-hidden="true" weight="fill" className="size-3" />
+            ) : (
+              <Check aria-hidden="true" weight="bold" className="size-3" />
+            )}
+            {label}
+          </label>
+        ))}
+      </div>
+    </fieldset>
+  );
+}
 
 /** Priority as a row of segments rather than a select: all five fit. */
 function PrioritySegments({
@@ -231,6 +294,8 @@ export function NewTaskForm({
   cancel?: ReactNode;
 }) {
   const dialog = variant === "dialog";
+  const [kind, setKind] = useState<TaskKind>(defaults.kind ?? "task");
+  const epic = kind === "epic";
 
   const title = (
     <Field label="Title">
@@ -303,15 +368,17 @@ export function NewTaskForm({
   );
   const rest = (
     <>
-      <Field label="Parent" hint="Sub-task of">
-        {(id) => (
-          <ParentSelect
-            id={id}
-            options={parents}
-            defaultValue={defaults.parent}
-          />
-        )}
-      </Field>
+      {epic ? null : (
+        <Field label="Parent" hint="Sub-task of, or the epic it is part of">
+          {(id) => (
+            <ParentSelect
+              id={id}
+              options={parents}
+              defaultValue={defaults.parent}
+            />
+          )}
+        </Field>
+      )}
       <Field label="Blocked by" hint="Keys, comma separated">
         {(id) => (
           <input
@@ -331,7 +398,7 @@ export function NewTaskForm({
   return (
     <ActionForm
       action={action}
-      label="New task"
+      label={epic ? "New epic" : "New task"}
       resetOnSave={false}
       className={
         dialog
@@ -344,6 +411,7 @@ export function NewTaskForm({
           {dialog ? <input type="hidden" name="from" value="dialog" /> : null}
           {dialog ? (
             <div className="flex flex-col gap-4 px-5 py-[18px] sm:px-[22px]">
+              <KindSegments value={kind} onChange={setKind} />
               {title}
               {description}
               {criteria}
@@ -361,7 +429,7 @@ export function NewTaskForm({
                     aria-hidden="true"
                     className="size-3 transition-transform group-open:rotate-90 motion-reduce:transition-none"
                   />
-                  Parent, blocked by, source
+                  {epic ? "Blocked by, source" : "Parent, blocked by, source"}
                 </summary>
                 <div className="grid gap-4 pt-4 sm:grid-cols-2">{rest}</div>
               </details>
@@ -374,6 +442,7 @@ export function NewTaskForm({
                 {criteria}
               </div>
               <div className="flex flex-col gap-[18px]">
+                <KindSegments value={kind} onChange={setKind} />
                 {repository}
                 <PrioritySegments />
                 {labelField}
@@ -400,7 +469,7 @@ export function NewTaskForm({
             <div className="flex items-center justify-end gap-2">
               {cancel}
               <button type="submit" disabled={pending} className={PRIMARY}>
-                {pending ? "Creating…" : "Create task"}
+                {pending ? "Creating…" : epic ? "Create epic" : "Create task"}
               </button>
             </div>
           </div>
@@ -412,6 +481,7 @@ export function NewTaskForm({
 
 export type TaskDetails = {
   readonly key: string;
+  readonly kind: TaskKind;
   readonly title: string;
   readonly description: string;
   readonly priority: string;
@@ -433,6 +503,7 @@ export function EditTaskForm({
   /** The open tasks it can go under. */
   parents?: readonly ParentOption[];
 }) {
+  const [kind, setKind] = useState<TaskKind>(task.kind);
   return (
     <details className="group">
       <summary className="text-ink-soft hover:bg-surface-sunken focus-visible:outline-pr inline-flex h-7 cursor-pointer list-none items-center gap-1.5 rounded-lg px-2.5 text-[12px] font-medium select-none focus-visible:outline-2 [&::-webkit-details-marker]:hidden">
@@ -499,16 +570,33 @@ export function EditTaskForm({
                 )}
               </Field>
             </div>
-            <Field label="Parent" hint="Sub-task of">
-              {(id) => (
-                <ParentSelect
-                  id={id}
-                  options={parents}
-                  defaultValue={task.parent?.key ?? ""}
-                  exclude={task.key}
-                />
-              )}
-            </Field>
+            <KindSegments value={kind} onChange={setKind} />
+            {kind === "epic" ? (
+              <>
+                {/* An epic sits at the top: saving takes it out of its parent. */}
+                <input type="hidden" name="parent" value="" />
+                {task.parent ? (
+                  <p className="text-ink-muted text-[12px]">
+                    An epic has no parent, so saving moves it out of{" "}
+                    <span className="font-mono">{task.parent.key}</span>.
+                  </p>
+                ) : null}
+              </>
+            ) : (
+              <Field
+                label="Parent"
+                hint="Sub-task of, or the epic it is part of"
+              >
+                {(id) => (
+                  <ParentSelect
+                    id={id}
+                    options={parents}
+                    defaultValue={task.parent?.key ?? ""}
+                    exclude={task.key}
+                  />
+                )}
+              </Field>
+            )}
             <div>
               <button type="submit" disabled={pending} className={PRIMARY}>
                 {pending ? "Saving…" : "Save"}

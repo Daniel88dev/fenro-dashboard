@@ -14,6 +14,7 @@ import {
   type SessionOutcome,
   type TaskError,
   type TaskRepository,
+  type TaskKind,
   type TaskStatus,
 } from "@/modules/tasks/domain";
 import { err, ok, UniqueId, unwrap, type Result } from "@/shared/domain";
@@ -243,6 +244,7 @@ export function restoreTask(
     UniqueId.create(row.id),
     { ownerId: row.ownerId, number: row.number, createdAt: row.createdAt },
     {
+      kind: row.kind as TaskKind,
       title: row.title,
       description: row.description,
       status: row.status as TaskStatus,
@@ -309,6 +311,7 @@ function toRow(task: Task) {
     id: task.id.value,
     ownerId: task.ownerId,
     number: task.number,
+    kind: state.kind,
     title: state.title,
     description: state.description,
     status: state.status,

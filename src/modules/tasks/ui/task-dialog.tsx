@@ -17,6 +17,7 @@ import type { LabelOption } from "./labels";
 import type { TaskActions } from "./task-forms";
 import { PictureStrip } from "./pictures";
 import { CloseDialogButton } from "./route-dialog";
+import { TaskKindIcon } from "./task-kind";
 import { taskHref } from "./task-state";
 import { TaskSkillsLine } from "./task-skills";
 
@@ -48,6 +49,9 @@ export function TaskDialogContent({
             id="task-dialog-title"
             className="text-ink text-[19px] leading-snug font-semibold tracking-tight"
           >
+            <span className="mr-2 inline-block align-[-3px]">
+              <TaskKindIcon kind={task.kind} />
+            </span>
             <span className="text-ink-faint mr-2 font-mono font-medium">
               {task.key}
             </span>

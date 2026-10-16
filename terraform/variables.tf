@@ -132,6 +132,24 @@ variable "pictures_noncurrent_days" {
   default     = 30
 }
 
+# Sentry (public values; the DSN reaches every browser anyway)
+variable "sentry_dsn" {
+  description = "DSN of the Sentry project (Project Settings → Client Keys). Empty sends nothing to Sentry."
+  type        = string
+  default     = ""
+}
+
+variable "sentry_traces_sample_rate" {
+  description = "Share of requests traced, 0 to 1. The free plan holds 5M spans a month; health checks are never traced."
+  type        = number
+  default     = 1
+
+  validation {
+    condition     = var.sentry_traces_sample_rate >= 0 && var.sentry_traces_sample_rate <= 1
+    error_message = "sentry_traces_sample_rate must be between 0 and 1."
+  }
+}
+
 # Shared database (flexi-day-be's RDS instance, read only)
 variable "rds_instance_identifier" {
   description = "Identifier of flexi-day-be's RDS instance Fenro's schema lives on"
