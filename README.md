@@ -222,6 +222,36 @@ Everything the app reads comes from plain environment variables, validated once
 in `src/shared/config/env.ts`. See [.env.example](./.env.example) for the full
 list; copy it to `.env.local` for development.
 
+## Monitoring with Sentry
+
+Errors, traces and logs go to Sentry when `SENTRY_DSN` is set; without it
+nothing is sent. The SDK starts in `src/instrumentation.ts` (server and edge)
+and `src/instrumentation-client.ts` (browser), with its settings in
+`src/shared/infrastructure/observability/`.
+
+- **Errors**: anything thrown while rendering, in a route handler or in a
+  server action (`onRequestError`), uncaught browser errors, and the root
+  error boundary (`src/app/global-error.tsx`).
+- **Traces**: every request, with a span for each command and query on the
+  buses (named by its type, such as `tasks.create`, with a refused command's
+  code), each Postgres query, each call to GitHub, and each MCP request and
+  tool call. `/api/health` and the event tunnel are never traced.
+- **Logs**: `console.warn` and `console.error` on the server, and an info log
+  for every refused command, each tied to the trace it happened in.
+- **Replays**: only of browser sessions an error happened in, with text and
+  pictures masked.
+
+The browser sends its events to `/monitoring`, which forwards them to Sentry,
+so ad blockers do not drop them. Cookies, request bodies and the
+`Authorization` header are kept out of events. The DSN is public; the server
+renders it into the page, so the image needs no build-time configuration.
+
+The release workflow uploads source maps while building the image and tags
+events with the commit, which needs the `SENTRY_ORG` and `SENTRY_PROJECT`
+repository variables and the `SENTRY_AUTH_TOKEN` repository secret (see
+`.github/workflows/release.yml`). On App Runner, `sentry_dsn` in
+`terraform.tfvars` sets the DSN.
+
 ## Database
 
 Every table lives in the `fenro` Postgres schema

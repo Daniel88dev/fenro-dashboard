@@ -1,3 +1,4 @@
+import { untracedMessages, type MessageTracer } from "./message-tracer";
 import type { AnyCommand, CommandHandler, CommandOutcome } from "./messages";
 
 /**
@@ -6,6 +7,11 @@ import type { AnyCommand, CommandHandler, CommandOutcome } from "./messages";
  */
 export class CommandBus {
   readonly #handlers = new Map<string, CommandHandler<never>>();
+  readonly #tracer: MessageTracer;
+
+  constructor(tracer: MessageTracer = untracedMessages) {
+    this.#tracer = tracer;
+  }
 
   register<TCommand extends AnyCommand>(
     type: TCommand["type"],
@@ -25,6 +31,8 @@ export class CommandBus {
     if (!handler) {
       throw new Error(`No handler registered for command "${command.type}".`);
     }
-    return handler.handle(command);
+    return this.#tracer.traceCommand(command, async () =>
+      handler.handle(command),
+    );
   }
 }

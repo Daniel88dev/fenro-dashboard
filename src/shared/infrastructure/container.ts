@@ -249,9 +249,10 @@ import {
   UnconfiguredPictureStorage,
   UploadThingPictureStorage,
 } from "@/modules/tasks/infrastructure/uploadthing-picture.storage";
-import { CommandBus, QueryBus } from "@/shared/application";
+import { CommandBus, QueryBus, type MessageTracer } from "@/shared/application";
 import { getEnv } from "@/shared/config/env";
 import { getDatabase } from "@/shared/infrastructure/database/client";
+import { sentryMessageTracer } from "@/shared/infrastructure/observability/sentry";
 
 /**
  * The composition root: the one place allowed to know every module, so nothing
@@ -283,13 +284,15 @@ export type ContainerParts = {
   readonly accessTokens: AccessTokenRepository;
   readonly authenticator: Authenticator;
   readonly clock: () => Date;
+  /** Sees every command and query; tests leave it out. */
+  readonly tracer?: MessageTracer;
 };
 
 export function buildContainer(parts: ContainerParts): Container {
   const { watchedRepositories, snapshots, gitHub, clock } = parts;
   const insights = new SnapshotInsightsReader(snapshots, clock);
 
-  const commandBus = new CommandBus();
+  const commandBus = new CommandBus(parts.tracer);
   commandBus.register<AddRepositoryManuallyCommand>(
     "github-insights.add-repository-manually",
     new AddRepositoryManuallyHandler(watchedRepositories),
@@ -320,7 +323,7 @@ export function buildContainer(parts: ContainerParts): Container {
     ),
   );
 
-  const queryBus = new QueryBus();
+  const queryBus = new QueryBus(parts.tracer);
   queryBus.register<RepositoryRowsQuery, RepositoryRowsResult>(
     "github-insights.repository-rows",
     new RepositoryRowsHandler(watchedRepositories, insights, clock),
@@ -594,6 +597,7 @@ function containerFor(
     accessTokens: new DrizzleAccessTokenRepository(db),
     authenticator,
     clock,
+    tracer: sentryMessageTracer,
   });
 }
 
