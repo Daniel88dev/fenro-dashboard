@@ -13,11 +13,10 @@ import type { PictureType } from "@/modules/tasks/domain";
 export type S3PictureStorageSettings = {
   readonly bucket: string;
   readonly region: string;
-  /** A local stand-in such as S3Mock. Unset, this is AWS itself. */
   readonly endpoint?: string;
   /**
-   * Keys for that stand-in. On AWS they stay unset: the SDK finds the App
-   * Runner instance role's credentials itself, so no key exists to leak.
+   * Local stand-in only. On AWS they stay unset: the SDK finds the instance
+   * role's credentials itself, so no key exists to leak.
    */
   readonly credentials?: {
     readonly accessKeyId: string;
@@ -26,10 +25,8 @@ export type S3PictureStorageSettings = {
 };
 
 /**
- * Pictures kept in a private S3 bucket. Only the app reads and writes it:
- * bytes come in through the app's own upload routes and go out through
- * /api/pictures/<id>, so the bucket needs no public access, CORS or signed
- * links.
+ * Only the app reads and writes the bucket, so it needs no public access, CORS
+ * or signed links.
  */
 export class S3PictureStorage implements PictureStorage {
   readonly configured = true;

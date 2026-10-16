@@ -12,12 +12,6 @@ export type RailScope = {
   readonly current: boolean;
 };
 
-/**
- * The epics beside the list and the board: picking one scopes both to the
- * tasks under it. Three scopes come first (everything, the epics themselves,
- * the work that belongs to none), then each open epic with how far it has
- * got. At phone width the rail turns into a row that scrolls sideways.
- */
 export function EpicRail({
   scopes,
   epics,
@@ -26,10 +20,8 @@ export function EpicRail({
   newEpicHref,
 }: {
   scopes: readonly RailScope[];
-  /** Open epics, as the list query returns them. */
   epics: readonly TaskListItem[];
   epicHref: (key: string) => string;
-  /** The epic in the URL, if one is picked. */
   picked: string;
   newEpicHref: string;
 }) {

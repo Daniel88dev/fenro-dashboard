@@ -21,11 +21,8 @@ import { DrizzleRepositorySnapshotStore } from "./drizzle-repository-snapshot.st
 import { DrizzleWatchedRepositoryRepository } from "./drizzle-watched-repository.repository";
 import { watchedRepository } from "./persistence/schema";
 
-/**
- * Runs against a real Postgres, because what these adapters promise — the
- * case-insensitive unique watch, the version check, the all-or-nothing
- * replace — is Postgres behaviour a fake cannot prove.
- */
+// Real Postgres: the case-insensitive unique watch, the version check and
+// the all-or-nothing replace are behaviour a fake cannot prove.
 const url = getEnv().TEST_DATABASE_URL;
 
 const t0 = new Date("2026-09-23T10:00:00Z");

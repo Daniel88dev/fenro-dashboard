@@ -12,7 +12,6 @@ import { S3PictureStorage } from "./s3-picture.storage";
 const SETTINGS = { bucket: "fenro-pictures", region: "eu-central-1" };
 const PNG = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 1, 2, 3]);
 
-/** Records what was sent and answers like S3 would. */
 function fakeS3(answer: (command: unknown) => unknown = () => ({})) {
   const sent: unknown[] = [];
   return {

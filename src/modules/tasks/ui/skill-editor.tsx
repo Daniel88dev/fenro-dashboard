@@ -36,12 +36,8 @@ const SECONDARY =
   "border-hairline bg-surface text-ink hover:bg-surface-sunken focus-visible:outline-pr inline-flex h-[30px] cursor-pointer items-center gap-1.5 rounded-lg border px-[11px] text-[12.5px] font-medium whitespace-nowrap focus-visible:outline-2 disabled:cursor-default disabled:opacity-50";
 
 /**
- * The editor beside the skill list: name, labels, when to use it, and the
- * Markdown instructions with a preview rendered the way a task description
- * is. A new skill is the same form with nothing filled in.
- *
- * The editor is keyed by skill and revision by its parent, so a save (or an
- * agent's edit arriving on refresh) starts it again from what is stored.
+ * Keyed by skill and revision by its parent, so a save (or an agent's edit
+ * arriving on refresh) starts it again from what is stored.
  */
 export function SkillEditor({
   skill,
@@ -49,7 +45,6 @@ export function SkillEditor({
   actions,
   now,
 }: {
-  /** Null for a new skill. */
   skill: SkillDetail | null;
   catalogue: readonly LabelOption[];
   actions: SkillActions;
@@ -314,10 +309,6 @@ function Field({
   );
 }
 
-/**
- * Deleting is a person's call, never an agent's: it takes the revisions with
- * it, so it asks once first. Tasks keep their labels.
- */
 function DeleteSkill({
   skill,
   remove,

@@ -21,11 +21,6 @@ import { DrizzleTaskReadStore } from "./drizzle-task.read-store";
 import { DrizzleTaskRepository } from "./drizzle-task.repository";
 import { task, taskLabel, taskSkill } from "./persistence/schema";
 
-/**
- * Against a real Postgres, because what the skill adapters promise — the
- * unique name, the version check, a rename reaching tasks and skill links in
- * one statement each, deletes cascading — is Postgres behaviour.
- */
 const url = getEnv().TEST_DATABASE_URL;
 
 const t0 = new Date("2026-10-04T10:00:00Z");
@@ -179,7 +174,6 @@ describe.skipIf(!url)("Postgres skill adapters", () => {
     ]);
     expect(await labels.findByName("user-1", "ui")).toBeUndefined();
 
-    // Copies loaded before the rename cannot write the old name back.
     const savedTask = await tasks.save(header);
     expect(!savedTask.ok && savedTask.error.code).toBe(
       "concurrent-modification",

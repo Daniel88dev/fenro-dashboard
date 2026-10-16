@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
 #
-# Apply Drizzle migrations to a database. Modelled on Flexi Day's script of the
-# same name, because production shares its RDS instance.
+# Apply Drizzle migrations to a database.
 #
 #   scripts/db-migrate.sh local           the DATABASE_URL in the environment or .env.local
 #   scripts/db-migrate.sh prod            RDS, connection string from SSM Parameter Store
@@ -68,8 +67,6 @@ DATA_SCHEMA="fenro"
 LEDGER_SCHEMA="fenro_migrations"
 LEDGER_TABLE="__drizzle_migrations"
 
-# The state --adopt expects: the old ledger's row count and the `when` of its
-# last migration, 0008_task_skills.
 PRE_SCHEMA_MIGRATIONS=9
 PRE_SCHEMA_LAST_MILLIS=1791137399008
 PRE_SCHEMA_TABLES=(
@@ -89,7 +86,6 @@ need() {
   command -v "$1" >/dev/null 2>&1 || die "$1 is required but not on PATH"
 }
 
-# Host and database only. Never the credentials.
 describe_url() {
   sed -E 's#^([a-z]+)://[^@]*@#\1://#; s#\?.*$##' <<<"$1"
 }
@@ -98,9 +94,6 @@ urldecode() {
   printf '%b' "${1//%/\\x}"
 }
 
-# libpq reads these, so psql never takes the credentials on its command line.
-# Process arguments are world-readable through `ps` and /proc; the environment
-# of a running process is not.
 export_pg_env() {
   local url="$1" rest query userinfo hostport user pass host port dbname kv k v
 
@@ -157,8 +150,6 @@ confirm() {
   [[ "$answer" == "$expected" ]] || die "aborted"
 }
 
-# DATABASE_URL from the environment wins, as it does for `next dev`; then
-# .env.local, then .env.
 resolve_local_url() {
   if [[ -n "${DATABASE_URL:-}" ]]; then
     echo "$DATABASE_URL"
@@ -169,7 +160,6 @@ resolve_local_url() {
     [[ -f "$file" ]] || continue
     line="$(grep -E '^[[:space:]]*DATABASE_URL=' "$file" | head -1 | cut -d= -f2-)" || true
     [[ -n "$line" ]] || continue
-    # Strip a trailing comment and surrounding quotes.
     line="${line%%#*}"
     line="$(sed -E 's/^[[:space:]]*//; s/[[:space:]]*$//; s/^"(.*)"$/\1/; s/^'"'"'(.*)'"'"'$/\1/' <<<"$line")"
     echo "$line"
@@ -186,8 +176,6 @@ resolve_env_url() {
 resolve_prod_url() {
   need aws
   local url
-  # Terraform (terraform/ssm.tf) writes this SecureString, the same value App
-  # Runner hands the app. Flexi Day keeps its URL in Secrets Manager instead.
   url="$(aws ssm get-parameter \
     --name "$DB_PARAMETER" \
     --with-decryption \
@@ -242,9 +230,6 @@ if [[ "$DO_STATUS" == "1" ]]; then
   exit 0
 fi
 
-# A human at a keyboard is the gate on every write to a shared or production
-# database. An agent's shell has no controlling terminal, so this is what makes
-# "never migrate production from an agent" a fact rather than a request.
 if [[ "$TARGET" != "local" && ! -t 0 && "${DB_MIGRATE_CI:-0}" != "1" ]]; then
   echo "error: a production migration must be started by a person at a terminal." >&2
   echo "       If you are an agent, stop here and hand these commands to the user." >&2

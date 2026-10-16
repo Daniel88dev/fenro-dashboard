@@ -2,11 +2,8 @@
 
 import { useEffect, useRef, type ReactNode } from "react";
 
-/**
- * A small drop-down built on a native disclosure, so it opens from the
- * keyboard with no script at all. The script only adds what a disclosure
- * lacks as a menu: closing on Escape and on a click anywhere else.
- */
+// Built on a native disclosure so it opens from the keyboard with no script;
+// the script only adds closing on Escape and on an outside click.
 export function Menu({
   label,
   trigger,
@@ -15,12 +12,10 @@ export function Menu({
   opensUp = false,
   children,
 }: {
-  /** The accessible name of the button that opens it. */
   label: string;
   trigger: ReactNode;
   triggerClassName: string;
   panelClassName?: string;
-  /** Open above the trigger, for a menu at the bottom of a dialog. */
   opensUp?: boolean;
   children: ReactNode;
 }) {

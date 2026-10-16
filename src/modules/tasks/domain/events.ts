@@ -115,10 +115,6 @@ export class LabelRecoloured extends BaseDomainEvent {
   }
 }
 
-/**
- * The label's name changed. Tasks and skills refer to labels by name, so the
- * store carries the new name to them in the same transaction.
- */
 export class LabelRenamed extends BaseDomainEvent {
   readonly name = "tasks.label-renamed";
 
@@ -144,7 +140,6 @@ export class SkillCreated extends BaseDomainEvent {
   }
 }
 
-/** The skill's name, description or instructions changed. */
 export class SkillRevised extends BaseDomainEvent {
   readonly name = "tasks.skill-revised";
 

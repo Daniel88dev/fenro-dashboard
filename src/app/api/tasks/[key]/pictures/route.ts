@@ -4,11 +4,8 @@ import { getContainer } from "@/shared/infrastructure/container";
 
 import { failure, pictureBytes, refusal } from "../../../pictures/responses";
 
-/**
- * A person adding a picture to a task from the task page: the file's bytes
- * as the body, its name in `?name=`. A route handler rather than a server
- * action, so the browser can show the upload's progress.
- */
+// A route handler rather than a server action, so the browser can show the
+// upload's progress.
 export async function POST(
   request: Request,
   { params }: RouteContext<"/api/tasks/[key]/pictures">,

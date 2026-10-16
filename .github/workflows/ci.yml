@@ -19,7 +19,6 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
 
-    # A throwaway Postgres for the database adapter tests.
     services:
       postgres:
         image: postgres:17

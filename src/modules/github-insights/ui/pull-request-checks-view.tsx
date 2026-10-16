@@ -23,7 +23,6 @@ const CONCLUSIONS: Record<CheckConclusion, { word: string; icon: Icon }> = {
   skipped: { word: "skipped", icon: MinusCircle },
 };
 
-/** The checks behind a pull request, and a sentence saying what blocks it. */
 export function PullRequestChecksView({
   id,
   checks,
@@ -31,7 +30,6 @@ export function PullRequestChecksView({
 }: {
   id: string;
   checks: PullRequestChecks;
-  /** Where "Make a task from this" goes; the route decides, not this context. */
   newTaskHref?: string;
 }) {
   return (

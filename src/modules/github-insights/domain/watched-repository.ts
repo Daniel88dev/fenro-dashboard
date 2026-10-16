@@ -23,46 +23,19 @@ import {
   type SyncTrigger,
 } from "./sync-state";
 
-/**
- * Where a watched repository's numbers come from. `github` is read from GitHub
- * with the watcher's token; `manual` was typed in by hand, for an organization
- * that does not let this app read it, so it is only ever a name tasks can point
- * at.
- */
 export type RepositorySource = "github" | "manual";
 
 type Props = {
-  /**
-   * The signed-in user whose dashboard this is. Each person keeps their own
-   * list, because what one token can read another may not.
-   */
   readonly watcherId: string;
   readonly coordinates: RepositoryCoordinates;
   readonly watchedAt: Date;
   readonly source: RepositorySource;
 };
 
-/**
- * The only aggregate in this context. GitHub is the system of record for pull
- * requests, issues and checks, and this app enforces no invariant over them, so
- * they are read models rather than domain objects — see
- * docs/implementation-plan.md.
- *
- * What it does own is when GitHub may be asked about the repository again: a
- * sync starts, then succeeds or fails, and `SyncState` decides whether it may
- * start at all.
- *
- * `watch` cannot fail: the one expected failure, coordinates that are not a
- * repository, is owned by `RepositoryCoordinates`, so an instance of this
- * aggregate can never hold an invalid one.
- */
 export class WatchedRepository extends AggregateRoot<Props> {
   #sync: SyncState;
-  /**
-   * When its watcher pinned it to the top of their table, or `null`. A time
-   * rather than a flag, so ordering pins by when they were made needs no
-   * migration.
-   */
+  // A time rather than a flag, so ordering pins by when they were made needs
+  // no migration.
   #pinnedAt: Date | null;
 
   private constructor(
@@ -89,10 +62,6 @@ export class WatchedRepository extends AggregateRoot<Props> {
     );
   }
 
-  /**
-   * A repository typed in by hand rather than picked from GitHub. It is never
-   * synced, so it has no pull requests or issues, only its name and its tasks.
-   */
   static addManually(
     watcherId: string,
     coordinates: RepositoryCoordinates,
@@ -124,7 +93,6 @@ export class WatchedRepository extends AggregateRoot<Props> {
     return repository;
   }
 
-  /** Rebuild an aggregate that a store already holds, recording no event. */
   static restore(
     id: UniqueId,
     props: Props,
@@ -144,7 +112,6 @@ export class WatchedRepository extends AggregateRoot<Props> {
     );
   }
 
-  /** Pinning a pinned repository keeps the time it was first pinned. */
   pin(pinnedAt: Date): void {
     if (this.#pinnedAt) return;
     this.#pinnedAt = pinnedAt;
@@ -184,10 +151,6 @@ export class WatchedRepository extends AggregateRoot<Props> {
     return ok(undefined);
   }
 
-  /**
-   * Whether opening the dashboard should refresh it from GitHub. Never for a
-   * repository added by hand: there is nothing to refresh it from.
-   */
   isDueAutomatically(now: Date): boolean {
     return !this.isManual && this.#sync.isDueAutomatically(now);
   }
@@ -245,7 +208,6 @@ export class WatchedRepository extends AggregateRoot<Props> {
     return this.#sync;
   }
 
-  /** Finishing a sync nobody started is a bug in the caller, not a state. */
   #requireSyncInFlight(): void {
     if (this.#sync.startedAt === null) {
       throw new Error(

@@ -25,26 +25,10 @@ export function syncWatchedRepositoriesCommand(
   };
 }
 
-/**
- * GitHub is asked about a handful of repositories at once, not all thirty:
- * enough to finish quickly, few enough to stay clear of GitHub's secondary
- * rate limits on concurrent requests.
- */
+// Few enough concurrent requests to stay clear of GitHub's secondary rate
+// limits.
 export const SYNC_CONCURRENCY = 4;
 
-/**
- * Copies GitHub into the store for every watched repository whose sync policy
- * allows it. Which ones those are is the aggregate's call, never the caller's:
- * a page can ask for a sync on every visit, and GitHub is still only asked
- * when the numbers are stale or a person pressed Refresh.
- *
- * Each repository stands alone. Claiming the sync is a save that fails if
- * another request claimed it first, so two tabs refreshing together make one
- * call per repository; and a failure is recorded on that repository while the
- * last good snapshot stays where it was. The one exception is GitHub's rate
- * limit, which belongs to the token rather than to a repository: once it runs
- * out, the repositories not yet asked about are left for a later sync.
- */
 export class SyncWatchedRepositoriesHandler implements CommandHandler<SyncWatchedRepositoriesCommand> {
   constructor(
     private readonly repositories: WatchedRepositoryRepository,

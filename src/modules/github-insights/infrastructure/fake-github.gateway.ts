@@ -8,12 +8,6 @@ import type { RepositorySnapshot } from "@/modules/github-insights/application/p
 import type { RepositoryCoordinates } from "@/modules/github-insights/domain";
 import { err, ok, type Result } from "@/shared/domain";
 
-/**
- * GitHub for tests: answers from a map of snapshots keyed `owner/name` (which
- * are also the repositories the viewer can see), or
- * with the failure a test sets, and counts every call so a test can prove a
- * sync did not happen.
- */
 export class FakeGitHubGateway implements GitHubGateway {
   readonly calls: string[] = [];
   failure: GitHubFailure | null = null;

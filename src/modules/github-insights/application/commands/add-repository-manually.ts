@@ -36,12 +36,6 @@ export function addRepositoryManuallyCommand(
   };
 }
 
-/**
- * Puts a repository on the dashboard without asking GitHub anything, for an
- * organization that will not let this app read it. Unlike watching from the
- * picker, the coordinates come straight from a person typing, so a bad name
- * and a repository already on the list are refusals to show them, not bugs.
- */
 export class AddRepositoryManuallyHandler implements CommandHandler<AddRepositoryManuallyCommand> {
   constructor(private readonly repositories: WatchedRepositoryRepository) {}
 
@@ -70,7 +64,6 @@ export class AddRepositoryManuallyHandler implements CommandHandler<AddRepositor
         command.addedAt ?? new Date(),
       ),
     );
-    // Lost a race with another request adding the same repository.
     return isErr(saved) ? err(onDashboard) : ok(undefined);
   }
 }

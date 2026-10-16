@@ -87,17 +87,12 @@ function isOpen(task: TaskBrief): boolean {
   return task.status !== "done" && task.status !== "cancelled";
 }
 
-/**
- * The chips under a task's title: state, priority, repository, labels. With
- * actions, the labels can be changed right there.
- */
 export function TaskChips({
   task,
   labels = [],
   actions,
 }: {
   task: TaskBrief;
-  /** The owner's labels: their colours, and what the picker offers. */
   labels?: readonly LabelOption[];
   actions?: TaskActions;
 }) {
@@ -126,7 +121,6 @@ export function TaskChips({
   );
 }
 
-/** Who has the task right now, if anyone. */
 export function AgentLine({ task }: { task: TaskBrief }) {
   const session = task.session;
   if (!session) {
@@ -152,10 +146,6 @@ export function AgentLine({ task }: { task: TaskBrief }) {
   );
 }
 
-/**
- * The status changes, weighted: one primary, one secondary, the rest in a
- * menu. A closed task only reopens.
- */
 export function StatusActions({
   task,
   actions,
@@ -256,7 +246,6 @@ export function StatusActions({
   );
 }
 
-/** What the last session left for the next one. It leads the page. */
 export function HandoffCard({ entry }: { entry: JournalItem | null }) {
   if (!entry) return null;
   return (
@@ -298,7 +287,6 @@ function SectionHeading({
   );
 }
 
-/** A section of the task, separated from the one above by a hairline. */
 function Section({
   title,
   aside,
@@ -400,7 +388,6 @@ function JournalEntry({ entry }: { entry: JournalItem }) {
   );
 }
 
-/** Pictures one adder put on the task in one go, shown as one journal line. */
 type PictureGroup = {
   readonly addedBy: string;
   readonly session: number | null;
@@ -408,7 +395,6 @@ type PictureGroup = {
   readonly pictures: readonly PictureItem[];
 };
 
-/** Pictures added by the same hand within this long read as one batch. */
 const BATCH_MS = 10 * 60 * 1000;
 
 export function groupPictures(
@@ -493,10 +479,6 @@ type JournalLine =
       readonly group: PictureGroup;
     };
 
-/**
- * The journal after the handoff, oldest first, with the pictures added along
- * the way in their place, and a way to add to it.
- */
 export function JournalSection({
   task,
   actions,
@@ -505,7 +487,6 @@ export function JournalSection({
 }: {
   task: TaskBrief;
   actions: TaskActions;
-  /** Show only the newest few, as the dialog does. */
   limit?: number;
   moreHref?: string;
 }) {
@@ -536,7 +517,6 @@ export function JournalSection({
   ].sort((a, b) => Date.parse(a.at) - Date.parse(b.at));
   const shown = limit ? lines.slice(-limit) : lines;
   const shownEntries = shown.filter((line) => line.kind === "entry").length;
-  // The page reads a capped journal; say so only when the cap cut something.
   const note =
     !moreHref && capped
       ? `Latest ${task.recentJournal.length} of ${task.journalEntries} entries`
@@ -598,16 +578,11 @@ function MentionLink({ task }: { task: TaskMention }) {
   );
 }
 
-/**
- * Where a task sits, above its title as Jira puts it: the parent it belongs
- * to, one click away, then the task's own key with a way to copy its link.
- */
 export function TaskTrail({
   task,
   home = false,
 }: {
   task: TaskBrief;
-  /** Start from the task list, as the full page does. */
   home?: boolean;
 }) {
   const caret = <CaretRight aria-hidden="true" className="size-[11px]" />;
@@ -662,7 +637,6 @@ function Property({ label, children }: { label: string; children: ReactNode }) {
   );
 }
 
-/** The side list of facts about a task, one per line. */
 export function TaskProperties({ task }: { task: TaskBrief }) {
   const source = task.references.find((reference) => reference.isSource);
   return (
@@ -761,11 +735,6 @@ export function HoldNotice({ task }: { task: TaskBrief }) {
   );
 }
 
-/**
- * One task, as a person reads it: the handoff an agent left first, then what
- * the task asks, then the journal. Facts sit in a side list; the rarer edits
- * (links, references) sit under it.
- */
 export function TaskDetail({
   task,
   actions,
@@ -777,15 +746,10 @@ export function TaskDetail({
 }: {
   task: TaskBrief;
   actions: TaskActions;
-  /** The owner's labels. */
   labels?: readonly LabelOption[];
-  /** The repositories the owner watches, for "Edit details". */
   repositories?: readonly RepositoryOption[];
-  /** The open tasks it can go under, for "Edit details". */
   parents?: readonly ParentOption[];
-  /** Whether this Fenro has somewhere to keep pictures. */
   picturesEnabled?: boolean;
-  /** The render's clock, for "3 d ago". */
   now?: Date;
 }) {
   const { key } = task;

@@ -27,12 +27,6 @@ export function isLabelColour(value: unknown): value is LabelColour {
 
 const LABEL_NAME = /^[a-z0-9][a-z0-9._:/-]{0,39}$/;
 
-/**
- * A label's name is its identity within one person's labels: tasks carry
- * names, and filters and agents name labels the same way. It is stored
- * lower-case, and spaces become hyphens, so "Needs review" and
- * "needs-review" are one label.
- */
 export function parseLabelName(raw: string): Result<string, TaskError> {
   const name = normaliseLabelName(raw);
   if (!LABEL_NAME.test(name)) {
@@ -46,14 +40,13 @@ export function parseLabelName(raw: string): Result<string, TaskError> {
   return ok(name);
 }
 
-/** The name as it is kept, whether or not it is a valid one. */
 export function normaliseLabelName(raw: string): string {
   return raw.trim().toLowerCase().replace(/\s+/g, "-");
 }
 
 /**
- * The colour a label gets when nobody picks one: the same for the same name
- * every time, so labels made on the fly by agents still look stable.
+ * The same for the same name every time, so labels made on the fly by
+ * agents still look stable.
  */
 export function defaultLabelColour(name: string): LabelColour {
   let hash = 0;
@@ -63,12 +56,6 @@ export function defaultLabelColour(name: string): LabelColour {
   return LABEL_COLOURS[hash % LABEL_COLOURS.length]!;
 }
 
-/**
- * The colour for a label made without one: of the colours the owner's other
- * labels use least, the one the name picks. Labels made one after another
- * then look different from each other, rather than as the hash happens to
- * fall.
- */
 export function pickLabelColour(
   name: string,
   taken: readonly LabelColour[],
@@ -98,14 +85,7 @@ export type NewLabel = {
   readonly now: Date;
 };
 
-/**
- * One entry in a person's label catalogue: a name tasks can carry and the
- * colour it is shown in. Tasks refer to labels by name, so the catalogue is
- * what the pickers and filters offer, and what keeps a label's colour.
- *
- * That the name is unique per person is kept by the store, which refuses a
- * second label with a name already taken.
- */
+/** That the name is unique per person is kept by the store, not here. */
 export class Label extends AggregateRoot<Props> {
   private constructor(id: UniqueId, props: Props) {
     super(id, props);
@@ -124,7 +104,6 @@ export class Label extends AggregateRoot<Props> {
     return ok(label);
   }
 
-  /** Rebuild a label a store already holds, recording no event. */
   static restore(
     id: UniqueId,
     props: {
@@ -159,11 +138,6 @@ export class Label extends AggregateRoot<Props> {
     this.record(new LabelRecoloured(this.id.value, colour, now));
   }
 
-  /**
-   * Give the label a new name. Tasks and skills carry the old one, so the
-   * store renames it there too, in the same transaction as the label; that a
-   * name is not already taken is the store's to check, as on create.
-   */
   rename(raw: string, now: Date): Result<void, TaskError> {
     const name = parseLabelName(raw);
     if (!name.ok) return name;

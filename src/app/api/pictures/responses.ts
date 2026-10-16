@@ -1,10 +1,5 @@
 import { MAX_PICTURE_BYTES, type TaskError } from "@/modules/tasks/domain";
 
-/**
- * A picture's bytes from a request body. A body announcing more than the
- * limit is turned away before it is read; one that does not say is read, and
- * the domain measures it.
- */
 export async function pictureBytes(
   request: Request,
 ): Promise<Uint8Array | Response> {

@@ -11,27 +11,17 @@ import { useEffect, useId, useRef, useState } from "react";
 import { FLOATING_PANEL, useFloatingPanel } from "./floating-panel";
 
 export type RepositoryOption = {
-  /** `owner/name` */
   readonly name: string;
   readonly pinned: boolean;
 };
 
-/**
- * Which repository a task is about, picked from the ones the person watches,
- * or none. A searchable list rather than free text, so a typo cannot point a
- * task at a repository nobody watches, and one button however many there
- * are. The pick goes to the server as the `repository` field, "" for none.
- */
 export function RepositorySelect({
   id,
   options,
   defaultValue = "",
 }: {
-  /** For the field's `<label>`. */
   id?: string;
-  /** Pinned first, as the repository table orders them. */
   options: readonly RepositoryOption[];
-  /** `owner/name`, or "" for no repository. */
   defaultValue?: string;
 }) {
   const [picked, setPicked] = useState(defaultValue);

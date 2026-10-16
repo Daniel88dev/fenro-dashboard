@@ -5,18 +5,12 @@ import type { ParentOption } from "@/modules/tasks/ui/parent-select";
 import type { RepositoryOption } from "@/modules/tasks/ui/repository-select";
 import { getContainer } from "@/shared/infrastructure/container";
 
-/** The container for this request and whose tasks it shows, if anyone's. */
 export async function tasksContext(now?: Date) {
   const container = await getContainer(now);
   const user = await container.queryBus.ask(signedInUserQuery());
   return {
     container,
     ownerId: user?.id ?? null,
-    /**
-     * The repositories a task can name: the ones this person watches on the
-     * dashboard. The route joins the two contexts, so `tasks` never asks
-     * `github-insights` itself.
-     */
     repositoryOptions: async (): Promise<RepositoryOption[]> => {
       if (!user) return [];
       const watched = await container.queryBus.ask(
@@ -27,13 +21,11 @@ export async function tasksContext(now?: Date) {
         pinned,
       }));
     },
-    /** The open tasks another task can be put under, as its parent. */
     parentOptions: async (): Promise<ParentOption[]> => {
       if (!user) return [];
       const { tasks } = await container.queryBus.ask(
         listTasksQuery(user.id, { limit: 100 }),
       );
-      // Epics first: they are what most tasks go under.
       return [
         ...tasks.filter((task) => task.kind === "epic"),
         ...tasks.filter((task) => task.kind !== "epic"),

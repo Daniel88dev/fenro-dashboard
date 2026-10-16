@@ -1,10 +1,6 @@
 import { GithubLogo, WarningCircle } from "@phosphor-icons/react/ssr";
 
-/**
- * Better Auth sends the browser back with `?error=<code>` when sign-in does
- * not complete. Cancelling on GitHub's consent screen is the common case and
- * deserves plain words; anything else names its code so it can be looked up.
- */
+// Better Auth sends the browser back with `?error=<code>` when sign-in fails.
 export function signInErrorMessage(code: string | undefined): string | null {
   if (!code) return null;
   if (code === "access_denied") {
@@ -13,13 +9,7 @@ export function signInErrorMessage(code: string | undefined): string | null {
   return `GitHub sign-in did not complete (${code}). Try again.`;
 }
 
-/**
- * The signed-out state. GitHub is the only way in, so it is one button, and a
- * plain form: it works before any JavaScript has loaded.
- *
- * `hero` is the sign-in page's version: a large headline and no card, next to
- * the preview the page draws. Elsewhere it is a card in the page's flow.
- */
+// A plain form, so it works before any JavaScript has loaded.
 export function SignInPanel({
   action,
   error,

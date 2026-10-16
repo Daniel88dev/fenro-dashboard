@@ -3,7 +3,6 @@ import type { WatchedRepositoryRepository } from "@/modules/github-insights/doma
 import type { Query, QueryHandler } from "@/shared/application";
 
 export type WatchedRepositoryName = {
-  /** `owner/name`, spelled as GitHub spells it. */
   readonly fullName: string;
   readonly pinned: boolean;
 };
@@ -21,11 +20,6 @@ export function watchedRepositoryNamesQuery(
   return { type: "github-insights.watched-repository-names", watcher };
 }
 
-/**
- * The repositories a watcher can point a task at. Only names: unlike the
- * table's rows this needs no snapshot, so it never waits on the reader.
- * Ordered as the table is, pinned first and then alphabetically.
- */
 export class WatchedRepositoryNamesHandler implements QueryHandler<
   WatchedRepositoryNamesQuery,
   WatchedRepositoryName[]

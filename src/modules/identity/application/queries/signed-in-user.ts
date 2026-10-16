@@ -4,7 +4,6 @@ import type {
 } from "@/modules/identity/application/ports/authenticator";
 import type { Query, QueryHandler } from "@/shared/application";
 
-/** `null` is an answer, not a failure: being signed out is a normal state. */
 export type SignedInUserQuery = Query<
   "identity.signed-in-user",
   SignedInUser | null

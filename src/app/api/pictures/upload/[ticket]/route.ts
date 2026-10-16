@@ -3,11 +3,8 @@ import { getAgentContainer } from "@/shared/infrastructure/container";
 
 import { pictureBytes, refusal } from "../../responses";
 
-/**
- * Where an agent sends a picture's bytes, with the link attach_picture gave
- * it: `curl -T design.png <link>`. The signed ticket in the path says who is
- * adding what to which task, so no other credential is needed.
- */
+// The signed ticket in the path says who is adding what to which task, so no
+// other credential is needed.
 async function upload(
   request: Request,
   { params }: RouteContext<"/api/pictures/upload/[ticket]">,

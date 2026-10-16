@@ -67,7 +67,6 @@ describe("pin-repository", () => {
   it("pins even when a sync saved the repository in the meantime", async () => {
     const { repositories, find } = await setUp();
     const stale = (await find())!;
-    // A sync claims the repository between this load and the pin's save.
     const syncing = (await find())!;
     unwrap(syncing.startSync("manual", t0));
     unwrap(await repositories.save(syncing));

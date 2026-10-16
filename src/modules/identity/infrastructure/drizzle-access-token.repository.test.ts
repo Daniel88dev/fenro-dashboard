@@ -17,10 +17,6 @@ import type { Database } from "@/shared/infrastructure/database/client";
 import { DrizzleAccessTokenRepository } from "./drizzle-access-token.repository";
 import { user } from "./persistence/schema";
 
-/**
- * Runs against a real Postgres: the token is found by the hash of its secret,
- * and the revocation and last use it gains after issue must reach the row.
- */
 const url = getEnv().TEST_DATABASE_URL;
 
 const t0 = new Date("2026-09-23T10:00:00Z");
@@ -55,7 +51,6 @@ describe.skipIf(!url)("DrizzleAccessTokenRepository", () => {
   });
 
   beforeEach(async () => {
-    // Tokens belong to a user row, so emptying the users empties them too.
     await db.execute(sql`truncate ${user} cascade`);
     await db.insert(user).values([
       { id: "user-1", name: "Daniel", email: "daniel@example.com" },

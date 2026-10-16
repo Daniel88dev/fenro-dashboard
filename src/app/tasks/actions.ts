@@ -28,12 +28,6 @@ import { signedInUserQuery } from "@/modules/identity/application/queries/signed
 import type { Result } from "@/shared/domain";
 import { getContainer } from "@/shared/infrastructure/container";
 
-/**
- * A person working their tasks by hand. Every action is thin: read the form,
- * dispatch one command as the signed-in person, and say what the domain said.
- * The rules — claims, cycles, criteria — are the same ones agents meet.
- */
-
 const STATUS_TARGETS: readonly StatusTarget[] = [
   "backlog",
   "todo",
@@ -65,14 +59,12 @@ const SIGNED_OUT = "Sign in with GitHub to change tasks.";
 const text = (formData: FormData, key: string) =>
   String(formData.get(key) ?? "").trim();
 
-/** One entry per line, blank lines dropped. */
 const lines = (formData: FormData, key: string) =>
   text(formData, key)
     .split(/\r?\n/)
     .map((line) => line.trim())
     .filter(Boolean);
 
-/** Keys typed as "T-3, T-7". */
 const list = (formData: FormData, key: string) =>
   text(formData, key)
     .split(/[,\s]+/)
@@ -165,14 +157,12 @@ export async function updateTaskAction(
   return answer(state, await container.commandBus.dispatch(command), task);
 }
 
-/** The label picker's pick: one `labels` field per name. */
 const labelsOf = (formData: FormData) =>
   formData
     .getAll("labels")
     .map((value) => String(value).trim())
     .filter(Boolean);
 
-/** Replaces a task's labels; names not in the owner's labels are added. */
 export async function setLabelsAction(
   state: TaskFormState,
   formData: FormData,
@@ -194,7 +184,6 @@ export async function setLabelsAction(
   return answer(state, outcome, task);
 }
 
-/** Adds criteria, attaches a link, or detaches one: the smaller edits. */
 export async function editTaskAction(
   state: TaskFormState,
   formData: FormData,
@@ -289,10 +278,6 @@ export async function changeStatusAction(
   return answer(state, outcome, task);
 }
 
-/**
- * A card dropped on another column of the board, or moved with its menu. Not
- * a form: the board calls it directly and shows the refusal on the card.
- */
 export async function moveTaskAction(
   task: string,
   status: string,

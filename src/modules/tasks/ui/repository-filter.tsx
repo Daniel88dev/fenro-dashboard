@@ -6,28 +6,18 @@ import { useRouter } from "next/navigation";
 import { useEffect, useId, useRef, useState } from "react";
 
 export type RepositoryFilterOption = {
-  /** `owner/name` */
   readonly name: string;
   readonly openTasks: number;
-  /** The list filtered to this repository, the rest of the filter kept. */
   readonly href: string;
 };
 
-/**
- * One repository at a time, picked from a list that can be searched, so the
- * control stays one button however many repositories the tasks name. The
- * pick is a link: it lives in the URL like the view, labels and search.
- */
 export function RepositoryFilter({
   options,
   picked,
   allHref,
 }: {
-  /** Busiest first. */
   options: readonly RepositoryFilterOption[];
-  /** The repository in the URL, or "" for all of them. */
   picked: string;
-  /** The list with no repository picked. */
   allHref: string;
 }) {
   const [open, setOpen] = useState(false);

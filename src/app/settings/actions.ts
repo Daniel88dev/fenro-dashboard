@@ -10,11 +10,8 @@ import type { IssueTokenState } from "@/modules/identity/ui/agent-access";
 import { isErr } from "@/shared/domain";
 import { getContainer } from "@/shared/infrastructure/container";
 
-/**
- * The secret is made here rather than in the command so the command can stay
- * a command: it returns nothing, and the action is the one place that ever
- * holds the plain secret, just long enough to show it once.
- */
+// The secret is made here, not in the command, so the command returns nothing
+// and this is the one place that holds the plain secret, long enough to show it.
 export async function issueAccessTokenAction(
   _state: IssueTokenState,
   formData: FormData,

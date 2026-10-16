@@ -6,7 +6,6 @@ import {
   type SnapshotParts,
 } from "@/modules/github-insights/application/ports/repository-snapshot";
 
-/** Snapshots for the life of the process: the Postgres store's twin in tests. */
 export class InMemoryRepositorySnapshotStore implements RepositorySnapshotStore {
   readonly #byId = new Map<string, RepositorySnapshot>();
 

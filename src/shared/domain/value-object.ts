@@ -1,4 +1,3 @@
-/** Immutable, identity-less domain concept compared by its values. */
 export abstract class ValueObject<Props extends object> {
   protected constructor(protected readonly props: Props) {
     Object.freeze(this.props);

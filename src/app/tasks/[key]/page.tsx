@@ -18,7 +18,6 @@ export const metadata = {
   title: "Task · Fenro Dashboard",
 };
 
-/** A person reads the whole journal; an agent's brief stops at 20 entries. */
 const JOURNAL_LIMIT = 200;
 
 export default function TaskPage({ params }: PageProps<"/tasks/[key]">) {

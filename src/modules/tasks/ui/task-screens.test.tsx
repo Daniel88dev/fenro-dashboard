@@ -370,7 +370,6 @@ describe("TaskDetail", () => {
     expect(
       screen.getByRole("button", { name: "Remove blocked-by T-4" }),
     ).toBeInTheDocument();
-    // "T-5 is blocked by this" is stored on T-5, so it is removed there.
     expect(
       screen.queryByRole("button", { name: /Remove blocks T-5/ }),
     ).toBeNull();
@@ -537,7 +536,6 @@ describe("task trail", () => {
     const field = screen.getByRole("button", { name: /^Parent/ });
     expect(field).toHaveTextContent("T-1");
     fireEvent.click(field);
-    // A task cannot go under itself.
     const list = screen.getByRole("dialog", { name: "Parent task" });
     expect(within(list).queryByText("Fix the lint job")).toBeNull();
     const find = screen.getByLabelText("Find a task");

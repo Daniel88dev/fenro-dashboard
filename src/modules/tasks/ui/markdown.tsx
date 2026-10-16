@@ -3,15 +3,8 @@ import remarkBreaks from "remark-breaks";
 import remarkGfm from "remark-gfm";
 
 /*
- * Task text is stored as the agent or person wrote it, and read here as
- * GitHub-flavoured Markdown: that is what agents write without being asked, and
- * what GitHub, Linear and Jira's MCP servers take too. Raw HTML is never
- * rendered (react-markdown drops it without rehype-raw) and unsafe URL schemes
- * are stripped by its default URL transform.
- *
- * A single newline is a line break, as in a GitHub issue or comment: journal
- * entries are often a few short lines, and joining them into one paragraph
- * would lose what the writer meant.
+ * Raw HTML is never rendered (react-markdown drops it without rehype-raw) and
+ * unsafe URL schemes are stripped by its default URL transform.
  */
 
 const PLUGINS = [remarkGfm, remarkBreaks];
@@ -159,7 +152,6 @@ const BLOCK: Components = {
   del: ({ children }) => <del className="text-ink-muted">{children}</del>,
 };
 
-/** A description, journal entry or handoff: block Markdown. */
 export function Markdown({
   children,
   className = "",
@@ -178,11 +170,6 @@ export function Markdown({
 
 const INLINE_ELEMENTS = ["p", "a", "strong", "em", "code", "del", "br"];
 
-/**
- * One line of Markdown, for criteria and evidence: emphasis, code and links
- * render; anything that would break the line (a list, a heading) is reduced
- * to its text.
- */
 export function InlineMarkdown({ children }: { children: string }) {
   return (
     <ReactMarkdown

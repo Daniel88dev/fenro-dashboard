@@ -3,7 +3,6 @@ import type {
   AccessTokenRepository,
 } from "@/modules/identity/domain";
 
-/** For tests: tokens kept by reference, newest first. */
 export class InMemoryAccessTokenRepository implements AccessTokenRepository {
   readonly #tokens = new Map<string, AccessToken>();
 

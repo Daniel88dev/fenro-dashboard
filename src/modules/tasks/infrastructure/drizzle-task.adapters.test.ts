@@ -25,12 +25,6 @@ import { DrizzleTaskReadStore } from "./drizzle-task.read-store";
 import { DrizzleTaskRepository } from "./drizzle-task.repository";
 import { task, taskJournalEntry, taskLabel } from "./persistence/schema";
 
-/**
- * Runs against a real Postgres, because what these adapters promise — the
- * aggregate spread over five tables coming back whole, the version check, a
- * number taken once per owner, reads that never cross owners — is Postgres
- * behaviour a fake cannot prove.
- */
 const url = getEnv().TEST_DATABASE_URL;
 
 const t0 = new Date("2026-09-23T10:00:00Z");
@@ -284,7 +278,6 @@ describe.skipIf(!url)("Postgres tasks adapters", () => {
   });
 
   describe("DrizzleTaskReadStore", () => {
-    /** T-1 blocks T-2; T-2 has two sessions, notes and a met criterion. */
     async function aWorkedTask() {
       const blocker = aTask({ number: 1, title: "Agree the payout model" });
       const task = aTask({

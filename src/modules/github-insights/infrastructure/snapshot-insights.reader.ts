@@ -34,11 +34,6 @@ const EMPTY: RepositorySnapshot = {
 const PULL_REQUESTS: SnapshotParts = { pullRequests: true, issues: false };
 const ISSUES: SnapshotParts = { pullRequests: false, issues: true };
 
-/**
- * Ticket 05's answer behind the reader port: the screen reads what the last
- * sync stored, never GitHub. A page view therefore costs no rate limit and
- * still renders while GitHub is down.
- */
 export class SnapshotInsightsReader implements RepositoryInsightsReader {
   constructor(
     private readonly snapshots: RepositorySnapshotStore,

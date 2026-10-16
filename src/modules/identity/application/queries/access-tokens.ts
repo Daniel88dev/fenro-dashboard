@@ -8,7 +8,6 @@ export type AccessTokenSummary = {
   readonly id: string;
   readonly name: string;
   readonly scopes: readonly AccessScope[];
-  /** The secret's last four characters. */
   readonly hint: string;
   readonly state: "active" | "expired" | "revoked";
   readonly createdAt: string;
@@ -16,7 +15,6 @@ export type AccessTokenSummary = {
   readonly lastUsedAt: string | null;
 };
 
-/** The signed-in person's tokens, newest first, for the settings page. */
 export type AccessTokensQuery = Query<
   "identity.access-tokens",
   AccessTokenSummary[]

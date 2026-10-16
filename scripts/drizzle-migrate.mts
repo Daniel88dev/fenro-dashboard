@@ -1,12 +1,6 @@
-// Applies pending migrations and says so when it fails.
-//
 // `drizzle-kit migrate` can exit non-zero with nothing on stderr, which reads
-// like a no-op. Flexi Day lost a maintenance window to that, so both projects
-// run Drizzle's migrator directly and report the error themselves. Node runs
-// this file as is (type stripping), which is why the import names `.ts`.
-//
-// scripts/db-migrate.sh is the entry point; it resolves the connection string
-// and hands it over in DATABASE_URL, never on the command line.
+// like a no-op, so this runs Drizzle's migrator directly and reports the error.
+// Node runs this file as is (type stripping), which is why the import names `.ts`.
 import { drizzle } from "drizzle-orm/node-postgres";
 import { migrate } from "drizzle-orm/node-postgres/migrator";
 import { Pool } from "pg";

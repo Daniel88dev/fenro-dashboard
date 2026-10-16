@@ -17,7 +17,6 @@ export type PictureContent = {
 
 export type PictureContentResult = Result<PictureContent, TaskError>;
 
-/** A picture's bytes: for a page to show, or an agent to look at. */
 export type PictureContentQuery = Query<
   "tasks.picture-content",
   PictureContentResult

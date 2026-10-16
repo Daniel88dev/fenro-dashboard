@@ -12,7 +12,6 @@ import {
   type TaskReference,
 } from "./task-commands";
 
-/** Append a note, decision, discovery or question to a task's journal. */
 export type RecordNoteCommand = TaskCommand<"tasks.record-note"> & {
   readonly task: TaskReference;
   readonly kind: NoteKind;

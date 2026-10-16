@@ -1,7 +1,6 @@
 import type { DomainEvent } from "./domain-event";
 import type { UniqueId } from "./identifier";
 
-/** Domain object with a lifetime and an identity that outlives its values. */
 export abstract class Entity<Props extends object> {
   protected constructor(
     readonly id: UniqueId,
@@ -15,10 +14,6 @@ export abstract class Entity<Props extends object> {
   }
 }
 
-/**
- * Consistency boundary: the only entity a repository loads and saves, and the
- * only place domain events are recorded.
- */
 export abstract class AggregateRoot<
   Props extends object,
 > extends Entity<Props> {
@@ -32,7 +27,6 @@ export abstract class AggregateRoot<
     this.#events.push(event);
   }
 
-  /** Hand the recorded events to the caller and clear them. */
   pullDomainEvents(): DomainEvent[] {
     const events = this.#events;
     this.#events = [];

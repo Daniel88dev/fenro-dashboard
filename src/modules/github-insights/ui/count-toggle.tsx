@@ -7,7 +7,6 @@ export type CountToggleProps = {
   readonly href: string;
   readonly expanded: boolean;
   readonly panelId: string;
-  /** The column's meaning, carried as its colour: teal PRs, rust issues. */
   readonly tone: "pr" | "issue" | "neutral";
 };
 
@@ -17,10 +16,6 @@ const TONES = {
   neutral: { count: "text-ink", open: "bg-neutral-wash" },
 } as const;
 
-/**
- * A count is the affordance; the hint beneath it is the reason to click. An
- * open count is a flat tint of its own colour: no shadow, no underline.
- */
 export function CountToggle({
   label,
   count,

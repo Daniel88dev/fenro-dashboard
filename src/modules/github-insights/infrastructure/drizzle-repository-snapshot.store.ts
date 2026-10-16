@@ -22,11 +22,6 @@ import {
   type StoredCheck,
 } from "./persistence/schema";
 
-/**
- * Snapshots in Postgres. A replace swaps everything a repository had for what
- * the latest sync saw, inside one transaction, so a reader sees either the old
- * snapshot or the new one and never half of each.
- */
 export class DrizzleRepositorySnapshotStore implements RepositorySnapshotStore {
   constructor(
     private readonly db: Database,

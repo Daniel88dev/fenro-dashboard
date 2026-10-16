@@ -37,25 +37,16 @@ import type {
 } from "./read-models";
 
 export type TaskFilter = {
-  /** Only tasks an agent could pick up now, best first. */
   readonly ready?: boolean;
-  /** Only tasks in one of these derived states. */
   readonly states?: readonly TaskState[];
   readonly statuses?: readonly TaskStatus[];
-  /** Include done and cancelled tasks when no status is asked for. */
   readonly includeClosed?: boolean;
   readonly repository?: string;
-  /** Only tasks carrying at least one of these labels. */
   readonly labels?: readonly string[];
-  /** Only the sub-tasks of this task (its id). */
   readonly parentId?: string;
-  /** Only tasks or only epics. */
   readonly kinds?: readonly TaskKind[];
-  /** Only the tasks under this epic (its id), at any depth. */
   readonly epicId?: string;
-  /** Only plain tasks that belong to no epic. */
   readonly outsideEpics?: boolean;
-  /** Words that must all appear in the title or the key. */
   readonly text?: string;
   readonly limit?: number;
 };
@@ -64,11 +55,6 @@ export const DEFAULT_LIMIT = 25;
 export const MAX_LIMIT = 100;
 export const DEFAULT_JOURNAL_LIMIT = 20;
 
-/**
- * The owner's tasks, indexed once, so every derived fact — is it blocked, is it
- * ready, who is on it — is worked out the same way for a list, a count and a
- * brief. `now` decides which sessions are still live.
- */
 export class TaskIndex {
   readonly #byId: ReadonlyMap<string, TaskRecord>;
   readonly #children = new Map<string, TaskRecord[]>();
@@ -128,7 +114,6 @@ export class TaskIndex {
     return openChildren.length > 0 ? "waiting" : "ready";
   }
 
-  /** The nearest epic above a task, walking up its parents. */
   epicOf(record: TaskRecord): TaskRecord | null {
     const seen = new Set<string>([record.id]);
     let parent = record.parentId ? this.#byId.get(record.parentId) : undefined;
@@ -212,14 +197,8 @@ export function isLive(session: SessionRecord, now: Date): boolean {
   );
 }
 
-// --- Lists ------------------------------------------------------------------
-
 const READY_STATES: readonly TaskState[] = ["ready", "paused"];
 
-/**
- * The ready queue's order: most urgent first; within a priority, work already
- * under way before work not started, then oldest first.
- */
 function readyOrder(a: TaskListItem & { priority: Priority }, b: TaskListItem) {
   return (
     priorityRank(a.priority) - priorityRank(b.priority) ||
@@ -259,7 +238,6 @@ export function listTasks(index: TaskIndex, filter: TaskFilter): TaskList {
       return matchesScope(index, record, filter);
     })
     .map((record) => index.item(record))
-    // Nobody starts a session on an epic, so the queue never offers one.
     .filter(
       (item) =>
         !filter.ready ||
@@ -274,7 +252,6 @@ export function listTasks(index: TaskIndex, filter: TaskFilter): TaskList {
   return { total: matching.length, tasks: matching.slice(0, limit) };
 }
 
-/** Every filter but status and state: what the list and the board share. */
 function matchesScope(
   index: TaskIndex,
   record: TaskRecord,
@@ -310,7 +287,6 @@ function matchesScope(
   return true;
 }
 
-/** The columns of the board, left to right. Cancelled tasks are not on it. */
 export const BOARD_STATUSES: readonly TaskStatus[] = [
   "backlog",
   "todo",
@@ -319,13 +295,8 @@ export const BOARD_STATUSES: readonly TaskStatus[] = [
   "done",
 ];
 
-/** How many cards a column shows; the rest are counted. */
 export const BOARD_COLUMN_LIMIT = 50;
 
-/**
- * The board: tasks by status. Open columns keep the list's order; Done shows
- * the most recently finished first, since that is the end that matters.
- */
 export function board(
   index: TaskIndex,
   filter: Omit<TaskFilter, "statuses" | "states" | "ready" | "limit">,
@@ -347,8 +318,6 @@ export function board(
     }),
   };
 }
-
-// --- The brief --------------------------------------------------------------
 
 export function brief(
   detail: TaskDetailRecord,
@@ -434,8 +403,8 @@ export function brief(
 }
 
 /**
- * Pictures are their own aggregate, so adding one leaves the task row alone;
- * to a reader it is still a change to the task.
+ * Pictures are their own aggregate, so adding one leaves the task row
+ * alone; to a reader it is still a change to the task.
  */
 function lastChange(detail: TaskDetailRecord): Date {
   return detail.pictures.reduce(
@@ -457,19 +426,12 @@ export function pictureItem(record: PictureRecord): PictureItem {
   };
 }
 
-// --- Skills -----------------------------------------------------------------
-
 /**
- * How many characters of skill instructions one brief carries. Past it, the
- * remaining skills come by name only, so many labels with long skills cannot
- * crowd out the task itself.
+ * Past it, the remaining skills come by name only, so many labels with
+ * long skills cannot crowd out the task itself.
  */
 export const BRIEF_INSTRUCTIONS_BUDGET = 60_000;
 
-/**
- * The skills that apply to a task: those linked to any of the task's own
- * labels, each once, by name, with the labels that brought it in.
- */
 export function briefSkills(
   labels: readonly string[],
   skills: readonly SkillTextRecord[],
@@ -499,7 +461,6 @@ export function briefSkills(
     });
 }
 
-/** A skill in a list, with the open tasks it applies to now. */
 export function skillItem(skill: SkillRecord, index: TaskIndex): SkillItem {
   const labels = new Set(skill.labels);
   return {
@@ -533,8 +494,6 @@ export function skillRevisionItem(
   };
 }
 
-// --- The repository table -----------------------------------------------------
-
 export function countsByRepository(index: TaskIndex): TaskCountsByRepository {
   const counts: Record<string, { total: number; running: number }> = {};
   for (const record of index.records) {
@@ -557,7 +516,6 @@ function countHint({ total, running }: { total: number; running: number }) {
   return running > 0 ? `${running} running` : "none running";
 }
 
-/** How many tasks a repository's panel lists before saying how many more. */
 export const PANEL_LIMIT = 5;
 
 const PANEL_ORDER: readonly TaskState[] = [
@@ -655,8 +613,6 @@ function lastActivity(
       return session ? `Ready, after session ${session.number}` : "Not started";
   }
 }
-
-// --- Helpers ------------------------------------------------------------------
 
 function fullName(record: TaskRecord): string | null {
   return record.repository

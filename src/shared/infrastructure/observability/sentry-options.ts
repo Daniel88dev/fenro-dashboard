@@ -1,18 +1,13 @@
 import type { Env } from "@/shared/config/env";
 
-/**
- * Browsers send their events here and the server forwards them to Sentry, so
- * an ad blocker that drops requests to sentry.io does not hide client errors.
- */
+// The server forwards browser events to Sentry, so an ad blocker that drops
+// requests to sentry.io does not hide client errors.
 export const SENTRY_TUNNEL_ROUTE = "/monitoring";
 
-/**
- * App Runner checks /api/health every ten seconds: tracing it would spend the
- * monthly span quota on nothing. The tunnel only forwards other events.
- */
+// App Runner checks /api/health every ten seconds: tracing it would spend the
+// monthly span quota on nothing.
 const UNTRACED_PATHS = ["/api/health", SENTRY_TUNNEL_ROUTE];
 
-/** What the browser needs to report, rendered into the page by the server. */
 export type BrowserSentryConfig = {
   readonly dsn: string;
   readonly environment: string;
@@ -20,7 +15,6 @@ export type BrowserSentryConfig = {
   readonly tracesSampleRate: number;
 };
 
-/** Settings shared by the server and edge runtimes; null when Sentry is off. */
 export function serverSentryOptions(env: Env) {
   if (!env.SENTRY_DSN) return null;
   return {
@@ -70,12 +64,8 @@ export function browserSentryConfig(env: Env): BrowserSentryConfig | null {
 
 export const BROWSER_SENTRY_META = "fenro:sentry";
 
-/**
- * The image is built once and configured when it starts, so the browser
- * cannot get the DSN from a build-time NEXT_PUBLIC_ variable. The root layout
- * renders it into a meta tag instead, and the client reads it back before
- * hydration.
- */
+// The image is configured at start, not build, so the DSN cannot come from a
+// NEXT_PUBLIC_ variable; the root layout renders it into a meta tag instead.
 export function readBrowserSentryConfig(
   document: Pick<Document, "querySelector">,
 ): BrowserSentryConfig | null {

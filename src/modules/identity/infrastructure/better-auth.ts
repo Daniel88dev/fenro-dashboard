@@ -8,14 +8,8 @@ import type { Database } from "@/shared/infrastructure/database/client";
 import { refreshGitHubToken } from "./github-token-refresh";
 import { identitySchema } from "./persistence/schema";
 
-/**
- * "Sign in with GitHub" goes through a GitHub App, not an OAuth app. A GitHub
- * App's user token carries the app's own permissions (read-only: metadata,
- * pull requests, issues, checks, commit statuses and email addresses) and only
- * reaches repositories the app is installed on, so OAuth scopes mean nothing
- * to it. None are sent, Better Auth's `read:user` and `user:email` defaults
- * included, so the consent screen lists only what the app was given.
- */
+// A GitHub App's user token carries the app's own permissions, so OAuth scopes
+// mean nothing to it; sending none drops Better Auth's defaults from consent.
 export const GITHUB_SCOPES = [] as const;
 
 export type AuthSettings = {
@@ -24,11 +18,6 @@ export type AuthSettings = {
   readonly github: { readonly clientId: string; readonly clientSecret: string };
 };
 
-/**
- * The whole sign-in policy in one place, kept a pure function of its inputs so
- * it can be tested without a database: GitHub is the only way in, and there is
- * no email and password.
- */
 export function authOptions(settings: AuthSettings, db: Database) {
   return {
     appName: "Fenro Dashboard",
@@ -42,10 +31,8 @@ export function authOptions(settings: AuthSettings, db: Database) {
         clientSecret: settings.github.clientSecret,
         disableDefaultScope: true,
         scope: [...GITHUB_SCOPES],
-        // A GitHub App's user token expires after eight hours and comes with a
-        // single-use refresh token, which Better Auth trades in when the token
-        // is read. GitHub reports a refused refresh with a 200, which Better
-        // Auth's default refresh would store as a token.
+        // GitHub reports a refused refresh with a 200, which Better Auth's default
+        // refresh would store as a token.
         refreshAccessToken: (refreshToken) =>
           refreshGitHubToken(refreshToken, settings.github),
         // GitHub usernames can change; keep ours in step on every sign-in.
@@ -89,10 +76,8 @@ export type Auth = ReturnType<typeof createAuth>;
 
 let instance: Auth | undefined;
 
-/**
- * Built on first use rather than at import, so `next build` and the tests run
- * without the GitHub App or the database configured.
- */
+// Built on first use, not at import, so `next build` and the tests run without
+// the GitHub App or the database configured.
 export function getAuth(db: () => Database): Auth {
   if (instance) return instance;
 

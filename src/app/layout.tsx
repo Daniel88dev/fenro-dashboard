@@ -33,13 +33,8 @@ export const metadata: Metadata = {
     "GitHub insights and an agentic task list for the repositories you care about.",
 };
 
-/**
- * `modal` is the slot the task dialogs render into: a task or New task
- * opened from inside the app shows over the page it was opened from.
- *
- * The saved colour scheme is set on the html element here, on the server, so
- * the first paint is already in the scheme the reader picked.
- */
+// The saved colour scheme is set on the server so the first paint is already
+// in the scheme the reader picked.
 export default async function RootLayout({
   children,
   modal,

@@ -79,11 +79,6 @@ type ListedTaskRow = Omit<
 const listedSkill = without(getTableColumns(taskSkill), "instructions");
 type ListedSkillRow = Omit<typeof taskSkill.$inferSelect, "instructions">;
 
-/**
- * The tasks read side, straight from the tables: no aggregate is loaded to
- * answer a query. A list costs four queries whatever its length — the tasks,
- * their blocking links, each one's latest session, and journal counts.
- */
 export class DrizzleTaskReadStore implements TaskReadStore {
   constructor(private readonly db: Database) {}
 

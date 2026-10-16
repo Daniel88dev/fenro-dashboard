@@ -6,11 +6,6 @@ import type { BriefSkill } from "@/modules/tasks/application/queries/read-models
 import { LabelChips, type LabelOption } from "./labels";
 import { skillHref, SKILLS_PATH } from "./skill-views";
 
-/**
- * The skills a task's labels bring, read-only: an agent that starts the task
- * gets these in full. Changing them happens in Skills & labels, which each
- * name links to.
- */
 export function TaskSkills({
   skills,
   labels,
@@ -78,7 +73,6 @@ export function TaskSkills({
   );
 }
 
-/** The same, as one line in the task dialog's side column. */
 export function TaskSkillsLine({ skills }: { skills: readonly BriefSkill[] }) {
   if (skills.length === 0) return null;
   return (

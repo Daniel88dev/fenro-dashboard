@@ -63,10 +63,6 @@ function Problem({ error }: { error: string | null }) {
 const plural = (count: number, one: string, many: string) =>
   `${count} ${count === 1 ? one : many}`;
 
-/**
- * One label beside the list: rename it, recolour it, and the skills it
- * brings, linked and unlinked from here as well as from a skill's editor.
- */
 export function LabelEditor({
   label,
   skills,
@@ -228,10 +224,6 @@ export function LabelEditor({
   );
 }
 
-/**
- * Link a skill to a label: a searchable list of the skills not linked yet,
- * since skills are a list that grows.
- */
 function SkillPicker({
   label,
   skills,
@@ -246,7 +238,6 @@ function SkillPicker({
   const [state, formAction, pending] = useActionState(
     async (previous: TaskFormState, formData: FormData) => {
       const next = await link(previous, formData);
-      // Linked: the list closes, and the skill shows under Linked skills.
       if (!next.error) setOpen(false);
       return next;
     },
@@ -352,11 +343,6 @@ function SkillPicker({
   );
 }
 
-/**
- * New label: a button that opens a one-field form in its place. Labels are
- * also made from a task's label picker and a skill's; this is for making one
- * before anything carries it.
- */
 export function NewLabelForm({ create }: { create: TaskAction }) {
   const [open, setOpen] = useState(false);
   const [state, formAction, pending] = useActionState(create, EMPTY_FORM_STATE);

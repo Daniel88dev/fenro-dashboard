@@ -12,10 +12,6 @@ import { newTaskDefaults } from "../../../tasks/new/defaults";
 import { tasksContext } from "../../../tasks/signed-in-owner";
 import { TASK_ACTIONS } from "../../../tasks/task-actions";
 
-/**
- * New task as a dialog over the page it was started from: a repository row,
- * a pull request's checks, the task list. The full form is one click away.
- */
 export default async function NewTaskDialogPage({
   searchParams,
 }: PageProps<"/tasks/new">) {

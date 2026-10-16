@@ -1,11 +1,5 @@
-/**
- * The secret an agent sends as `Authorization: Bearer fenro_pat_…`. The prefix
- * makes a leaked token recognisable to secret scanners, and tells it apart
- * from an OAuth access token if the MCP server ever accepts both.
- *
- * Only Web Crypto globals are used, so this runs the same in Node, a browser
- * and a test.
- */
+// The prefix makes a leaked token recognisable to secret scanners. Only Web
+// Crypto globals are used, so this runs the same in Node, a browser and a test.
 export const ACCESS_TOKEN_PREFIX = "fenro_pat_";
 
 const SECRET_BYTES = 32;
@@ -20,10 +14,8 @@ export function looksLikeAccessToken(value: string): boolean {
   return SHAPE.test(value);
 }
 
-/**
- * A fast hash is right here: the secret is 256 random bits, not a password
- * someone chose, so there is nothing for a slow hash to protect against.
- */
+// A fast hash is right here: the secret is 256 random bits, not a password
+// someone chose, so a slow hash protects nothing.
 export async function hashAccessTokenSecret(secret: string): Promise<string> {
   const digest = await crypto.subtle.digest(
     "SHA-256",

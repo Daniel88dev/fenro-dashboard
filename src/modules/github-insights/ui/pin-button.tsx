@@ -1,11 +1,5 @@
 import { PushPin } from "@phosphor-icons/react/ssr";
 
-/**
- * Sits beside the repository name. A pinned row always shows it, filled, as
- * the marker that explains why the row is on top; pressing it unpins. An
- * unpinned row shows an outline pin only while the pointer or focus is on the
- * row, from md up; on a phone the row menu does the pinning.
- */
 export function PinButton({
   owner,
   name,

@@ -4,7 +4,6 @@ import { getContainer } from "@/shared/infrastructure/container";
 
 import { signOutAction } from "./sign-in/actions";
 
-/** The top bar's account corner: nothing when signed out, the page says so. */
 export async function SignedInAccount() {
   const { queryBus } = await getContainer();
   const user = await queryBus.ask(signedInUserQuery());

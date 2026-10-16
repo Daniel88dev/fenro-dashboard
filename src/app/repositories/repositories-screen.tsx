@@ -103,10 +103,6 @@ function toggleFor(
   };
 }
 
-/**
- * The route is where the two contexts meet: it asks both buses and zips the
- * results on `owner/name`, so neither context has to know the other exists.
- */
 export async function RepositoriesScreen({
   searchParams,
 }: {
@@ -116,8 +112,6 @@ export async function RepositoriesScreen({
   const now = new Date();
   const { queryBus } = await getContainer(now);
 
-  // "You" is the signed-in GitHub account (ticket 03); without one there is
-  // nobody to read GitHub as, so the table waits for sign-in.
   const user = await queryBus.ask(signedInUserQuery());
   if (!user) {
     return <SignInPanel action={signInWithGitHubAction} />;
@@ -270,7 +264,6 @@ export async function RepositoriesScreen({
       dueIds={rows.value.filter((row) => row.needsSync).map((row) => row.id)}
     >
       <DashboardHeader
-        // Summed from the rows already read, rather than asking for them twice.
         totals={totalsOf(rows.value)}
         openTasks={openTasks}
         filter={state.filter}
@@ -426,7 +419,6 @@ async function ChecksSection({
     <PullRequestChecksView
       id={id}
       checks={checks.value}
-      // The seam between the two contexts: the tasks side takes it from here.
       newTaskHref={`/tasks/new?repository=${encodeURIComponent(`${owner}/${name}`)}&from=${encodeURIComponent(pullRequestUrl)}`}
     />
   );

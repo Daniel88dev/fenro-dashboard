@@ -33,12 +33,6 @@ export const DESCRIPTION_LIMIT = 50_000;
 export const LABEL_LIMIT = 20;
 export const CRITERIA_LIMIT = 50;
 
-/**
- * What the task cannot see from inside itself but must obey: whether the tasks
- * it is blocked by are finished, and whether its sub-tasks are. The
- * application layer reads them from the task graph and hands them in, and the
- * task decides; they are keys so a refusal can name them.
- */
 export type TaskSurroundings = {
   readonly openBlockers: readonly string[];
   readonly openSubtasks: readonly string[];
@@ -98,44 +92,12 @@ export type TaskEdit = {
 
 export type Finish = {
   readonly outcome: FinishOutcome;
-  /** What the next session needs to know. Required: it is the handoff. */
   readonly summary: string;
-  /** Required when the outcome is `blocked`: what the task is waiting on. */
   readonly reason?: string;
 };
 
-/**
- * Where a status change may be asked for. An agent reaches `in_progress` only
- * by starting a session; a person may move a task there by hand, as on the
- * board, and it waits there, paused, until an agent picks it up.
- */
 export type StatusTarget = TaskStatus;
 
-/**
- * A piece of work, and the context it carries from one agent session to the
- * next. Every task and sub-task is its own aggregate (Daniel's call on ticket
- * 08), so agents working siblings never contend on a parent.
- *
- * What it guards:
- *
- * - **One live session.** An agent claims the task by starting a session; a
- *   second agent is refused until the first finishes or its lease lapses.
- *   While a session is live, status moves go through it: its holder finishes
- *   the session, another agent is refused, and a person may override.
- * - **Finishing honestly.** A task is not done while a sub-task is open or an
- *   acceptance criterion is unmet, and a session does not end without a
- *   handoff summary.
- * - **Ready means ready.** A session cannot start while the task is in the
- *   backlog, on hold, blocked by an open task, or — before work on it has
- *   begun — waiting on its open sub-tasks.
- * - **An append-only journal.** Entries are added, never changed.
- * - **Epics sit at the top.** An epic holds tasks and has no parent of its
- *   own, and nobody starts a session on one: its tasks are the work.
- *
- * Rules that span tasks — no cycle through `blocked-by` or through parents —
- * belong to `TaskGraph`, which the application layer consults before calling
- * `link` or `moveUnder`.
- */
 export class Task extends AggregateRoot<Props> {
   #state: TaskState;
   #newJournalEntries: JournalEntry[] = [];
@@ -189,12 +151,9 @@ export class Task extends AggregateRoot<Props> {
     return ok(task);
   }
 
-  /** Rebuild a task a store already holds, recording no event. */
   static restore(id: UniqueId, props: Props, state: TaskState): Task {
     return new Task(id, props, state);
   }
-
-  // --- Editing -------------------------------------------------------------
 
   edit(changes: TaskEdit, actor: Actor, now: Date): Result<void, TaskError> {
     let next = this.#state;
@@ -227,8 +186,7 @@ export class Task extends AggregateRoot<Props> {
   }
 
   /**
-   * Make this a sub-task of `parentId`, or a top-level task with `null`. The
-   * caller has already asked `TaskGraph` whether that would close a cycle.
+   * The caller has already asked `TaskGraph` whether this would close a cycle.
    */
   moveUnder(
     parentId: string | null,
@@ -246,11 +204,6 @@ export class Task extends AggregateRoot<Props> {
     return ok(undefined);
   }
 
-  /**
-   * Make this an epic or a plain task. A task under a parent cannot become an
-   * epic until it is taken out from under it; an epic that becomes a task
-   * keeps its tasks as sub-tasks.
-   */
   changeKind(kind: TaskKind, actor: Actor, now: Date): Result<void, TaskError> {
     const from = this.#state.kind;
     if (from === kind) return ok(undefined);
@@ -303,7 +256,6 @@ export class Task extends AggregateRoot<Props> {
     return ok(undefined);
   }
 
-  /** Mark a criterion met (with how it was shown) or not met again. */
   checkCriterion(
     number: number,
     met: boolean,
@@ -332,9 +284,9 @@ export class Task extends AggregateRoot<Props> {
   }
 
   /**
-   * Relate this task to another. Adding a link that exists is a no-op, so an
-   * agent retrying after a timeout does no harm. For `blocked-by`, the caller
-   * has already asked `TaskGraph` whether it would close a cycle.
+   * Adding a link that exists is a no-op, so an agent retrying after a
+   * timeout does no harm. For `blocked-by`, the caller has already asked
+   * `TaskGraph` whether it would close a cycle.
    */
   link(
     kind: LinkKind,
@@ -365,10 +317,6 @@ export class Task extends AggregateRoot<Props> {
     this.#touch(actor, now);
   }
 
-  /**
-   * Attach a link to the outside world, replacing one to the same target. Only
-   * one reference is the task's source; marking a new one moves the mark.
-   */
   attach(reference: ExternalReference, actor: Actor, now: Date): void {
     const others = this.#state.references
       .filter((existing) => !existing.sameTarget(reference))
@@ -391,7 +339,6 @@ export class Task extends AggregateRoot<Props> {
     this.#touch(actor, now);
   }
 
-  /** Append to the journal. Anyone may; nothing appended is ever changed. */
   note(
     kind: NoteKind,
     text: string,
@@ -405,12 +352,9 @@ export class Task extends AggregateRoot<Props> {
     return ok(undefined);
   }
 
-  // --- Sessions ------------------------------------------------------------
-
   /**
-   * Claim the task. Starting again as the agent that already holds it resumes
-   * that session rather than failing, so an agent that lost its context can
-   * pick its work back up.
+   * Starting again as the agent that already holds it resumes that session
+   * rather than failing, so an agent that lost its context can pick it up.
    */
   startSession(
     actor: Actor,
@@ -494,11 +438,6 @@ export class Task extends AggregateRoot<Props> {
     return ok(session);
   }
 
-  /**
-   * End the actor's session, leaving a handoff for whoever comes next. A
-   * session that lapsed can still be finished by its own agent, as long as
-   * nobody else has started one since.
-   */
   finishSession(
     actor: Actor,
     finish: Finish,
@@ -550,12 +489,6 @@ export class Task extends AggregateRoot<Props> {
     return ok(undefined);
   }
 
-  // --- Status --------------------------------------------------------------
-
-  /**
-   * Move the task to another status outside a session: plan it, cancel it,
-   * reopen it, send it to review, or mark it done when no session is needed.
-   */
   changeStatus(
     target: StatusTarget,
     actor: Actor,
@@ -597,7 +530,6 @@ export class Task extends AggregateRoot<Props> {
       if (!done.ok) return done;
     }
 
-    // A person overriding a live session ends it for the agent.
     if (live) {
       this.#endSession(
         live,
@@ -609,7 +541,6 @@ export class Task extends AggregateRoot<Props> {
     return ok(undefined);
   }
 
-  /** Mark the task as waiting on something outside fenro. */
   putOnHold(reason: string, actor: Actor, now: Date): Result<void, TaskError> {
     const claim = this.#guardClaim(actor, now);
     if (!claim.ok) return claim;
@@ -629,8 +560,6 @@ export class Task extends AggregateRoot<Props> {
     this.#touch(actor, now);
     return ok(undefined);
   }
-
-  // --- Reading -------------------------------------------------------------
 
   get ownerId(): string {
     return this.props.ownerId;
@@ -676,14 +605,11 @@ export class Task extends AggregateRoot<Props> {
     return this.#state.sessions.find((session) => session.isLive(now));
   }
 
-  /** Entries appended since the task was loaded, for the store to add. */
   pullNewJournalEntries(): JournalEntry[] {
     const entries = this.#newJournalEntries;
     this.#newJournalEntries = [];
     return entries;
   }
-
-  // --- Internals -----------------------------------------------------------
 
   #moveTo(status: TaskStatus, now: Date): void {
     const from = this.#state.status;
@@ -693,7 +619,6 @@ export class Task extends AggregateRoot<Props> {
       status,
       updatedAt: now,
       completedAt: status === "done" ? now : null,
-      // Finishing or cancelling a task ends whatever it was waiting on.
       hold: isOpen(status) ? this.#state.hold : null,
     };
     this.record(new TaskStatusChanged(this.id.value, from, status, now));
@@ -727,8 +652,7 @@ export class Task extends AggregateRoot<Props> {
   }
 
   /**
-   * Another agent's live session keeps this agent's hands off the task's
-   * status and criteria. People are not stopped: it is their task list.
+   * People are not stopped by another agent's session: it is their task list.
    */
   #guardClaim(actor: Actor, now: Date): Result<void, TaskError> {
     const live = this.liveSession(now);
@@ -745,7 +669,6 @@ export class Task extends AggregateRoot<Props> {
     );
   }
 
-  /** Any change the session holder makes renews its lease. */
   #touch(actor: Actor, now: Date): void {
     const live = this.liveSession(now);
     if (live && sameActor(live.actor, actor)) {
@@ -871,7 +794,6 @@ function checkDescription(description: string): Result<string, TaskError> {
   return ok(trimmed);
 }
 
-/** Names as the label catalogue keeps them: lower-case, once each. */
 function checkLabels(
   labels: readonly string[],
 ): Result<readonly string[], TaskError> {

@@ -19,17 +19,12 @@ export const MAX_SKILL_DESCRIPTION = 1024;
 export const MAX_SKILL_INSTRUCTIONS = 20_000;
 export const MAX_SKILL_LABELS = 20;
 
-/** What a revision changes: the text, never the labels. */
 export type SkillText = {
   readonly name: string;
   readonly description: string;
   readonly instructions: string;
 };
 
-/**
- * The text a skill had at one revision, and who wrote it. Every revision is
- * kept, so an agent's edit can be read and undone.
- */
 export type SkillRevision = SkillText & {
   readonly revision: number;
   readonly by: Actor;
@@ -37,7 +32,6 @@ export type SkillRevision = SkillText & {
 };
 
 export type SkillState = SkillText & {
-  /** Label names, sorted. */
   readonly labels: readonly string[];
   readonly revision: number;
   readonly createdBy: Actor;
@@ -65,18 +59,7 @@ export type SkillChanges = {
   readonly instructions?: string;
 };
 
-/**
- * A named block of Markdown instructions that applies to every task carrying
- * one of its labels: when an agent picks such a task up, the skill comes with
- * the brief. Fields follow the Agent Skills `SKILL.md` shape (name,
- * description, body).
- *
- * The skill holds its links to labels, by name, as tasks do; which skills a
- * label brings is a read model. Each change to the text is a new revision,
- * and a revise names the revision it was made against, so two editors never
- * silently overwrite each other. That the name is unique per person is kept by
- * the store, as for labels.
- */
+/** That the name is unique per person is kept by the store, as for labels. */
 export class Skill extends AggregateRoot<Props> {
   #state: SkillState;
   #newRevisions: SkillRevision[] = [];
@@ -115,7 +98,6 @@ export class Skill extends AggregateRoot<Props> {
     return ok(skill);
   }
 
-  /** Rebuild a skill a store already holds, recording no event. */
   static restore(id: UniqueId, ownerId: string, state: SkillState): Skill {
     return new Skill(id, { ownerId }, state);
   }
@@ -132,11 +114,6 @@ export class Skill extends AggregateRoot<Props> {
     return this.#state;
   }
 
-  /**
-   * Change the text. `expectedRevision` is the revision the editor read: when
-   * someone else revised it since, the change is refused rather than laid over
-   * theirs. A change that leaves the text as it is makes no revision.
-   */
   revise(
     changes: SkillChanges,
     expectedRevision: number,
@@ -173,7 +150,6 @@ export class Skill extends AggregateRoot<Props> {
     return ok(undefined);
   }
 
-  /** Apply the skill to tasks carrying any of these labels too. */
   link(
     names: readonly string[],
     actor: Actor,
@@ -193,7 +169,6 @@ export class Skill extends AggregateRoot<Props> {
     return ok(undefined);
   }
 
-  /** Stop applying the skill to tasks through these labels. */
   unlink(
     names: readonly string[],
     actor: Actor,
@@ -216,12 +191,10 @@ export class Skill extends AggregateRoot<Props> {
     return ok(undefined);
   }
 
-  /** Mark the skill for removal; the store deletes it with its revisions. */
   delete(now: Date): void {
     this.record(new SkillDeleted(this.id.value, this.#state.name, now));
   }
 
-  /** Revisions made since the skill was loaded, for the store to append. */
   pullNewRevisions(): SkillRevision[] {
     const revisions = this.#newRevisions;
     this.#newRevisions = [];
@@ -229,7 +202,6 @@ export class Skill extends AggregateRoot<Props> {
   }
 }
 
-/** A skill's name as it is kept: lower case, spaces become hyphens. */
 export function normaliseSkillName(raw: string): string {
   return raw.trim().toLowerCase().replace(/\s+/g, "-");
 }

@@ -8,12 +8,9 @@ import {
 import type { Query, QueryHandler } from "@/shared/application";
 import { err, ok, type Result } from "@/shared/domain";
 
-/** Who an agent is, once its token checks out. */
 export type AgentPrincipal = {
   readonly tokenId: string;
-  /** The person the agent acts for. */
   readonly ownerId: string;
-  /** The token's name, which is how the agent is shown on its tasks. */
   readonly name: string;
   readonly scopes: readonly AccessScope[];
   readonly expiresAt: Date;
@@ -30,10 +27,8 @@ export function authenticateAgentQuery(secret: string): AuthenticateAgentQuery {
   return { type: "identity.authenticate-agent", secret };
 }
 
-/**
- * Unknown, revoked and expired tokens get the same answer, so a caller learns
- * nothing about which tokens exist.
- */
+// Unknown, revoked and expired tokens get the same answer, so a caller learns
+// nothing about which tokens exist.
 export class AuthenticateAgentHandler implements QueryHandler<
   AuthenticateAgentQuery,
   AuthenticateAgentResult

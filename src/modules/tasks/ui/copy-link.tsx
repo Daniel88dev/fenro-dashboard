@@ -5,14 +5,8 @@ import { useEffect, useState } from "react";
 
 import { taskHref } from "./task-state";
 
-/** How long "Copied" stays before the button goes back to its icon. */
 const COPIED_FOR_MS = 1600;
 
-/**
- * Copies a task's full address, as Jira does beside an issue key: the quick
- * way to hand a task to an agent, which takes the link as readily as the key.
- * The address is the one the person is on, so a preview copies a preview link.
- */
 export function CopyTaskLink({ taskKey }: { taskKey: string }) {
   const [copied, setCopied] = useState(false);
 
@@ -35,9 +29,8 @@ export function CopyTaskLink({ taskKey }: { taskKey: string }) {
   };
 
   const tip = copied ? "Copied" : "Copy link";
-  // The tip sits to the right, clear of the title, and shows on hover or
-  // keyboard focus only: a dialog opening focuses this button first, and a
-  // tip on plain focus would show without anyone pointing at it.
+  // Hover or keyboard focus only: a dialog opening focuses this button first,
+  // and a tip on plain focus would show without anyone pointing at it.
   return (
     <span className="group/copy relative inline-flex">
       <button

@@ -8,12 +8,6 @@ import { migrationConfig } from "./src/shared/infrastructure/database/migrations
 // does. On a deploy host the variables are already in the environment.
 loadEnvConfig(process.cwd());
 
-/**
- * Every context keeps its own tables next to its adapters, at
- * `src/modules/<context>/infrastructure/persistence/schema.ts`, all in the
- * `fenro` Postgres schema declared in `src/shared/infrastructure/database`;
- * migrations for all of them share one history in `drizzle/`.
- */
 export default defineConfig({
   dialect: "postgresql",
   schema: [

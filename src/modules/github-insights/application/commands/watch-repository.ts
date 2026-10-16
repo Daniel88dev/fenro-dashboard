@@ -29,12 +29,8 @@ export function watchRepositoryCommand(
   };
 }
 
-/**
- * Watching is idempotent: one aggregate per watcher and set of coordinates, so
- * dispatching this twice leaves one watched repository rather than failing.
- * Invalid coordinates are a bug here — the route validates them before
- * dispatching, because a command bus has no way to hand a failure back.
- */
+// Invalid coordinates throw: the route validates them first, because a
+// command bus has no way to hand a failure back.
 export class WatchRepositoryHandler implements CommandHandler<WatchRepositoryCommand> {
   constructor(private readonly repositories: WatchedRepositoryRepository) {}
 

@@ -1,4 +1,3 @@
-/** Something that happened in the domain, recorded by an aggregate. */
 export interface DomainEvent {
   readonly name: string;
   readonly aggregateId: string;

@@ -20,15 +20,10 @@ import type { AddRepositoriesState } from "@/modules/github-insights/ui/add-repo
 import { isErr } from "@/shared/domain";
 import { getContainer } from "@/shared/infrastructure/container";
 
-/** How many repositories one submission may add. */
 const ADD_LIMIT = 100;
 
-/**
- * Thin, as the working agreement asks: parse the input, ask a query, dispatch
- * commands, map the result to something the picker can render. Only
- * repositories GitHub lists for this viewer are watched, whatever the form
- * posted, and each is stored as GitHub spells it.
- */
+// Only repositories GitHub lists for this viewer are watched, whatever the
+// form posted.
 export async function addRepositoriesAction(
   _state: AddRepositoriesState,
   formData: FormData,
@@ -73,11 +68,6 @@ export async function addRepositoriesAction(
   return { error: null, added: toWatch.length };
 }
 
-/**
- * A repository typed in by hand, for an organization that does not let this
- * app read it. GitHub is not asked anything; the aggregate decides whether
- * the name is one GitHub could have and whether it is already watched.
- */
 export async function addRepositoryManuallyAction(
   _state: AddRepositoriesState,
   formData: FormData,
@@ -123,7 +113,6 @@ export async function unwatchRepositoryAction(
   revalidatePath("/repositories");
 }
 
-/** The pin toggle: `pinned` says which way it should end up. */
 export async function pinRepositoryAction(formData: FormData): Promise<void> {
   const owner = String(formData.get("owner") ?? "");
   const name = String(formData.get("name") ?? "");
@@ -147,12 +136,6 @@ export async function pinRepositoryAction(formData: FormData): Promise<void> {
 
 const TRIGGERS: readonly SyncTrigger[] = ["manual", "automatic"];
 
-/**
- * Refresh, pressed or started by a stale page. The client only says which;
- * the watched repositories' sync policy decides what is actually read from
- * GitHub, with a token that never leaves the server. `refresh()` sends the
- * page, re-rendered from the database, back in the same response.
- */
 export async function syncRepositoriesAction(
   trigger: SyncTrigger,
 ): Promise<void> {

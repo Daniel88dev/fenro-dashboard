@@ -26,11 +26,6 @@ type Row = {
   readonly version: number;
 };
 
-/**
- * The Postgres adapter's twin for tests. It keeps rows rather than the
- * aggregates themselves, and checks versions on save the same way, so a test
- * that races two syncs sees what production would.
- */
 export class InMemoryWatchedRepositoryRepository implements WatchedRepositoryRepository {
   readonly #rows = new Map<string, Row>();
   readonly #loadedVersions = new WeakMap<WatchedRepository, number>();

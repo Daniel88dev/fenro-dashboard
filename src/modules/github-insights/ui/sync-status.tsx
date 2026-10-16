@@ -6,11 +6,6 @@ import { formatAbsolute, formatRelativeTime } from "./format";
 import { Spinner } from "./spinner";
 import { useSync } from "./sync-context";
 
-/**
- * The header's freshness line and its Refresh button. While a sync runs it
- * says so, and the numbers around it stay as they were until it lands. The
- * rate limit is not said here: the banner under the header says it once.
- */
 export function SyncStatus({
   syncedAt,
   neverSynced,
@@ -71,7 +66,6 @@ export function SyncStatus({
   );
 }
 
-/** A thin bar running along the top of the table while a sync is out. */
 export function SyncProgressBar() {
   const { syncing } = useSync();
   if (!syncing) return null;
@@ -86,7 +80,6 @@ export function SyncProgressBar() {
   );
 }
 
-/** A row's own sign that its numbers are being refreshed. */
 export function RowSyncIndicator({
   repositoryId,
   fullName,

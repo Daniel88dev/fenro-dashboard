@@ -9,9 +9,7 @@ import type { Result } from "@/shared/domain";
 import { catalogued } from "./rename-label";
 import type { TaskCommand } from "./task-commands";
 
-/** Show a label in another of the nine colours. */
 export type RecolourLabelCommand = TaskCommand<"tasks.recolour-label"> & {
-  /** The label's name. */
   readonly label: string;
   readonly colour: LabelColour;
 };

@@ -12,7 +12,6 @@ function answering(body: unknown, status = 200) {
 
 describe("refreshGitHubToken", () => {
   it("trades the refresh token for a new pair, with both expiries", async () => {
-    // The shape GitHub documents for a GitHub App user token refresh.
     const fetchImpl = answering({
       access_token: "ghu_new",
       expires_in: 28800,

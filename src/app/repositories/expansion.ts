@@ -1,18 +1,3 @@
-/**
- * Expansion state lives in the URL, as ticket 02 settled, so a row you opened
- * survives a refresh and can be pasted into a task.
- *
- * Encoding: one repeatable `open` parameter per open panel, written
- * `owner/name:column` — `?open=nordwind/billing-core:prs&open=nordwind/docs-site:issues`.
- * A pull request's checks are a separate `pr` parameter, `owner/name:number`,
- * because the checks hang off a pull request rather than off the row. An
- * issues panel's filter chips are a repeatable `issues` parameter,
- * `owner/name:chip`, one per chip pressed.
- *
- * Daniel chose inline expansion with several rows open at once (ticket 04), so
- * the parameter has to be repeatable. How it encodes is ticket 10's to confirm.
- */
-
 export const COLUMNS = ["prs", "issues", "tasks"] as const;
 
 export type Column = (typeof COLUMNS)[number];
@@ -29,13 +14,11 @@ export type PanelKey = {
 
 export type ExpansionState = {
   readonly open: readonly PanelKey[];
-  /** The pull requests whose checks are showing, keyed `owner/name`. */
   readonly openPullRequests: readonly {
     readonly owner: string;
     readonly name: string;
     readonly number: number;
   }[];
-  /** The filter chips pressed on each open issues panel. */
   readonly issueChips: readonly {
     readonly owner: string;
     readonly name: string;
@@ -138,12 +121,6 @@ function href(pathname: string, state: ExpansionState): string {
   return search ? `${pathname}?${search}` : pathname;
 }
 
-/**
- * The URL that opens this panel if it is closed, and closes it if it is open.
- * Closing a row's panel also closes any pull request opened inside it and
- * releases any chip pressed on it, so the URL never keeps state the reader
- * cannot see.
- */
 export function togglePanelHref(
   pathname: string,
   state: ExpansionState,
@@ -179,7 +156,6 @@ export function isIssueChipPressed(
   );
 }
 
-/** The URL that presses this chip on a row's issues panel, or releases it. */
 export function toggleIssueChipHref(
   pathname: string,
   state: ExpansionState,

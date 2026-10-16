@@ -42,15 +42,12 @@ export type TaskListFilter = {
   readonly view: TaskView;
   readonly repository: string;
   readonly text: string;
-  /** Tasks carrying any of these; none means every task. */
   readonly labels: readonly string[];
-  /** Which epic's work to show; "" for all of it. */
   readonly epic?: EpicScope;
-  /** A list grouped by state, or a board by status. */
   readonly layout?: TaskLayout;
 };
 
-/** `labels=bug,docs` in the URL: a label name never holds a comma. */
+/** A label name never holds a comma. */
 export function parseLabelsParam(value: string): string[] {
   return [
     ...new Set(
@@ -85,7 +82,6 @@ const EMPTY: Record<TaskView, string> = {
   closed: "No task is done or cancelled yet.",
 };
 
-/** The groups the open list falls into, in the order a person acts on them. */
 const GROUPS: readonly { label: string; states: readonly TaskState[] }[] = [
   { label: "In progress", states: ["running", "paused", "in-review"] },
   { label: "Blocked", states: ["blocked", "waiting"] },
@@ -102,26 +98,16 @@ function groupsOf(tasks: readonly TaskListItem[]) {
   })).filter((group) => group.tasks.length > 0);
 }
 
-/**
- * The epic scope in the URL: every task, only epics, only work outside any
- * epic, or the tasks under one epic by key.
- */
 export type EpicScope = "" | "epics" | "none" | (string & {});
 
 export type TaskLayout = "list" | "board";
 
-/** `epic=T-40`, `epic=epics` or `epic=none`; anything else is no scope. */
 export function parseEpicParam(value: string): EpicScope {
   const scope = value.trim();
   if (scope === "epics" || scope === "none") return scope;
   return /^t-\d+$/i.test(scope) ? scope.toUpperCase() : "";
 }
 
-/**
- * Every task, the way a person scans them: an epic rail to scope the work,
- * then a list grouped by what is happening, or a board by status. The view,
- * scope, filters and layout live in the URL, so any of it can be shared.
- */
 export function TaskList({
   list,
   board,
@@ -134,24 +120,17 @@ export function TaskList({
   move,
 }: {
   list?: TaskListResult;
-  /** The board, when the layout is `board`. */
   board?: TaskBoardResult;
   filter: TaskListFilter;
-  /** The owner's labels, offered as filters, with their open task counts. */
   labels?: readonly (LabelOption & { readonly openTasks?: number })[];
-  /** The repositories the owner's tasks name, offered as filters. */
   repositories?: readonly Pick<TaskRepositoryItem, "name" | "openTasks">[];
-  /** How many tasks each view holds, for the tabs. */
   counts?: Partial<Record<TaskView, number>>;
-  /** Open epics for the rail. Without them there is no rail. */
   epics?: readonly TaskListItem[];
-  /** Open tasks in each of the rail's three scopes. */
   scopeCounts?: {
     readonly all: number;
     readonly epics: number;
     readonly none: number;
   };
-  /** Moves a card on the board. */
   move?: MoveTask;
 }) {
   const layout = filter.layout ?? "list";
@@ -401,7 +380,6 @@ export function TaskList({
   );
 }
 
-/** The filter's fields the search form must carry along with the words. */
 function hiddenFields(filter: TaskListFilter): [string, string][] {
   const fields: [string, string][] = [];
   if (filter.view !== "open" && (filter.layout ?? "list") === "list") {
@@ -415,7 +393,6 @@ function hiddenFields(filter: TaskListFilter): [string, string][] {
   return fields;
 }
 
-/** The owner's labels as filter options, with any in the URL still on offer. */
 function labelOptions(
   filter: TaskListFilter,
   labels: readonly (LabelOption & { readonly openTasks?: number })[],
@@ -450,8 +427,8 @@ function emptyMessage(filter: TaskListFilter): string {
 }
 
 /**
- * The repositories to offer, busiest first. One in the URL that no task
- * names yet is still offered, so the list can show it picked.
+ * One in the URL that no task names yet is still offered, so the list can show
+ * it picked.
  */
 function repositoryOptions(
   filter: TaskListFilter,
@@ -531,7 +508,6 @@ function TaskRow({
   );
 }
 
-/** The facts under a title, spaced apart rather than joined with dots. */
 function Meta({
   task,
   labels,
@@ -543,7 +519,6 @@ function Meta({
     text: string;
     mono?: boolean;
     attention?: boolean;
-    /** Said in its own column from md up. */
     narrowOnly?: boolean;
   }[] = [];
   if (task.repository) facts.push({ text: task.repository, mono: true });
@@ -605,7 +580,6 @@ function Meta({
   );
 }
 
-/** Only a live agent session gets a dot. */
 export function LiveDot() {
   return (
     <span

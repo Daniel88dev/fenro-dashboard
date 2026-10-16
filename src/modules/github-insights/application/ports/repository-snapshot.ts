@@ -1,12 +1,5 @@
 import type { CheckConclusion, CheckRollup } from "../queries/read-models";
 
-/**
- * What a sync copies out of GitHub: facts about the repository, stored as
- * GitHub reported them and independent of who is looking. Whether a pull
- * request "needs you" depends on the viewer, so it is worked out when a query
- * reads these, never stored.
- */
-
 export type CheckRecord = {
   readonly name: string;
   readonly conclusion: CheckConclusion;
@@ -26,14 +19,10 @@ export type PullRequestRecord = {
   readonly openedAt: Date;
   readonly updatedAt: Date;
   readonly reviewDecision: ReviewDecision | null;
-  /** Users by login, teams as `org/team`. */
   readonly requestedReviewers: readonly string[];
-  /** Whose latest review approves. */
   readonly approvedBy: readonly string[];
-  /** Whose latest review asks for changes. */
   readonly changesRequestedBy: readonly string[];
   readonly headSha: string | null;
-  /** GitHub's own verdict over every check on the head commit. */
   readonly checkRollup: CheckRollup;
   readonly checks: readonly CheckRecord[];
 };
@@ -47,10 +36,6 @@ export type IssueRecord = {
   readonly updatedAt: Date;
 };
 
-/**
- * One repository at one moment. The counts are GitHub's totals; the lists hold
- * the most recently updated items, which is at most what a panel shows.
- */
 export type RepositorySnapshot = {
   readonly openPullRequests: number;
   readonly openIssues: number;
@@ -59,12 +44,8 @@ export type RepositorySnapshot = {
   readonly issues: readonly IssueRecord[];
 };
 
-/**
- * Just enough of a snapshot to fill the repository table: the totals, and the
- * few fields that say whether an item needs the viewer. The table is rendered
- * far more often than any panel, and the database is billed by the byte it
- * sends, so it never carries titles or checks.
- */
+// The table renders far more often than any panel and the database bills
+// by the byte sent, so this never carries titles or checks.
 export type SnapshotCounts = {
   readonly openPullRequests: number;
   readonly openIssues: number;
@@ -76,7 +57,6 @@ export type SnapshotCounts = {
   readonly issues: readonly Pick<IssueRecord, "assignees">[];
 };
 
-/** Which lists a load brings back; a panel needs one of the two. */
 export type SnapshotParts = {
   readonly pullRequests: boolean;
   readonly issues: boolean;
@@ -84,19 +64,12 @@ export type SnapshotParts = {
 
 export const ALL_PARTS: SnapshotParts = { pullRequests: true, issues: true };
 
-/** Where synced snapshots are kept, keyed by the watched repository's id. */
 export interface RepositorySnapshotStore {
-  /** Swap the stored snapshot for a fresh one, all or nothing. */
   replace(repositoryId: string, snapshot: RepositorySnapshot): Promise<void>;
-  /**
-   * Repositories never synced are simply missing from the map. A list left out
-   * of `parts` comes back empty.
-   */
   load(
     repositoryIds: readonly string[],
     parts?: SnapshotParts,
   ): Promise<ReadonlyMap<string, RepositorySnapshot>>;
-  /** What the table shows; never-synced repositories are missing here too. */
   loadCounts(
     repositoryIds: readonly string[],
   ): Promise<ReadonlyMap<string, SnapshotCounts>>;

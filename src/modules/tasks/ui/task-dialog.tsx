@@ -21,11 +21,6 @@ import { TaskKindIcon } from "./task-kind";
 import { taskHref } from "./task-state";
 import { TaskSkillsLine } from "./task-skills";
 
-/**
- * A task opened over the list it was clicked in: the handoff, the criteria,
- * the newest journal entries and the facts. Everything else is one click
- * away on the full page.
- */
 export function TaskDialogContent({
   task,
   actions,
@@ -34,9 +29,7 @@ export function TaskDialogContent({
 }: {
   task: TaskBrief;
   actions: TaskActions;
-  /** The owner's labels. */
   labels?: readonly LabelOption[];
-  /** Whether this Fenro has somewhere to keep pictures. */
   picturesEnabled?: boolean;
 }) {
   const fullPage = taskHref(task.key);

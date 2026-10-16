@@ -36,8 +36,8 @@ const startsWith = (bytes: Uint8Array, prefix: readonly number[], at = 0) =>
   prefix.every((byte, index) => bytes[at + index] === byte);
 
 /**
- * What a file is, from its first bytes. The type a browser or an agent claims
- * is not trusted: a picture is what its bytes say it is.
+ * The type a browser or an agent claims is not trusted: a picture is what
+ * its bytes say it is.
  */
 export function sniffPictureType(bytes: Uint8Array): PictureType | null {
   if (startsWith(bytes, [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])) {
@@ -56,23 +56,17 @@ export function sniffPictureType(bytes: Uint8Array): PictureType | null {
 
 const MAX_NAME = 120;
 
-/**
- * The name a picture is shown under: the file's own name without any folder,
- * trimmed to fit, ending in the extension its bytes call for.
- */
 export function pictureName(raw: string, type: PictureType): string {
   const base =
     raw
       .split(/[\\/]/)
       .pop()!
-      // Control characters and the like would only garble the page.
       .replace(/[\u0000-\u001f\u007f]/g, "")
       .replace(/\s+/g, " ")
       .trim() || "picture";
   const extension = EXTENSIONS[type];
   const fits =
     type === "image/jpeg" ? /\.jpe?g$/i : new RegExp(`\\.${extension}$`, "i");
-  // A name ending in the wrong extension for its bytes gets the right one.
   const named = fits.test(base)
     ? base
     : `${base.replace(PICTURE_EXTENSION, "")}.${extension}`;
@@ -87,10 +81,6 @@ function invalidPicture(message: string): TaskError {
   return taskError("invalid-picture", message);
 }
 
-/**
- * A file offered as a picture, checked before anything is stored: it must be
- * one of the picture types, by its bytes, and fit the size limit.
- */
 export class PictureFile {
   private constructor(
     readonly name: string,
@@ -134,10 +124,8 @@ type Props = {
   readonly name: string;
   readonly type: PictureType;
   readonly byteSize: number;
-  /** Where the storage adapter keeps the bytes. */
   readonly storageKey: string;
   readonly addedBy: Actor;
-  /** The session the adder held on the task at the time, if any. */
   readonly sessionId: string | null;
   readonly addedAt: Date;
 };
@@ -154,11 +142,9 @@ export type NewPicture = {
 };
 
 /**
- * A picture on a task: a screenshot, a design from a prototype, a photo of a
- * whiteboard. Its own aggregate rather than part of `Task`: nothing about a
- * picture changes the rules a task keeps, and loading every task would
- * otherwise load its pictures too. It belongs to its task's owner, and goes
- * when it is removed; there is nothing to edit.
+ * Its own aggregate rather than part of `Task`: nothing about a picture
+ * changes the task's rules, and loading a task would otherwise load its
+ * pictures too.
  */
 export class Picture extends AggregateRoot<Props> {
   private constructor(id: UniqueId, props: Props) {
@@ -181,7 +167,6 @@ export class Picture extends AggregateRoot<Props> {
     return picture;
   }
 
-  /** Rebuild a picture a store already holds, recording no event. */
   static restore(id: UniqueId, props: Props): Picture {
     return new Picture(id, props);
   }

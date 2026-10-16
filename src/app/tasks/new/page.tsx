@@ -18,11 +18,6 @@ export const metadata = {
   title: "New task · Fenro Dashboard",
 };
 
-/**
- * Reached from the Tasks page, from "New task here" on a repository, from
- * "Make a task from this" on a pull request, and from "Add sub-task". Each
- * arrives with the query parameters that pre-fill the form.
- */
 export default function NewTaskPage({ searchParams }: PageProps<"/tasks/new">) {
   return (
     <DashboardChrome

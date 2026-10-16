@@ -1,10 +1,8 @@
 import type { PictureStorage } from "@/modules/tasks/application/ports/picture-storage";
 
-/** Pictures' bytes in a map, for tests. */
 export class InMemoryPictureStorage implements PictureStorage {
   readonly configured = true;
   readonly files = new Map<string, Uint8Array>();
-  /** Set to make the next put fail, as a store that is down would. */
   failNextPut = false;
   #next = 0;
 

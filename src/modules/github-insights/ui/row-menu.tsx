@@ -9,7 +9,6 @@ import {
 import { Menu } from "./menu";
 import { MENU_ITEM } from "./menu-item";
 
-/** What you can do to a watched repository that is not reading it. */
 export function RowMenu({
   owner,
   name,

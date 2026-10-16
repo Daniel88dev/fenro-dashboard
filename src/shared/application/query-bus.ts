@@ -1,10 +1,6 @@
 import { untracedMessages, type MessageTracer } from "./message-tracer";
 import type { Query, QueryHandler } from "./messages";
 
-/**
- * In-memory query dispatcher. Read models are served from here, so they can be
- * built independently of the write side.
- */
 export class QueryBus {
   readonly #handlers = new Map<string, QueryHandler<never, unknown>>();
   readonly #tracer: MessageTracer;

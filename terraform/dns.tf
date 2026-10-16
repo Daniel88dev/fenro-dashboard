@@ -1,12 +1,6 @@
-# www.fenro-dashboard.com -> App Runner.
-#
 # Only www is attached. A sign-in started on the bare domain would set its
 # cookies where the www callback never sees them, so the apex must not serve
-# the app; it has no record for now. A redirect to www can be added later
-# without touching the service.
-#
-# App Runner issues and renews the certificate; Route 53 only carries its
-# validation records and the www CNAME.
+# the app.
 #
 # TWO-STEP ROLLOUT of the validation records, as in flexi-day-be: they are
 # unknown until the association exists, and for_each cannot iterate over

@@ -18,14 +18,8 @@ const NOT_A_LOGIN = {
 } as const;
 
 /**
- * Pick any number of labels: the chosen ones show as chips, and a button
- * opens the owner's labels to tick or untick, with a filter that also makes
- * a new label from whatever was typed. What is picked goes to the server as
- * one `labels` field per name, plus a `labelsField` marker so an empty pick
- * reads as "no labels" rather than "labels left alone".
- *
- * `onPick` runs after each change the person makes, so a picker that saves
- * straight away (on a task's page) can submit its form.
+ * The `labelsField` marker makes an empty pick read as "no labels" rather than
+ * "labels left alone".
  */
 export function LabelPicker({
   catalogue,
@@ -70,7 +64,6 @@ export function LabelPicker({
     );
   };
 
-  // Every label there is, plus names picked but not saved yet.
   const options: LabelOption[] = [
     ...catalogue,
     ...picked

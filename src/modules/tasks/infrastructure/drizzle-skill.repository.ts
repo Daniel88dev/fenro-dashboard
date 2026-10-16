@@ -22,12 +22,6 @@ type SkillRow = typeof taskSkill.$inferSelect;
 
 const UNIQUE_VIOLATION = "23505";
 
-/**
- * `Skill` in Postgres, with the same optimistic concurrency as tasks: the
- * version a skill was loaded at is remembered beside it, and a save only lands
- * if the row still has it. Revisions are appended, never rewritten; links are
- * replaced whole on each save.
- */
 export class DrizzleSkillRepository implements SkillRepository {
   readonly #loadedVersions = new WeakMap<Skill, number>();
 
@@ -200,7 +194,7 @@ function actor(kind: string, id: string, name: string): Actor {
   return { kind: kind === "agent" ? "agent" : "human", id, name };
 }
 
-/** Postgres's unique violation, as node-postgres or Drizzle's wrapper has it. */
+// Drizzle wraps the node-postgres error, so the code may be on a `cause`.
 export function isUniqueViolation(error: unknown): boolean {
   for (
     let current: unknown = error;

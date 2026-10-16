@@ -4,19 +4,13 @@ import { X } from "@phosphor-icons/react/ssr";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, type ReactNode } from "react";
 
-/**
- * A dialog that is a route: the address is the task's own, so a reload or a
- * shared link opens the full page instead. Closing goes back in history,
- * which is what unmounts it. The native dialog brings the focus trap, Escape
- * and the inert page behind it.
- */
+/** Closing goes back in history, which is what unmounts it. */
 export function RouteDialog({
   labelledBy,
   width,
   children,
 }: {
   labelledBy: string;
-  /** Tailwind width for the dialog on wide screens, e.g. `sm:w-[920px]`. */
   width: string;
   children: ReactNode;
 }) {
@@ -61,7 +55,6 @@ export function CloseDialogButton({ label = "Close" }: { label?: string }) {
   );
 }
 
-/** Cancel in a dialog's footer: the same as closing it. */
 export function CancelDialogButton() {
   const router = useRouter();
   return (

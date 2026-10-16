@@ -6,7 +6,6 @@ import type {
 
 import type { Tone } from "./chip";
 
-/** Waiting on you or blocked reads as attention; settled reads as healthy. */
 export function reviewTone(state: ReviewState): Tone {
   switch (state) {
     case "your-review":
@@ -46,7 +45,6 @@ export function conclusionClass(conclusion: CheckConclusion): string {
   }
 }
 
-/** The prototype's label vocabulary, kept as it was drawn. */
 export function labelTone(label: string | null): Tone {
   if (!label) return "neutral";
   if (["bug", "perf", "regression"].includes(label)) return "attention";

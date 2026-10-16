@@ -22,7 +22,6 @@ export type AddRepositoriesState = {
 
 export const EMPTY_ADD_STATE: AddRepositoriesState = { error: null, added: 0 };
 
-/** One repository the picker offers, as the list endpoint sends it. */
 export type PickableRepository = {
   readonly owner: string;
   readonly name: string;
@@ -31,7 +30,6 @@ export type PickableRepository = {
   readonly watched: boolean;
 };
 
-/** What the list endpoint answers: the repositories, or why there are none. */
 export type PickerListing =
   | { readonly repositories: readonly PickableRepository[] }
   | { readonly error: string };
@@ -67,7 +65,7 @@ type AddAction = (
   formData: FormData,
 ) => Promise<AddRepositoriesState>;
 
-/** Not login fields: these keep password managers off a text input. */
+// Not login fields: these keep password managers off a text input.
 const NOT_A_CREDENTIAL = {
   autoComplete: "off",
   "data-1p-ignore": true,
@@ -85,15 +83,8 @@ const PRIMARY_BUTTON =
 const QUIET_BUTTON =
   "text-ink-muted hover:text-ink cursor-pointer px-2 text-[12.5px]";
 
-/** Space kept between the panel and the edge of the screen. */
 const VIEWPORT_GUTTER = 16;
 
-/**
- * Where the panel's left edge goes, relative to the toggle's left edge. It
- * hangs from the toggle's right edge when there is room on the left, as in the
- * header, and from its left edge otherwise, as in the empty state; either way
- * it is then pulled back inside the screen.
- */
 export function panelOffset({
   toggleLeft,
   toggleRight,
@@ -112,28 +103,15 @@ export function panelOffset({
   return left - toggleLeft;
 }
 
-/**
- * Picks repositories from the ones GitHub lets the viewer see, which are only
- * those the GitHub App is installed on, rather than
- * having them type `owner/name`. The list is read when the picker opens, not
- * with the page, so rendering the dashboard costs GitHub nothing.
- *
- * An organization may not let the app read its repositories at all, so the
- * picker also takes one typed in by hand. That one is never synced: it is
- * there to carry tasks.
- */
 export function AddRepositories({
   source,
   action,
   manualAction,
   installUrl,
 }: {
-  /** Where the picker reads the viewer's repositories from. */
   source: string;
   action: AddAction;
-  /** Adds a repository typed in by hand; without it, only picking is offered. */
   manualAction?: AddAction;
-  /** GitHub's page for installing the app on more repositories, if known. */
   installUrl: string | null;
 }) {
   const panelId = useId();
@@ -143,8 +121,6 @@ export function AddRepositories({
   const [listing, setListing] = useState<Listing>({ status: "loading" });
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
-  // A successful add closes the picker; the page re-renders with the new rows,
-  // which then sync on their own.
   const [state, formAction, pending] = useActionState(
     async (previous: AddRepositoriesState, formData: FormData) => {
       const next = await action(previous, formData);
@@ -179,9 +155,9 @@ export function AddRepositories({
     return () => window.removeEventListener("resize", place);
   }, [open, mode, panelId]);
 
-  // Until measured it hangs from the right edge, as it always did: spilling
-  // past the left of the page cannot scroll it sideways when the search box
-  // takes focus, which would throw the measurement off.
+  // Until measured it hangs from the right edge: spilling past the left of the
+  // page cannot scroll it sideways when the search box takes focus, which
+  // would throw the measurement off.
   const panelStyle =
     offset === null ? undefined : { left: offset, right: "auto" };
 
@@ -383,10 +359,6 @@ export function AddRepositories({
   );
 }
 
-/**
- * Owner and name typed in by hand. Nothing is asked of GitHub, so nothing
- * checks the repository exists: the name only has to be one GitHub could have.
- */
 function AddManually({
   id,
   action,

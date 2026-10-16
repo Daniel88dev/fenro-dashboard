@@ -2,7 +2,6 @@
 # secret values; so does terraform.tfstate, whatever way the values arrive
 # (TF_VAR_* included).
 
-# General
 aws_region   = "eu-central-1" # same region as flexi-day-be's RDS
 environment  = "production"
 project_name = "fenro-dashboard"
@@ -13,22 +12,17 @@ project_name = "fenro-dashboard"
 create_service                = false
 manage_dns_validation_records = false
 
-# ECR and App Runner
 ecr_repository_name      = "daniel88dev/fenro-dashboard"
 docker_image_tag         = "latest"
 app_port                 = 3000
-apprunner_cpu            = "256" # 0.25 vCPU, the smallest size
-apprunner_memory         = "512" # 0.5 GB, the smallest size
+apprunner_cpu            = "256"
+apprunner_memory         = "512"
 apprunner_max_size       = 1     # raise only with a shared Next.js cache handler
 auto_deployments_enabled = false # the pipeline calls start-deployment instead
 
-# Domain. Register it in the Route 53 console first; that creates the zone.
-# Only www.<domain> is attached to the service.
+# Register the domain in the Route 53 console first; that creates the zone.
 domain_name = "fenro-dashboard.com"
 
-# Shared database: flexi-day-be's instance. Terraform generates the fenro
-# role's password and builds DATABASE_URL from it; the role and schema are
-# created once with the database_bootstrap_command output.
 rds_instance_identifier = "flexi-day-be-production-db"
 db_name                 = "flexiday"
 db_role                 = "fenro"
@@ -36,8 +30,6 @@ db_role                 = "fenro"
 # GitHub Actions deploy role. Subjects are relative to the repository:
 # "ref:refs/heads/main" is the main branch, "ref:refs/tags/v*" release tags,
 # "environment:production" a job using that GitHub environment.
-# The account's GitHub OIDC provider (already used by flexi-day-be) is looked
-# up, not created.
 # GitHub sends this repository's subject as owner@owner_id/name@repo_id, so
 # that spelling is trusted too.
 github_repository           = "Daniel88dev/fenro-dashboard"
@@ -49,15 +41,11 @@ github_deploy_subjects      = ["ref:refs/heads/main"]
 github_client_id = ""
 github_app_slug  = ""
 
-# Sentry project's DSN (Project Settings → Client Keys); public. Empty sends
-# nothing. The free plan holds 5M spans a month: lower the rate if Usage
-# shows spans running out.
+# The free plan holds 5M spans a month: lower the rate if Usage shows spans
+# running out.
 sentry_dsn                = ""
 sentry_traces_sample_rate = 1
 
-# Secrets, each stored as an SSM SecureString under /fenro/production/ and
-# injected by App Runner.
-#
 # better_auth_secret: copy the value from Vercel production. It encrypts the
 # stored GitHub tokens; a fresh value makes every migrated token unreadable and
 # signs everybody out.
@@ -67,6 +55,4 @@ better_auth_secret = ""
 # GitHub App beside the one Vercel uses.
 github_client_secret = ""
 
-# Pictures live in a private S3 bucket (s3.tf); a removed one stays
-# recoverable for this many days.
 pictures_noncurrent_days = 30

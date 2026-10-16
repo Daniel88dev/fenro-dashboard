@@ -8,7 +8,6 @@ output "github_callback_url" {
   value       = "${local.app_url}/api/auth/callback/github"
 }
 
-# Release pipeline
 output "ecr_repository_url" {
   description = "Registry and repository the pipeline pushes to"
   value       = aws_ecr_repository.app.repository_url
@@ -38,7 +37,6 @@ output "github_actions_variables_commands" {
   ))
 }
 
-# Service (null until create_service is true)
 output "apprunner_service_arn" {
   description = "App Runner service ARN"
   value       = one(aws_apprunner_service.app[*].arn)
@@ -59,13 +57,11 @@ output "start_deployment_command" {
   value       = var.create_service ? "aws apprunner start-deployment --service-arn ${aws_apprunner_service.app[0].arn} --region ${var.aws_region}" : null
 }
 
-# Pictures
 output "pictures_bucket" {
   description = "Private bucket pictures on tasks are kept in"
   value       = aws_s3_bucket.pictures.bucket
 }
 
-# Secrets and database
 output "ssm_parameter_names" {
   description = "SecureString parameters App Runner injects, by env var"
   value       = { for name, parameter in aws_ssm_parameter.app : name => parameter.name }
@@ -76,12 +72,6 @@ output "database_host" {
   value       = data.aws_db_instance.shared.address
 }
 
-# One-off, run by a person before the first migration, from the repository
-# root. It connects as flexi-day-be's master user (its Secrets Manager entry)
-# and runs scripts/rds-create-fenro-role.sql with the password generated in
-# ssm.tf. The file reads it with \getenv, which keeps it off the command
-# line. The CA bundle path is the one scripts/db-migrate.sh uses. The fenro
-# schema itself is created by the first migration, which the role owns.
 output "database_bootstrap_command" {
   description = "Creates the fenro role on the shared instance (run once, by hand, from the repository root)"
   value       = <<-EOT

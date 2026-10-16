@@ -28,7 +28,6 @@ function isFiltered(filter: IssueFilter): boolean {
   );
 }
 
-/** The same narrowing as GitHub's own issue search, for the rest of the list. */
 export function gitHubIssueSearchUrl(
   owner: string,
   name: string,

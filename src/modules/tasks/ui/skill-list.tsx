@@ -24,18 +24,12 @@ const NOT_A_LOGIN = {
 const ROW =
   "hover:bg-surface-raised focus-visible:outline-pr border-hairline-soft flex flex-col gap-1.5 border-b px-3.5 py-3 focus-visible:-outline-offset-2 focus-visible:outline-2";
 
-/** Every word typed has to appear in one of the fields. */
 function matches(query: string, ...fields: readonly string[]): boolean {
   const words = query.toLowerCase().split(/\s+/).filter(Boolean);
   const text = fields.join(" ").toLowerCase();
   return words.every((word) => text.includes(word));
 }
 
-/**
- * The list half of a tab: a search over what is already on screen, a New
- * button, and the rows. The list can grow, so it is searched, never filtered
- * with pills.
- */
 function ListPanel({
   label,
   query,
@@ -51,7 +45,6 @@ function ListPanel({
   onQuery: (query: string) => void;
   newHref?: string;
   newLabel?: string;
-  /** Takes the New button's place: a form, for labels. */
   create?: ReactNode;
   head?: ReactNode;
   children: ReactNode;
@@ -104,7 +97,6 @@ export function SkillList({
 }: {
   skills: readonly SkillItem[];
   labels: readonly LabelItem[];
-  /** The name of the skill open in the editor. */
   selected: string | null;
 }) {
   const [query, setQuery] = useState("");
@@ -173,9 +165,7 @@ export function LabelList({
   create,
 }: {
   labels: readonly LabelItem[];
-  /** The New label control. */
   create?: ReactNode;
-  /** The name of the label open beside the list. */
   selected: string | null;
 }) {
   const [query, setQuery] = useState("");

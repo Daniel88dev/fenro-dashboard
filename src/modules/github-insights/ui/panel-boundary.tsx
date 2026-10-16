@@ -4,12 +4,7 @@ import { catchError, type ErrorInfo } from "next/error";
 
 import { ChecksMessage, PanelError } from "./panel";
 
-/**
- * Expected failures arrive from a query as values and render as `PanelError`
- * on the server. This catches the rest — the database gone, a bug — so one
- * panel breaking still leaves the table standing. The server's
- * message is redacted in production, so the copy here is fixed.
- */
+// The server's message is redacted in production, so the copy here is fixed.
 function PanelFallback(
   { id, title, what }: { id: string; title: string; what: string },
   { retry }: ErrorInfo,

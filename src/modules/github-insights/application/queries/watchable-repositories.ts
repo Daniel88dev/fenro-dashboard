@@ -7,7 +7,6 @@ import type { WatchedRepositoryRepository } from "@/modules/github-insights/doma
 import type { Query, QueryHandler } from "@/shared/application";
 import { map, type Result } from "@/shared/domain";
 
-/** A repository the picker offers, and whether it is on the dashboard already. */
 export type WatchableRepository = GitHubRepository & {
   readonly watched: boolean;
 };
@@ -30,11 +29,8 @@ export function watchableRepositoriesQuery(
   return { type: "github-insights.watchable-repositories", watcherId };
 }
 
-/**
- * What the viewer could add to their dashboard: every repository GitHub lets
- * them see. It reads GitHub rather than the stored snapshot, because the
- * snapshot only holds what is watched already.
- */
+// Reads GitHub, not the stored snapshot: the snapshot only holds what is
+// watched already.
 export class WatchableRepositoriesHandler implements QueryHandler<
   WatchableRepositoriesQuery,
   WatchableRepositoriesResult

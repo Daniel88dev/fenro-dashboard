@@ -10,11 +10,6 @@ import { ensureLabels } from "./create-label";
 import { changeSkill, type SkillReference } from "./skill-commands";
 import type { TaskCommand } from "./task-commands";
 
-/**
- * Apply a skill to every task carrying any of these labels, now and later.
- * Names the catalogue lacks are added to it, as saving a task does; names
- * already linked are left as they are.
- */
 export type LinkSkillCommand = TaskCommand<"tasks.link-skill"> & {
   readonly skill: SkillReference;
   readonly labels: readonly string[];

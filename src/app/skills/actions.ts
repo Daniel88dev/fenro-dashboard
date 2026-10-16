@@ -30,12 +30,6 @@ import { signedInUserQuery } from "@/modules/identity/application/queries/signed
 import type { Result } from "@/shared/domain";
 import { getContainer } from "@/shared/infrastructure/container";
 
-/**
- * The Skills & labels screen's actions. Each reads the form, dispatches as
- * the signed-in person, and says what the domain said; the rules on names,
- * lengths and stale revisions are the aggregate's, the same ones agents meet.
- */
-
 type Signed = {
   readonly ownerId: string;
   readonly actor: Actor;
@@ -79,11 +73,6 @@ function answer(
   return { error: null, saved: state.saved + 1 };
 }
 
-/**
- * Create a skill, or revise the one named by `skill`. Labels are links, not
- * text, so a revise links the labels the editor added and unlinks the ones
- * it took away, after the text is saved.
- */
 export async function saveSkillAction(
   state: TaskFormState,
   formData: FormData,

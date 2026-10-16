@@ -27,31 +27,22 @@ export type ReferenceInput = {
 };
 
 export type CreateTaskCommand = TaskCommand<"tasks.create-task"> & {
-  /**
-   * Chosen by the caller, so it can read the task back after dispatch without
-   * the command returning anything.
-   */
   readonly taskId: string;
-  /** A plain task unless asked for an epic. */
   readonly kind?: TaskKind;
   readonly title: string;
   readonly description?: string;
   readonly status?: "backlog" | "todo";
   readonly priority?: Priority;
-  /** Label names; ones the owner has no label for yet are added. */
   readonly labels?: readonly string[];
-  /** `owner/name`. Left out, a sub-task takes its parent's. */
   readonly repository?: string | null;
   readonly parent?: TaskReference | null;
   readonly criteria?: readonly string[];
   readonly references?: readonly ReferenceInput[];
   readonly blockedBy?: readonly TaskReference[];
   readonly relatesTo?: readonly TaskReference[];
-  /** The task being worked when this one was found. */
   readonly discoveredFrom?: TaskReference | null;
 };
 
-/** How many times a new task tries for a number another request just took. */
 const ATTEMPTS = 3;
 
 export class CreateTaskHandler implements CommandHandler<CreateTaskCommand> {

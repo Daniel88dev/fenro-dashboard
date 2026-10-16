@@ -184,7 +184,6 @@ describe("upload links", () => {
     expect(await pictures()).toEqual([]);
 
     expect((await upload(issued.value.token)).ok).toBe(true);
-    // curl retried: the same link adds nothing more.
     expect((await upload(issued.value.token)).ok).toBe(true);
 
     expect(await pictures()).toMatchObject([

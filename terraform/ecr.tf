@@ -1,6 +1,5 @@
-# Image repository the release pipeline pushes to. Tags stay mutable because
-# the pipeline moves docker_image_tag ("latest") to each new image; every image
-# also carries its commit SHA, which is what a rollback points the tag back at.
+# Tags stay mutable because the pipeline moves docker_image_tag ("latest") to
+# each new image.
 resource "aws_ecr_repository" "app" {
   name                 = var.ecr_repository_name
   image_tag_mutability = "MUTABLE"

@@ -136,7 +136,6 @@ describe("changing a task", () => {
     const changed = await changeTask(store, OWNER, "T-1", async (task) => {
       attempts += 1;
       if (attempts === 1) {
-        // Someone else saves between this load and this save.
         const other = (await store.findByNumber(OWNER, 1))!;
         other.note("note", "Got here first", AGENT, now);
         await store.save(other);
@@ -281,7 +280,6 @@ describe("labels", () => {
     const bad = await make("no, commas");
     expect(!bad.ok && bad.error.code).toBe("invalid-label");
 
-    // Carrying it later does not change its colour.
     await create({ title: "Session expiry", labels: ["area:auth"] });
     expect(await labels()).toEqual([
       {

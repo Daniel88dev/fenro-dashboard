@@ -1,14 +1,8 @@
-# Secrets as SSM Parameter Store SecureString parameters under
-# /fenro/<environment>/. Standard parameters are free, where Secrets Manager
-# charges $0.40 a secret each month; this is the one place Fenro departs from
-# flexi-day-be. App Runner injects each parameter's whole value as one env var.
+# SSM Parameter Store rather than Secrets Manager: standard parameters are
+# free, where Secrets Manager charges $0.40 a secret each month.
 #
-# The database password is generated here and the connection string built
-# from it, so the bootstrap SQL (database_bootstrap_command output) and the
-# app always agree. The other values come from terraform.tfvars and get a
-# parameter once they are filled in, so the first apply (create_service =
-# false) runs before the GitHub App values are at hand. apprunner.tf refuses
-# to create the service until the required ones are set.
+# A tfvars secret gets a parameter only once it is filled in, so the first
+# apply (create_service = false) runs before the GitHub App values are at hand.
 #
 # App Runner resolves parameters when it deploys. After changing a value,
 # start a deployment (start_deployment_command output) or the old one stays
@@ -48,7 +42,6 @@ resource "random_password" "database" {
   special = false
 }
 
-# The role's password on its own, for the one-off CREATE ROLE.
 resource "aws_ssm_parameter" "database_password" {
   name        = "${local.ssm_prefix}/database-password"
   description = "Password of the ${var.db_role} role on ${var.rds_instance_identifier}"

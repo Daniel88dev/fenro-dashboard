@@ -1,9 +1,5 @@
-# Things that exist already and are only read: Terraform never changes them.
-
 data "aws_caller_identity" "current" {}
 
-# flexi-day-be's instance, managed by flexi-day-be's Terraform. Only its
-# address is used, to build DATABASE_URL.
 data "aws_db_instance" "shared" {
   db_instance_identifier = var.rds_instance_identifier
 }

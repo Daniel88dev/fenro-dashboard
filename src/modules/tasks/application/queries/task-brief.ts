@@ -12,17 +12,10 @@ import type { TaskBrief } from "./read-models";
 
 export type TaskBriefResult = Result<TaskBrief, TaskError>;
 
-/** Everything a session needs to pick up one task, named by key or id. */
 export type TaskBriefQuery = Query<"tasks.task-brief", TaskBriefResult> & {
   readonly ownerId: string;
   readonly task: string;
-  /** How many of the latest journal entries to include. */
   readonly journalLimit?: number;
-  /**
-   * Whether the skills that apply carry their instructions, or only their
-   * name, description and labels. Starting work wants them; looking around
-   * does not. Off unless asked for.
-   */
   readonly skillInstructions?: boolean;
 };
 

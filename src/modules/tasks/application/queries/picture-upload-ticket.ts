@@ -22,10 +22,6 @@ export type PictureUploadTicket = {
 
 export type PictureUploadTicketResult = Result<PictureUploadTicket, TaskError>;
 
-/**
- * A link an agent can send one picture's bytes to, for a task that exists.
- * Asking changes nothing: the picture is added when the bytes arrive.
- */
 export type PictureUploadTicketQuery = Query<
   "tasks.picture-upload-ticket",
   PictureUploadTicketResult
@@ -33,7 +29,6 @@ export type PictureUploadTicketQuery = Query<
   readonly ownerId: string;
   readonly actor: Actor;
   readonly task: string;
-  /** Chosen by the caller, so it can name the picture afterwards. */
   readonly pictureId: string;
   readonly name: string;
 };

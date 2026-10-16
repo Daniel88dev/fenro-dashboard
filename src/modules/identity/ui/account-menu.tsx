@@ -5,7 +5,6 @@ import { Menu } from "@/modules/github-insights/ui/menu";
 import { MENU_ITEM } from "@/modules/github-insights/ui/menu-item";
 import type { SignedInUser } from "@/modules/identity/application/ports/authenticator";
 
-/** Who is signed in, and the way out, for the dashboard's top bar. */
 export function AccountMenu({
   user,
   signOutAction,

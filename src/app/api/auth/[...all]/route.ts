@@ -1,9 +1,6 @@
 import { handleAuthRequest } from "@/shared/infrastructure/container";
 
-/**
- * Better Auth's endpoints, GitHub's OAuth callback among them:
- * `/api/auth/callback/github` is the URL the GitHub App points at.
- */
+// `/api/auth/callback/github` is the callback URL the GitHub App points at.
 export function GET(request: Request) {
   return handleAuthRequest(request);
 }

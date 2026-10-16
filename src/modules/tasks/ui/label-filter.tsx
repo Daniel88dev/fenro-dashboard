@@ -13,23 +13,14 @@ export type LabelFilterOption = {
   readonly colour: LabelColour;
   readonly openTasks: number;
   readonly picked: boolean;
-  /** The list with this label ticked or unticked, the rest kept. */
   readonly href: string;
 };
 
-/**
- * Labels as a dropdown rather than a row of pills: a person's labels only
- * grow, so the control stays one button and the list can be searched. Several
- * can be ticked; the list shows tasks carrying any of them. Each tick is a
- * link, so the pick lives in the URL beside the rest of the filter, and the
- * panel stays open to tick another.
- */
 export function LabelFilter({
   options,
   clearHref,
 }: {
   options: readonly LabelFilterOption[];
-  /** The list with no label picked. */
   clearHref: string;
 }) {
   const [open, setOpen] = useState(false);
