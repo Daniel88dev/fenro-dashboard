@@ -1,8 +1,11 @@
 name: Release
 
 # Ships main to App Runner once CI has passed on it: builds the image, pushes
-# it to ECR as :<commit sha> and :latest, then deploys :latest and waits for
-# App Runner to report the outcome. Database migrations are not run here; they
+# it to ECR as :<commit sha> and :latest, then starts an App Runner deployment
+# of :latest and ends. It does not wait for the deployment: polling App Runner
+# for its few minutes kept the job billing Actions minutes, so a deployment
+# that fails or rolls back inside App Runner shows in the service's event log,
+# not here. Database migrations are not run here; they
 # are applied by hand before merging a change that adds one (README,
 # "AWS App Runner").
 #
@@ -32,7 +35,7 @@ permissions:
   id-token: write
 
 # One release at a time, in order: a newer push waits rather than cancelling a
-# deployment App Runner has already started.
+# release that is still building or pushing.
 concurrency:
   group: release
   cancel-in-progress: false
@@ -126,29 +129,10 @@ jobs:
             echo "::error::APP_RUNNER_SERVICE_ARN is not set, so the image was pushed but not deployed. Set it to terraform output -raw apprunner_service_arn."
             exit 1
           fi
+          # App Runner refuses a deployment while another operation runs on
+          # the service, for example a release merged a few minutes earlier.
+          # That failure turns the run red; re-run it once the service is idle.
           operation=$(aws apprunner start-deployment \
             --service-arn "$SERVICE_ARN" \
             --query OperationId --output text)
-          echo "Started deployment ${operation}"
-
-          # App Runner has no CLI waiter. A deployment pulls the image, starts
-          # it and waits for the health check, which takes a few minutes.
-          for _ in $(seq 1 90); do
-            status=$(aws apprunner list-operations \
-              --service-arn "$SERVICE_ARN" \
-              --query "OperationSummaryList[?Id=='${operation}'].Status | [0]" \
-              --output text)
-            case "$status" in
-              SUCCEEDED)
-                echo "Deployed ${RELEASE_SHA}" >> "$GITHUB_STEP_SUMMARY"
-                exit 0
-                ;;
-              FAILED | ROLLBACK_SUCCEEDED | ROLLBACK_FAILED)
-                echo "::error::App Runner deployment ${operation} ended ${status}; see the service's event log"
-                exit 1
-                ;;
-            esac
-            sleep 10
-          done
-          echo "::error::App Runner deployment ${operation} still ${status} after 15 minutes"
-          exit 1
+          echo "Started App Runner deployment ${operation} of ${RELEASE_SHA}; its outcome is in the service's event log" >> "$GITHUB_STEP_SUMMARY"

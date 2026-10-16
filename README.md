@@ -375,8 +375,10 @@ docker run --rm -p 3000:3000 --env-file .env.local fenro-dashboard
 
 `.github/workflows/release.yml` ships `main`. When CI passes on a push to
 `main`, it builds the image, pushes it to ECR as `:<commit sha>` and
-`:latest`, starts an App Runner deployment of `:latest`, and fails if App
-Runner rolls it back. Run it from the Actions tab to redeploy by hand. It
+`:latest`, and starts an App Runner deployment of `:latest` without waiting
+for it to finish, so the run stays short. A deployment App Runner refuses
+fails the run; one that fails or rolls back later shows only in the service's
+event log. Run it from the Actions tab to redeploy by hand. It
 signs in to AWS through GitHub's OIDC provider and needs these repository
 variables (Settings → Secrets and variables → Actions → Variables), all of
 which Terraform outputs:
