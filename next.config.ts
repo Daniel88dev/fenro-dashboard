@@ -3,7 +3,12 @@ import type { NextConfig } from "next";
 
 import { getEnv } from "./src/shared/config/env";
 
+const env = getEnv();
+
 const nextConfig: NextConfig = {
+  // A tab left open across a release then reloads on its next navigation
+  // instead of calling server actions the new build no longer has.
+  deploymentId: env.SENTRY_RELEASE,
   // The Docker image runs `.next/standalone/server.js`; Vercel ignores this.
   output: "standalone",
   images: {
@@ -20,8 +25,6 @@ const nextConfig: NextConfig = {
     ],
   },
 };
-
-const env = getEnv();
 
 export default withSentryConfig(nextConfig, {
   org: env.SENTRY_ORG,
