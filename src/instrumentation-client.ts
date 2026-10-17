@@ -1,12 +1,16 @@
 import * as Sentry from "@sentry/nextjs";
 
-import { readBrowserSentryConfig } from "@/shared/infrastructure/observability/sentry-options";
+import {
+  readBrowserSentryConfig,
+  SENTRY_TUNNEL_ROUTE,
+} from "@/shared/infrastructure/observability/sentry-options";
 
 const config = readBrowserSentryConfig(document);
 
 if (config) {
   Sentry.init({
     ...config,
+    tunnel: SENTRY_TUNNEL_ROUTE,
     dataCollection: { cookies: false },
     // The free plan holds 50 replays a month, so record only the sessions an
     // error happened in. Text and pictures are masked: they are tasks.
