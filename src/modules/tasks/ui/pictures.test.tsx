@@ -182,6 +182,7 @@ describe("pictures in the journal", () => {
     const actions = {
       note: saved,
       removePicture: saved,
+      kind: saved,
     } as unknown as TaskActions;
 
     render(<JournalSection task={task} actions={actions} />);

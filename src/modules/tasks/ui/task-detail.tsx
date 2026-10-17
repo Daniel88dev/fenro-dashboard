@@ -33,6 +33,7 @@ import {
   CriterionForm,
   EditTaskForm,
   InlineForm,
+  KindChangeForm,
   NoteForm,
   TaskLabelsForm,
   type TaskActions,
@@ -219,6 +220,16 @@ export function StatusActions({
             {move.label}
           </ButtonForm>
         ))}
+        <div className="border-hairline-soft mt-1 border-t pt-1">
+          <KindChangeForm
+            key={task.kind}
+            action={actions.kind}
+            task={key}
+            kind={task.kind}
+            parent={task.parent?.key ?? null}
+            subtasks={task.subtasks.length}
+          />
+        </div>
         <div className="border-hairline-soft mt-1 border-t px-1 pt-2 pb-1">
           {task.hold ? (
             <ButtonForm

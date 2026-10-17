@@ -387,6 +387,34 @@ describe("epics", () => {
     expect(task?.kind).toBe("epic");
     expect(task?.state.parentId ?? null).toBeNull();
   });
+
+  it("keeps an epic's tasks under it when it turns back into a task", async () => {
+    await anEpic();
+
+    expect((await update({ task: "T-1", kind: "task" })).ok).toBe(true);
+
+    const { tasks } = await new ListTasksHandler(store, clock).handle(
+      listTasksQuery(OWNER, {}),
+    );
+    const byKey = new Map(tasks.map((task) => [task.key, task]));
+    expect(byKey.get("T-1")?.kind).toBe("task");
+    expect((await store.findByNumber(OWNER, 2))?.parentId).toBe(
+      (await store.findByNumber(OWNER, 1))?.id.value,
+    );
+    expect(byKey.get("T-2")?.epic).toBeNull();
+  });
+
+  it("keeps a task's sub-tasks when it becomes an epic", async () => {
+    await create({ title: "Board" });
+    await create({ title: "Drag a card", parent: "T-1" });
+
+    expect((await update({ task: "T-1", kind: "epic" })).ok).toBe(true);
+
+    const { tasks } = await new ListTasksHandler(store, clock).handle(
+      listTasksQuery(OWNER, { epic: "T-1" }),
+    );
+    expect(tasks.map((task) => task.key)).toEqual(["T-2"]);
+  });
 });
 
 describe("the board", () => {

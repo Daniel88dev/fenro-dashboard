@@ -542,6 +542,28 @@ describe("Task epics", () => {
     expect(task.kind).toBe("task");
   });
 
+  it("does not make a task an epic while an agent is working on it", () => {
+    const task = aTask();
+    unwrap(task.startSession(claude, clear, t0));
+
+    const changed = task.changeKind("epic", daniel, later(1));
+
+    expect(isErr(changed) && changed.error.code).toBe("task-claimed");
+    expect(task.kind).toBe("task");
+  });
+
+  it("turns an epic back into a task", () => {
+    const epic = aTask({ kind: "epic" });
+    epic.pullDomainEvents();
+
+    unwrap(epic.changeKind("task", daniel, later(1)));
+
+    expect(epic.kind).toBe("task");
+    expect(epic.pullDomainEvents().map((event) => event.name)).toEqual([
+      "tasks.task-kind-changed",
+    ]);
+  });
+
   it("does not let anyone start a session on an epic", () => {
     const epic = aTask({ kind: "epic" });
 
