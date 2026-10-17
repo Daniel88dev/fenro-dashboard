@@ -12,13 +12,6 @@ if (config) {
     ...config,
     tunnel: SENTRY_TUNNEL_ROUTE,
     dataCollection: { cookies: false },
-    // The free plan holds 50 replays a month, so record only the sessions an
-    // error happened in. Text and pictures are masked: they are tasks.
-    replaysSessionSampleRate: 0,
-    replaysOnErrorSampleRate: 1,
-    integrations: [
-      Sentry.replayIntegration({ maskAllText: true, blockAllMedia: true }),
-    ],
   });
 }
 

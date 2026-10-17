@@ -236,8 +236,7 @@ and `src/instrumentation-client.ts` (browser), with its settings in
   tool call. `/api/health` and the event tunnel are never traced.
 - **Logs**: `console.warn` and `console.error` on the server, and an info log
   for every refused command, each tied to the trace it happened in.
-- **Replays**: only of browser sessions an error happened in, with text and
-  pictures masked.
+- **Replays**: none. The free plan holds only 50 a month.
 
 The browser sends its events to `/monitoring`, which forwards them to Sentry,
 so ad blockers do not drop them. Cookies, request bodies and the
