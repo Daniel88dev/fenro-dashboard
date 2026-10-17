@@ -7,7 +7,6 @@ import {
 import Form from "next/form";
 import Link from "next/link";
 
-import { Chip } from "@/modules/github-insights/ui/chip";
 import type {
   TaskBoard as TaskBoardResult,
   TaskListItem,
@@ -22,7 +21,8 @@ import { colourOf, LabelDot, type LabelOption } from "./labels";
 import { RepositoryFilter } from "./repository-filter";
 import { TaskBoard, type MoveTask } from "./task-board";
 import { EpicProgress, EpicTag, TaskKindIcon } from "./task-kind";
-import { STATE_TONES, taskHref } from "./task-state";
+import { StateChip } from "./state-chip";
+import { taskHref } from "./task-state";
 
 export const TASK_VIEWS = [
   { view: "open", label: "Open" },
@@ -502,7 +502,7 @@ function TaskRow({
         {priority}
       </span>
       <span className="self-start justify-self-end md:self-center">
-        <Chip tone={STATE_TONES[task.state]}>{task.state}</Chip>
+        <StateChip state={task.state} />
       </span>
     </Link>
   );
@@ -584,7 +584,7 @@ export function LiveDot() {
   return (
     <span
       aria-hidden="true"
-      className="bg-pr ring-pr-wash size-[7px] shrink-0 rounded-full ring-[3px]"
+      className="bg-running ring-state-running-wash size-[7px] shrink-0 rounded-full ring-[3px]"
     />
   );
 }

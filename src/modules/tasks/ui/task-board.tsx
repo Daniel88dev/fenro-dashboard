@@ -12,7 +12,6 @@ import {
   type DragEvent,
 } from "react";
 
-import { Chip } from "@/modules/github-insights/ui/chip";
 import type {
   BoardColumn,
   TaskListItem,
@@ -21,7 +20,8 @@ import type { TaskStatus } from "@/modules/tasks/domain";
 
 import { colourOf, LabelDot, type LabelOption } from "./labels";
 import { EpicProgress, EpicTag, TaskKindIcon } from "./task-kind";
-import { STATE_TONES, taskHref } from "./task-state";
+import { StateChip } from "./state-chip";
+import { taskHref } from "./task-state";
 
 export type MoveTask = (
   task: string,
@@ -288,12 +288,12 @@ function CardFacts({
         <span className="text-ink-soft inline-flex items-center gap-1.5 font-mono">
           <span
             aria-hidden="true"
-            className="bg-pr ring-pr-wash size-[7px] shrink-0 rounded-full ring-[3px]"
+            className="bg-running ring-state-running-wash size-[7px] shrink-0 rounded-full ring-[3px]"
           />
           {task.workedOnBy}
         </span>
       ) : null}
-      {chip ? <Chip tone={STATE_TONES[task.state]}>{task.state}</Chip> : null}
+      {chip ? <StateChip state={task.state} /> : null}
     </div>
   );
 }

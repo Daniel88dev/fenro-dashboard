@@ -74,6 +74,15 @@ const READABLE_PAIRS: readonly [string, string, string][] = [
   ["surface-raised", "epic-strong", "an epic's progress in the rail"],
   ["epic-wash", "epic-strong", "the Epic chip on a task"],
   ["epic", "on-epic", "the lightning in an epic's tile"],
+  ["surface", "state-backlog", "a backlog chip, which has no fill"],
+  ["state-ready-wash", "state-ready", "a ready chip"],
+  ["state-waiting-wash", "state-waiting", "a waiting chip"],
+  ["state-blocked-wash", "state-blocked", "a blocked chip"],
+  ["state-running-wash", "state-running", "a running chip"],
+  ["state-paused-wash", "state-paused", "a paused chip"],
+  ["state-review-wash", "state-review", "a in-review chip"],
+  ["state-done-wash", "state-done", "a done chip"],
+  ["state-cancelled-wash", "state-cancelled", "a cancelled chip"],
 ];
 
 // Label dots are graphics, not text: WCAG asks 3:1 against a chip or a row.
@@ -82,6 +91,7 @@ const GRAPHIC_PAIRS: readonly [string, string][] = [
     ["neutral-wash", `label-${colour}`] as [string, string],
     ["surface", `label-${colour}`] as [string, string],
   ]),
+  ["surface", "running"],
   ["surface", "epic"],
   ["surface-raised", "epic"],
   ["surface-sunken", "epic"],

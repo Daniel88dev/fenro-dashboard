@@ -47,7 +47,8 @@ import { InlineMarkdown, Markdown } from "./markdown";
 import { PictureThumbs, PicturesSection } from "./pictures";
 import { TaskSkills } from "./task-skills";
 import { EpicProgress, kindWord, TaskKindIcon } from "./task-kind";
-import { STATE_TONES, taskHref } from "./task-state";
+import { StateChip } from "./state-chip";
+import { taskHref } from "./task-state";
 
 const DATE = new Intl.DateTimeFormat("en", {
   day: "numeric",
@@ -99,7 +100,7 @@ export function TaskChips({
 }) {
   return (
     <div className="flex flex-wrap items-center gap-1.5">
-      <Chip tone={STATE_TONES[task.state]}>{task.state}</Chip>
+      <StateChip state={task.state} />
       {task.priority !== "none" ? (
         <Chip>{`${PRIORITY_WORDS[task.priority]} priority`}</Chip>
       ) : null}
@@ -584,7 +585,7 @@ function MentionLink({ task }: { task: TaskMention }) {
       <span className="text-ink-soft min-w-0 flex-1 truncate text-[12.5px]">
         {task.title}
       </span>
-      <Chip tone={STATE_TONES[task.state]}>{task.state}</Chip>
+      <StateChip state={task.state} />
     </Link>
   );
 }

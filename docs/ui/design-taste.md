@@ -74,3 +74,4 @@ disagree:
 | 2026-09-28 | App logo, 2 marks                        | [page](https://claude.ai/artifact/N6VV6A8ZvUkGGSp5KfSpHK)                                   | B (Task rows) picked, PR #31  |
 | 2026-10-04 | Skills & labels, 2 directions            | [canvas](https://claude.ai/artifact/SBLLj8uitB3xpX8WhbeR79)                                 | A (side by side) picked       |
 | 2026-10-16 | Epics, task menu and board, 2 directions | [canvas](https://claude.ai/artifact/NPUL4ziEJ5ZyiPMDqjdzXB)                                 | B (epic rail) picked          |
+| 2026-10-17 | Task state colours, 2 directions         | [canvas](https://claude.ai/artifact/9iA2z2nEw3WumeLMrQUJXM)                                 | A (colour only) picked        |
