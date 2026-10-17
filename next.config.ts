@@ -2,7 +2,6 @@ import { withSentryConfig } from "@sentry/nextjs/config";
 import type { NextConfig } from "next";
 
 import { getEnv } from "./src/shared/config/env";
-import { SENTRY_TUNNEL_ROUTE } from "./src/shared/infrastructure/observability/sentry-options";
 
 const nextConfig: NextConfig = {
   // The Docker image runs `.next/standalone/server.js`; Vercel ignores this.
@@ -34,7 +33,6 @@ export default withSentryConfig(nextConfig, {
     deleteSourcemapsAfterUpload: true,
   },
   widenClientFileUpload: true,
-  tunnelRoute: SENTRY_TUNNEL_ROUTE,
   silent: !env.SENTRY_AUTH_TOKEN,
   telemetry: false,
 });
