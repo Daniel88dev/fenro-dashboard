@@ -2,14 +2,14 @@ import { Plus } from "@phosphor-icons/react/ssr";
 import Link from "next/link";
 
 import type { RepositoryTasks } from "@/modules/tasks/application/queries/read-models";
-import { Chip } from "@/modules/github-insights/ui/chip";
 import {
   Panel,
   PanelList,
   PanelSummary,
 } from "@/modules/github-insights/ui/panel";
 
-import { STATE_TONES, taskHref } from "./task-state";
+import { StateChip } from "./state-chip";
+import { taskHref } from "./task-state";
 
 export function TasksPanel({
   id,
@@ -69,7 +69,7 @@ export function TasksPanel({
                     {task.lastActivity}
                   </span>
                 </span>
-                <Chip tone={STATE_TONES[task.state]}>{task.state}</Chip>
+                <StateChip state={task.state} />
               </Link>
             </li>
           ))}
