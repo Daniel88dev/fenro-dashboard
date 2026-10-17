@@ -28,6 +28,18 @@ variable "manage_dns_validation_records" {
   default     = false
 }
 
+variable "redirect_bare_domain" {
+  description = "Attach the bare domain to the service too, so it redirects to www. Turn on only once the running image has the redirect (src/proxy.ts); an older image would serve the app there."
+  type        = bool
+  default     = false
+}
+
+variable "manage_bare_domain_validation_records" {
+  description = "Set to true after the apply that attached the bare domain, for the same reason as manage_dns_validation_records."
+  type        = bool
+  default     = false
+}
+
 variable "ecr_repository_name" {
   description = "ECR repository the release pipeline pushes to"
   type        = string

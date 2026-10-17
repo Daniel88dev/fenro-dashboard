@@ -115,10 +115,23 @@ keeps the newest 5 images.
 
 ## Domain
 
-Only `www.fenro-dashboard.com` is attached to the service, and App Runner
-renews its certificate itself. The bare domain has no record: a sign-in
-started there would set cookies the `www` callback never sees. A redirect to
-`www` can be added later without touching the service.
+The app is served on `www.fenro-dashboard.com`, and App Runner renews its
+certificate itself. A sign-in started on the bare domain would set cookies the
+`www` callback never sees, so `fenro-dashboard.com` never serves pages: the
+app answers every request on it with a permanent redirect to the same path on
+`www` (`src/proxy.ts`, which keys off `APP_URL`).
+
+The bare domain is attached as a second custom domain on the same service,
+with its own certificate and an `A` alias record (a zone apex cannot hold a
+CNAME). It costs nothing extra. Turning it on, after a release that contains
+`src/proxy.ts` is running:
+
+1. `redirect_bare_domain = true`, then `terraform apply`.
+2. `manage_bare_domain_validation_records = true`, then `terraform apply`.
+3. Wait for `terraform output bare_domain_status` to say `active` (run
+   `terraform refresh` first; validation of the `www` certificate took about
+   six hours), then open `https://fenro-dashboard.com` and check it lands on
+   `www`.
 
 ## Checking a change
 

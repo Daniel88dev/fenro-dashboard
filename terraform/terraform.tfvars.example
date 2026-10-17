@@ -12,6 +12,11 @@ project_name = "fenro-dashboard"
 create_service                = false
 manage_dns_validation_records = false
 
+# BARE DOMAIN REDIRECT (README, Domain): once the image with src/proxy.ts is
+# deployed, set redirect_bare_domain, apply, then the validation records.
+redirect_bare_domain                  = false
+manage_bare_domain_validation_records = false
+
 ecr_repository_name      = "daniel88dev/fenro-dashboard"
 docker_image_tag         = "latest"
 app_port                 = 3000

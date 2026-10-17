@@ -2,6 +2,7 @@ mock_provider "aws" {
   mock_data "aws_caller_identity" { defaults = { account_id = "123456789012" } }
   mock_data "aws_iam_openid_connect_provider" { defaults = { arn = "arn:aws:iam::123456789012:oidc-provider/token.actions.githubusercontent.com" } }
   mock_data "aws_route53_zone" { defaults = { zone_id = "Z123", name_servers = ["ns-1"] } }
+  mock_data "aws_apprunner_hosted_zone_id" { defaults = { id = "ZAPPRUNNER" } }
   mock_data "aws_db_instance" { defaults = { address = "flexi-day-be-production-db.abc.eu-central-1.rds.amazonaws.com", port = 5432 } }
   mock_resource "aws_iam_role" { defaults = { arn = "arn:aws:iam::123456789012:role/x" } }
   mock_resource "aws_ecr_repository" { defaults = { arn = "arn:aws:ecr:eu-central-1:123456789012:repository/daniel88dev/fenro-dashboard", repository_url = "123456789012.dkr.ecr.eu-central-1.amazonaws.com/daniel88dev/fenro-dashboard" } }
@@ -57,6 +58,10 @@ run "service" {
   assert {
     condition     = length(aws_route53_record.cert_validation) == 0 && length(aws_route53_record.www) == 1
     error_message = "records"
+  }
+  assert {
+    condition     = length(aws_apprunner_custom_domain_association.bare) == 0 && length(aws_route53_record.bare) == 0
+    error_message = "the bare domain stays detached until redirect_bare_domain is set"
   }
   assert {
     condition     = contains(keys(aws_apprunner_service.app[0].source_configuration[0].image_repository[0].image_configuration[0].runtime_environment_variables), "PICTURES_S3_BUCKET")
@@ -133,5 +138,48 @@ run "sentry" {
   assert {
     condition     = aws_apprunner_service.app[0].source_configuration[0].image_repository[0].image_configuration[0].runtime_environment_variables["SENTRY_DSN"] == "https://public@o1.ingest.de.sentry.io/2" && aws_apprunner_service.app[0].source_configuration[0].image_repository[0].image_configuration[0].runtime_environment_variables["SENTRY_ENVIRONMENT"] == "production" && aws_apprunner_service.app[0].source_configuration[0].image_repository[0].image_configuration[0].runtime_environment_variables["SENTRY_TRACES_SAMPLE_RATE"] == "0.5"
     error_message = "sentry settings"
+  }
+}
+
+run "bare_domain" {
+  command = apply
+  variables {
+    create_service                = true
+    manage_dns_validation_records = true
+    redirect_bare_domain          = true
+    better_auth_secret            = "0123456789abcdef0123456789abcdef"
+    github_client_secret          = "s"
+    github_client_id              = "Iv1.abc"
+    github_app_slug               = "fenro"
+  }
+  assert {
+    condition     = aws_apprunner_custom_domain_association.bare[0].domain_name == "fenro-dashboard.com" && !aws_apprunner_custom_domain_association.bare[0].enable_www_subdomain
+    error_message = "bare domain attached on its own"
+  }
+  assert {
+    condition     = aws_route53_record.bare[0].type == "A" && aws_route53_record.bare[0].name == "fenro-dashboard.com" && one(aws_route53_record.bare[0].alias).zone_id == "ZAPPRUNNER" && one(aws_route53_record.bare[0].alias).name == "abc.eu-central-1.awsapprunner.com"
+    error_message = "apex alias to App Runner"
+  }
+  assert {
+    condition     = length(aws_route53_record.bare_cert_validation) == 0 && aws_apprunner_service.app[0].source_configuration[0].image_repository[0].image_configuration[0].runtime_environment_variables["APP_URL"] == "https://www.fenro-dashboard.com"
+    error_message = "validation records wait for their own switch; APP_URL stays www"
+  }
+}
+
+run "bare_domain_validation" {
+  command = apply
+  variables {
+    create_service                        = true
+    manage_dns_validation_records         = true
+    redirect_bare_domain                  = true
+    manage_bare_domain_validation_records = true
+    better_auth_secret                    = "0123456789abcdef0123456789abcdef"
+    github_client_secret                  = "s"
+    github_client_id                      = "Iv1.abc"
+    github_app_slug                       = "fenro"
+  }
+  assert {
+    condition     = length(aws_route53_record.bare_cert_validation) == 1 && length(aws_route53_record.cert_validation) == 1
+    error_message = "both certificates validated"
   }
 }

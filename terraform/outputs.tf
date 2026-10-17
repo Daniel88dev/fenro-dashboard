@@ -52,6 +52,11 @@ output "custom_domain_status" {
   value       = one(aws_apprunner_custom_domain_association.app[*].status)
 }
 
+output "bare_domain_status" {
+  description = "Bare domain association status; wait for 'active'"
+  value       = one(aws_apprunner_custom_domain_association.bare[*].status)
+}
+
 output "start_deployment_command" {
   description = "Redeploy the current image tag, for example after changing a secret"
   value       = var.create_service ? "aws apprunner start-deployment --service-arn ${aws_apprunner_service.app[0].arn} --region ${var.aws_region}" : null
