@@ -1,6 +1,7 @@
 import type { TaskActions } from "@/modules/tasks/ui/task-forms";
 
 import {
+  changeKindAction,
   changeStatusAction,
   checkCriterionAction,
   createTaskAction,
@@ -16,6 +17,7 @@ export const TASK_ACTIONS: TaskActions = {
   create: createTaskAction,
   update: updateTaskAction,
   labels: setLabelsAction,
+  kind: changeKindAction,
   edit: editTaskAction,
   note: recordNoteAction,
   checkCriterion: checkCriterionAction,

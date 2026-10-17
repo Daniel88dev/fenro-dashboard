@@ -133,6 +133,7 @@ function actions(overrides: Partial<TaskActions> = {}): TaskActions {
     changeStatus: saved,
     link: saved,
     removePicture: saved,
+    kind: saved,
     ...overrides,
   };
 }
@@ -410,6 +411,66 @@ describe("TaskDetail", () => {
     const sent = changeStatus.mock.calls[0] as unknown as [unknown, FormData];
     expect(sent[1].get("task")).toBe("T-2");
     expect(sent[1].get("status")).toBe("done");
+  });
+});
+
+describe("changing a task's kind", () => {
+  it("says a sub-task leaves its parent before promoting it to an epic", async () => {
+    const kind = vi.fn(async () => ({ error: null, saved: 1 }));
+    render(<TaskDetail task={brief} actions={actions({ kind })} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Promote to epic" }));
+    const form = screen.getByRole("form", { name: "Promote to epic" });
+    expect(form).toHaveTextContent(
+      "It leaves T-1, because an epic has no parent.",
+    );
+    await act(async () => {
+      fireEvent.click(within(form).getByRole("button", { name: "Promote" }));
+    });
+
+    const sent = kind.mock.calls[0] as unknown as [unknown, FormData];
+    expect(sent[1].get("task")).toBe("T-2");
+    expect(sent[1].get("kind")).toBe("epic");
+    expect(sent[1].has("parent")).toBe(true);
+  });
+
+  it("keeps an epic's tasks under it when it turns into a task", async () => {
+    const kind = vi.fn(async () => ({ error: null, saved: 1 }));
+    const epic: TaskBrief = {
+      ...brief,
+      kind: "epic",
+      parent: null,
+      subtasks: [
+        {
+          key: "T-3",
+          kind: "task",
+          title: "Board",
+          status: "todo",
+          state: "ready",
+        },
+        {
+          key: "T-4",
+          kind: "task",
+          title: "Labels",
+          status: "todo",
+          state: "ready",
+        },
+      ],
+    };
+    render(<TaskDetail task={epic} actions={actions({ kind })} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Turn into a task" }));
+    const form = screen.getByRole("form", { name: "Turn into a task" });
+    expect(form).toHaveTextContent("Its 2 tasks stay under it as sub-tasks.");
+    await act(async () => {
+      fireEvent.click(
+        within(form).getByRole("button", { name: "Turn into task" }),
+      );
+    });
+
+    const sent = kind.mock.calls[0] as unknown as [unknown, FormData];
+    expect(sent[1].get("kind")).toBe("task");
+    expect(sent[1].has("parent")).toBe(false);
   });
 });
 

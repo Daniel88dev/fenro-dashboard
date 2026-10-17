@@ -12,6 +12,7 @@ import {
 import {
   CaretRight,
   Check,
+  CheckSquare,
   Lightning,
   PencilSimple,
 } from "@phosphor-icons/react/ssr";
@@ -33,6 +34,7 @@ export type TaskActions = {
   readonly create: TaskAction;
   readonly update: TaskAction;
   readonly labels: TaskAction;
+  readonly kind: TaskAction;
   readonly edit: TaskAction;
   readonly note: TaskAction;
   readonly checkCriterion: TaskAction;
@@ -840,6 +842,117 @@ export function ButtonForm({
           >
             {children}
           </button>
+        </>
+      )}
+    </ActionForm>
+  );
+}
+
+const count = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
+
+function kindChangeNotes({
+  task,
+  to,
+  parent,
+  subtasks,
+}: {
+  task: string;
+  to: TaskKind;
+  parent: string | null;
+  subtasks: number;
+}): string[] {
+  if (to === "task") {
+    return [
+      `${task} becomes a task that agents can pick up.`,
+      ...(subtasks
+        ? [`Its ${count(subtasks, "task")} stay under it as sub-tasks.`]
+        : []),
+    ];
+  }
+  return [
+    `${task} becomes an epic. Agents stop picking it up; its tasks are the work.`,
+    ...(subtasks
+      ? [`Its ${count(subtasks, "sub-task")} become the epic's tasks.`]
+      : []),
+    ...(parent ? [`It leaves ${parent}, because an epic has no parent.`] : []),
+  ];
+}
+
+export function KindChangeForm({
+  action,
+  task,
+  kind,
+  parent,
+  subtasks,
+}: {
+  action: TaskAction;
+  task: string;
+  kind: TaskKind;
+  parent: string | null;
+  subtasks: number;
+}) {
+  const [confirming, setConfirming] = useState(false);
+  const to: TaskKind = kind === "epic" ? "task" : "epic";
+  const label = to === "epic" ? "Promote to epic" : "Turn into a task";
+  const KindIcon = to === "epic" ? Lightning : CheckSquare;
+
+  if (!confirming) {
+    return (
+      <button
+        type="button"
+        onClick={() => setConfirming(true)}
+        className={MENU_ROW}
+      >
+        <KindIcon
+          aria-hidden="true"
+          weight={to === "epic" ? "fill" : "regular"}
+          className={`size-3.5 ${to === "epic" ? "text-epic-strong" : "text-ink-muted"}`}
+        />
+        {label}
+      </button>
+    );
+  }
+
+  return (
+    <ActionForm
+      action={action}
+      label={label}
+      task={task}
+      resetOnSave={false}
+      className="flex flex-col gap-2 px-1.5 py-1.5"
+    >
+      {(pending) => (
+        <>
+          <input type="hidden" name="kind" value={to} />
+          {to === "epic" && parent ? (
+            <input type="hidden" name="parent" value="" />
+          ) : null}
+          <div className="text-ink-soft flex flex-col gap-1 text-[12px] leading-snug">
+            {kindChangeNotes({ task, to, parent, subtasks }).map((note) => (
+              <p key={note}>{note}</p>
+            ))}
+          </div>
+          <div className="flex items-center gap-1.5">
+            <button
+              type="submit"
+              disabled={pending}
+              autoFocus
+              className={QUIET}
+            >
+              {pending
+                ? "Saving…"
+                : to === "epic"
+                  ? "Promote"
+                  : "Turn into task"}
+            </button>
+            <button
+              type="button"
+              onClick={() => setConfirming(false)}
+              className="text-ink-muted hover:text-ink focus-visible:outline-pr h-[30px] cursor-pointer rounded-lg px-2 text-[12px] focus-visible:outline-2"
+            >
+              Cancel
+            </button>
+          </div>
         </>
       )}
     </ActionForm>

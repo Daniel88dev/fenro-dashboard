@@ -365,7 +365,7 @@ export function createTasksMcpServer(
           .enum(TASK_KINDS)
           .optional()
           .describe(
-            "task (default) or epic. An epic holds tasks and has no parent",
+            "task (default) or epic. An epic holds tasks and has no parent. On update it changes the kind: give parent: null to promote a sub-task; an epic turned into a task keeps its tasks as sub-tasks",
           ),
         title: z.string().optional(),
         description: z.string().optional().describe(MARKDOWN),

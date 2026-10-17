@@ -157,6 +157,32 @@ export async function updateTaskAction(
   return answer(state, await container.commandBus.dispatch(command), task);
 }
 
+export async function changeKindAction(
+  state: TaskFormState,
+  formData: FormData,
+): Promise<TaskFormState> {
+  const session = await signedIn();
+  if (!session) return { error: SIGNED_OUT, saved: state.saved };
+  const { ownerId, actor, container } = session;
+
+  const task = text(formData, "task");
+  const kind = text(formData, "kind");
+  if (!isTaskKind(kind)) {
+    return { error: "Pick task or epic.", saved: state.saved };
+  }
+  const command: UpdateTaskCommand = {
+    type: "tasks.update-task",
+    ownerId,
+    actor,
+    task,
+    kind,
+    parent: formData.has("parent") ? null : undefined,
+  };
+  const outcome = await container.commandBus.dispatch(command);
+  if (outcome.ok) revalidatePath("/tasks");
+  return answer(state, outcome, task);
+}
+
 const labelsOf = (formData: FormData) =>
   formData
     .getAll("labels")

@@ -214,6 +214,15 @@ export class Task extends AggregateRoot<Props> {
         ),
       );
     }
+    const live = this.liveSession(now);
+    if (kind === "epic" && live) {
+      return err(
+        taskError(
+          "task-claimed",
+          `${this.key} has a live session by ${describeActor(live.actor)}, and nobody works on an epic directly. Finish or hand off that session before making it an epic.`,
+        ),
+      );
+    }
     this.#state = { ...this.#state, kind };
     this.#touch(actor, now);
     this.record(new TaskKindChanged(this.id.value, from, kind, now));
