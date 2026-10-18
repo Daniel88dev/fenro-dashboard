@@ -131,6 +131,55 @@ describe("TaskBoard", () => {
   });
 });
 
+describe("the Done column", () => {
+  const done = {
+    current: "week" as const,
+    hrefs: {
+      week: "/tasks?layout=board",
+      month: "/tasks?layout=board&done=month",
+      all: "/tasks?layout=board&done=all",
+    },
+  };
+  const withEarlier = columns.map((entry) =>
+    entry.status === "done" ? { ...entry, finishedEarlier: 269 } : entry,
+  );
+
+  it("says how many finished before the window and links a wider one", () => {
+    render(
+      <TaskBoard
+        columns={withEarlier}
+        labels={[]}
+        move={vi.fn()}
+        done={done}
+      />,
+    );
+
+    expect(
+      within(column("Done")).getByText(/269 finished earlier/),
+    ).toBeVisible();
+    expect(
+      within(column("Done")).getByRole("link", { name: "Show past month" }),
+    ).toHaveAttribute("href", "/tasks?layout=board&done=month");
+  });
+
+  it("offers every window from the menu, the current one checked", () => {
+    render(
+      <TaskBoard columns={columns} labels={[]} move={vi.fn()} done={done} />,
+    );
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Done tasks shown: Past week" }),
+    );
+
+    expect(
+      screen.getByRole("menuitemradio", { name: "Past week" }),
+    ).toHaveAttribute("aria-checked", "true");
+    expect(
+      screen.getByRole("menuitemradio", { name: "All done tasks" }),
+    ).toHaveAttribute("href", "/tasks?layout=board&done=all");
+  });
+});
+
 describe("EpicRail", () => {
   it("scopes the work and lists the open epics with their progress", () => {
     render(

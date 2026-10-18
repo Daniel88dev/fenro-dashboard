@@ -244,7 +244,19 @@ export function TaskList({
       </div>
 
       {layout === "board" && board && move ? (
-        <TaskBoard columns={board.columns} labels={labels} move={move} />
+        <TaskBoard
+          columns={board.columns}
+          labels={labels}
+          move={move}
+          done={{
+            current: board.done,
+            hrefs: {
+              week: hrefFor({ ...filter, done: "week" }),
+              month: hrefFor({ ...filter, done: "month" }),
+              all: hrefFor({ ...filter, done: "all" }),
+            },
+          }}
+        />
       ) : list && list.tasks.length === 0 ? (
         <p className="border-hairline bg-surface text-ink-muted rounded-xl border px-5 py-10 text-center text-[13px]">
           {emptyMessage(filter)}
