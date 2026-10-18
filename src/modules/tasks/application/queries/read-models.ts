@@ -104,6 +104,25 @@ export type TaskList = {
   readonly tasks: readonly TaskListItem[];
 };
 
+export type TaskSearchHit = {
+  readonly key: string;
+  readonly kind: TaskKind;
+  readonly title: string;
+  readonly state: TaskState;
+  readonly repository: string | null;
+  readonly progress: { readonly done: number; readonly total: number } | null;
+  readonly excerpt: string | null;
+};
+
+export type TaskSearch = {
+  readonly recent: readonly TaskSearchHit[];
+  readonly byNumber: readonly TaskSearchHit[];
+  readonly tasks: readonly TaskSearchHit[];
+  readonly epics: readonly TaskSearchHit[];
+  readonly inDescriptions: readonly TaskSearchHit[];
+  readonly moreInDescriptions: number;
+};
+
 export const DONE_WINDOWS = ["week", "month", "all"] as const;
 export type DoneWindow = (typeof DONE_WINDOWS)[number];
 

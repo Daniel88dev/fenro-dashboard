@@ -1,5 +1,6 @@
 import { CaretDown, Gear, SignOut } from "@phosphor-icons/react/ssr";
 import Link from "next/link";
+import type { ReactNode } from "react";
 
 import { Menu } from "@/modules/github-insights/ui/menu";
 import { MENU_ITEM } from "@/modules/github-insights/ui/menu-item";
@@ -8,9 +9,11 @@ import type { SignedInUser } from "@/modules/identity/application/ports/authenti
 export function AccountMenu({
   user,
   signOutAction,
+  themeToggle,
 }: {
   user: SignedInUser;
   signOutAction: () => Promise<void>;
+  themeToggle?: ReactNode;
 }) {
   return (
     <Menu
@@ -49,6 +52,12 @@ export function AccountMenu({
         Signed in as{" "}
         <span className="text-ink font-mono">{user.githubLogin}</span>
       </p>
+      {themeToggle ? (
+        <div className="flex items-center justify-between px-2.5 py-1 text-[13px] sm:hidden">
+          Theme
+          {themeToggle}
+        </div>
+      ) : null}
       <Link href="/settings" className={MENU_ITEM}>
         <Gear aria-hidden="true" className="size-4" />
         Settings

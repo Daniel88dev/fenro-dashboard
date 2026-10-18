@@ -2,11 +2,18 @@ import {
   BookOpenText,
   FolderSimple,
   Gear,
+  Kanban,
   ListChecks,
+  Plus,
 } from "@phosphor-icons/react/ssr";
 import type { Icon } from "@phosphor-icons/react";
 import Link from "next/link";
 import type { ReactNode } from "react";
+
+import {
+  SearchPalette,
+  type PalettePage,
+} from "@/modules/tasks/ui/search-palette";
 
 import { FenroMark } from "./fenro-mark";
 import { SavedThemeToggle } from "./saved-theme-toggle";
@@ -35,6 +42,20 @@ const SCREENS: readonly {
   { screen: "settings", label: "Settings", href: "/settings", icon: Gear },
 ];
 
+const PALETTE_PAGES: readonly PalettePage[] = [
+  ...SCREENS.map(({ label, href, icon: ScreenIcon }) => ({
+    label,
+    href,
+    icon: <ScreenIcon aria-hidden="true" />,
+  })),
+  {
+    label: "Task board",
+    href: "/tasks?layout=board",
+    icon: <Kanban aria-hidden="true" />,
+  },
+  { label: "New task", href: "/tasks/new", icon: <Plus aria-hidden="true" /> },
+];
+
 export function DashboardChrome({
   children,
   account,
@@ -46,7 +67,7 @@ export function DashboardChrome({
 }) {
   return (
     <div className="bg-ground text-ink flex min-h-full flex-1 flex-col font-sans">
-      <header className="bg-bar text-bar-ink flex shrink-0 flex-wrap items-center gap-x-6 px-4 sm:flex-nowrap sm:px-[26px]">
+      <header className="bg-bar text-bar-ink flex shrink-0 flex-wrap items-center gap-x-3 px-4 sm:flex-nowrap sm:gap-x-6 sm:px-[26px]">
         <span className="text-bar-ink flex h-14 items-center gap-2 font-mono text-[15px] font-semibold tracking-tight">
           <FenroMark className="size-5" />
           Fenro
@@ -77,8 +98,13 @@ export function DashboardChrome({
             );
           })}
         </nav>
-        <div className="ml-auto flex h-14 items-center gap-2">
-          <SavedThemeToggle />
+        <div className="ml-auto flex h-14 min-w-0 items-center sm:ml-0 sm:flex-1">
+          <SearchPalette pages={PALETTE_PAGES} />
+        </div>
+        <div className="flex h-14 items-center gap-2">
+          <div className="hidden sm:flex">
+            <SavedThemeToggle />
+          </div>
           {account}
         </div>
       </header>

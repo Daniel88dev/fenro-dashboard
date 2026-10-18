@@ -91,3 +91,4 @@ Prototypes are pictures; the built screen has to meet these.
 | 2026-10-17 | Task state colours, 2 directions         | [canvas](https://claude.ai/artifact/9iA2z2nEw3WumeLMrQUJXM) | A (colour only) picked        |
 | 2026-10-18 | Board Done column window, 2 controls     | [canvas](https://claude.ai/artifact/7REudfsa4nEBPMpePaeWcf) | B (menu by the count) picked  |
 | 2026-10-18 | Description Markdown editor, 2 layouts   | [page](https://claude.ai/artifact/NTAtgryorFCUrJbcukoryt)   | A (tabs on the box) picked    |
+| 2026-10-18 | Command palette search, 2 directions     | [canvas](https://claude.ai/artifact/1YvP1eDA19Fu2vyfhB5Cxw) | B (drops from the bar) picked |

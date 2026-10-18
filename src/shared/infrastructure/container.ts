@@ -212,7 +212,12 @@ import type {
   TaskBoard,
   TaskList,
   TaskRepositoryItem,
+  TaskSearch,
 } from "@/modules/tasks/application/queries/read-models";
+import {
+  SearchTasksHandler,
+  type SearchTasksQuery,
+} from "@/modules/tasks/application/queries/search-tasks";
 import {
   SkillHandler,
   type SkillQuery,
@@ -453,6 +458,10 @@ function registerTasks(
   queryBus.register<ListTasksQuery, TaskList>(
     "tasks.list-tasks",
     new ListTasksHandler(taskReads, clock),
+  );
+  queryBus.register<SearchTasksQuery, TaskSearch>(
+    "tasks.search-tasks",
+    new SearchTasksHandler(taskReads, clock),
   );
   queryBus.register<TaskBoardQuery, TaskBoard>(
     "tasks.task-board",
