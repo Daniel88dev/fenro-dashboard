@@ -17,6 +17,7 @@ on:
 
 permissions:
   contents: read
+  deployments: write
   id-token: write
 
 concurrency:
@@ -43,12 +44,35 @@ jobs:
       SERVICE_ARN: ${{ vars.APP_RUNNER_SERVICE_ARN }}
       # The commit CI tested, not whatever main points at by the time this runs.
       RELEASE_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
+      GH_TOKEN: ${{ github.token }}
+      SITE_URL: https://www.fenro-dashboard.com
 
     steps:
       - uses: actions/checkout@v7
         with:
           ref: ${{ env.RELEASE_SHA }}
           persist-credentials: false
+
+      # Through the API rather than the job's `environment:` key: an
+      # environment changes the OIDC subject to `...:environment:Production`,
+      # which the AWS deploy role does not trust.
+      - name: Record a GitHub deployment
+        id: deployment
+        run: |
+          set -euo pipefail
+          id=$(gh api "repos/${GITHUB_REPOSITORY}/deployments" \
+            -f ref="${RELEASE_SHA}" \
+            -f environment=Production \
+            -f description="App Runner release" \
+            -F auto_merge=false \
+            -F production_environment=true \
+            -F 'required_contexts[]' \
+            --jq .id)
+          echo "id=${id}" >> "$GITHUB_OUTPUT"
+          gh api "repos/${GITHUB_REPOSITORY}/deployments/${id}/statuses" \
+            -f state=in_progress \
+            -f log_url="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}" \
+            --silent
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v6
@@ -118,3 +142,26 @@ jobs:
             --service-arn "$SERVICE_ARN" \
             --query OperationId --output text)
           echo "Started App Runner deployment ${operation} of ${RELEASE_SHA}; its outcome is in the service's event log" >> "$GITHUB_STEP_SUMMARY"
+
+      # Success means App Runner accepted the deployment; the workflow does not
+      # wait for it to finish.
+      - name: Report the GitHub deployment
+        if: always() && steps.deployment.outputs.id
+        env:
+          DEPLOYMENT_ID: ${{ steps.deployment.outputs.id }}
+          OUTCOME: ${{ job.status }}
+        run: |
+          set -euo pipefail
+          if [ "$OUTCOME" = success ]; then
+            state=success
+            description="App Runner deployment started"
+          else
+            state=failure
+            description="Release ${OUTCOME}"
+          fi
+          gh api "repos/${GITHUB_REPOSITORY}/deployments/${DEPLOYMENT_ID}/statuses" \
+            -f state="$state" \
+            -f description="$description" \
+            -f environment_url="$SITE_URL" \
+            -f log_url="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}" \
+            --silent
