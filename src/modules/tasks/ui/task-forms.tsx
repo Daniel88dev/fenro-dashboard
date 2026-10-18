@@ -20,6 +20,7 @@ import {
 import type { TaskKind } from "@/modules/tasks/domain";
 
 import { LabelPicker } from "./label-picker";
+import { MarkdownEditor } from "./markdown-editor";
 import type { LabelOption } from "./labels";
 import { ParentSelect, type ParentOption } from "./parent-select";
 import { RepositorySelect, type RepositoryOption } from "./repository-select";
@@ -295,15 +296,15 @@ export function NewTaskForm({
     </Field>
   );
   const description = (
-    <Field label="Description" hint="Markdown">
+    <Field label="Description">
       {(id) => (
-        <textarea
+        <MarkdownEditor
           id={id}
           name="description"
+          label="Description"
           rows={dialog ? 4 : 6}
           placeholder="What should the agent know before it starts?"
-          className={`${FIELD} field-sizing-content py-2 text-[13px] leading-relaxed ${dialog ? "min-h-[96px]" : "min-h-[150px]"}`}
-          {...NOT_A_LOGIN}
+          className={dialog ? "min-h-[96px]" : "min-h-[150px]"}
         />
       )}
     </Field>
@@ -509,15 +510,15 @@ export function EditTaskForm({
                 />
               )}
             </Field>
-            <Field label="Description" hint="Markdown">
+            <Field label="Description">
               {(id) => (
-                <textarea
+                <MarkdownEditor
                   id={id}
                   name="description"
+                  label="Description"
                   rows={8}
                   defaultValue={task.description}
-                  className={`${FIELD} field-sizing-content max-h-[70vh] min-h-[180px] py-2 font-mono text-[12.5px] leading-relaxed`}
-                  {...NOT_A_LOGIN}
+                  className="max-h-[70vh] min-h-[180px]"
                 />
               )}
             </Field>
