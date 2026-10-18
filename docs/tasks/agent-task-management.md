@@ -1,9 +1,8 @@
-# Task management for AI agents: research and proposed design
+# Task management for AI agents
 
-Written 2026-09-23. Answers wayfinder tickets 07 (what persists for tasks), 08
-(the task domain model) and 09 (the Tasks column join). Daniel chose option A
-for the aggregate boundary; the rest is built as recommended here, and PR 1 of
-section 7 implements it.
+How the `tasks` context works: what the research behind it found, the `Task`
+model and its rules, what persists, the MCP server agents use, and how they
+authenticate. Dated headings mark decisions added after the first design.
 
 ## 1. What the research found
 
@@ -36,11 +35,11 @@ Left for later: compaction of old closed tasks, complexity scoring and
 automatic expansion (the calling agent can do that itself), urgency scores,
 custom workflows, estimates and due dates, file leases between agents.
 
-## 2. The domain model (ticket 08)
+## 2. The domain model
 
-### Aggregate boundary _(decided by Daniel: A)_
+### Aggregate boundary _(Daniel chose A)_
 
-**A. Every task and sub-task is its own `Task` aggregate _(recommended)_.**
+**A. Every task and sub-task is its own `Task` aggregate.**
 A sub-task is a task with a `parentId`; "A blocks B" is stored on B. Sessions
 and notes live inside their task. The rules that span tasks (no cycles in
 blocking or in parenting) are checked by a small domain service over the
@@ -57,15 +56,14 @@ across trees still needs the graph service.
 Every graph rule is inside one aggregate, but every write from every agent
 contends on the same row.
 
-### What a `Task` holds (option A)
+### What a `Task` holds
 
 - **Identity**: a UUID plus a short key per owner, `T-1`, `T-2`… (agents and
   humans both read keys better than UUIDs).
 - **Owner**: the signed-in user id. Every read and write is scoped to it.
 - **Title, description** (markdown), **priority** (`urgent`, `high`, `medium`,
   `low`, `none`), **labels**.
-- **Repository** (optional `owner/name`, a plain string pair as the plan
-  proposed). Sub-tasks inherit it from their parent unless given one.
+- **Repository** (optional `owner/name`, a plain string pair). Sub-tasks inherit it from their parent unless given one.
 - **Parent** (optional task id).
 - **Blocked by**: the tasks that must finish first. Plus two non-blocking
   relations: `relates-to`, and `discovered-from` (set when an agent files a
@@ -85,9 +83,11 @@ contends on the same row.
   `done`, `cancelled`. **Blocked and ready are not statuses**: they are derived
   (a task is blocked while any task it depends on is open, or while it carries
   a manual hold like "waiting on finance"; it is ready when it is `todo`,
-  unblocked, unclaimed and has no open sub-tasks). This settles the ticket-08
-  observation that `blocked`/`ready` describe the world while
-  `running`/`paused` describe a session: they are separate axes.
+  unblocked, unclaimed and has no open sub-tasks). `blocked`/`ready` describe
+  the world while `running`/`paused` describe a session: they are separate
+  axes. Each state has one colour token in both themes (done green, blocked
+  red, ready blue, running amber, in review teal, paused orange, waiting
+  stone, backlog dashed grey, cancelled grey struck through).
 - **Hold** (optional): a manual "blocked on something outside fenro" with a
   reason, for things like the prototype's "Blocked on finance since 9 Sept".
 - **Sessions** (entity): an agent's claim on the task. `agent` label, started,
@@ -117,8 +117,8 @@ contends on the same row.
 
 `get_task` returns the brief: description, criteria with their state, status
 and why it is blocked, open sub-tasks, blockers, links, the latest handoff, all
-decisions, and the most recent notes (capped). The ticket raised hand-picked
-briefs; that can be added later as pinning without changing the journal.
+decisions, and the most recent notes (capped). Hand-picked briefs can be
+added later as pinning without changing the journal.
 
 ### Labels: a catalogue per person _(2026-09-25)_
 
@@ -189,18 +189,39 @@ recommended option.
   tasks, so linking or unlinking applies to every task carrying the label at
   once.
 
+### Epics and the board _(2026-10-16)_
+
+- **An epic is a `Task` with `kind: "epic"`**, not a second aggregate. Its
+  tasks reuse `parentId`, so the open-sub-tasks rule already stops an epic
+  being done while its tasks are open. An epic has no parent, and nobody
+  starts a session on one: `start_task` refuses it and points at its tasks,
+  and the ready queue never offers it.
+- **Promote and demote.** `tasks.update` changes `kind` (event
+  `TaskKindChanged`). A promoted sub-task leaves its parent first; an epic
+  turned into a task keeps its tasks as sub-tasks. Making an epic is refused
+  while an agent has a live session on the task.
+- **On screen** epics carry a violet lightning icon (`--color-epic`, used for
+  nothing else). The Tasks page has an epic rail that scopes both the list
+  and the board, and a searchable label multi-select.
+- **The board** has columns Backlog, To do, In progress, In review and Done
+  (cancelled stays in the list's Closed view). Cards move by native drag and
+  drop or a Move menu, both dispatching `tasks.change-status`; a refusal
+  shows as a notice and the card stays. A person dragging a task into In
+  progress leaves it paused until an agent picks it up. Done shows only
+  tasks finished in the past week by default, newest first, with a menu by
+  the count for Past month or All and an "N finished earlier" footer.
+
 ### Filtering the list by repository _(2026-09-25)_
 
 `/tasks` has a "Repository" button beside the search box that opens a
 searchable list of the repositories the owner's tasks name
 (`tasks.list-task-repositories`, one entry per name whatever its case),
 busiest first with open-task counts. It is one button however many
-repositories there are, which is why it is not a row of pills like the
-labels. One repository at a time, kept in the URL as
+repositories there are. One repository at a time, kept in the URL as
 `?repository=owner/name`, the same parameter "New task here" and the
 repository table already link with; "All repositories" clears it. It combines with the view, the labels and the search.
 
-## 3. What persists (ticket 07)
+## 3. What persists
 
 Postgres via Drizzle, like the rest: `task`, `task_dependency` (blocked task,
 blocking task, kind), `task_external_reference`, `task_acceptance_criterion`,
@@ -208,7 +229,7 @@ blocking task, kind), `task_external_reference`, `task_acceptance_criterion`,
 concurrency with a `version` column, as `WatchedRepository` does. No foreign
 key to identity tables, same as github-insights.
 
-Skills (migration 0008) add `task_skill` (unique per owner and name, with
+Epics are a `kind` column on `task`. Skills add `task_skill` (unique per owner and name, with
 its own `version`), `task_skill_label` (skill, owner, label name; indexed by
 owner and label name) and the append-only `task_skill_revision`; links and
 revisions are deleted with their skill.
@@ -217,32 +238,31 @@ revisions are deleted with their skill.
 
 - Route: `POST /api/mcp`, Streamable HTTP, stateless, on the official SDK
   (`@modelcontextprotocol/server` v2, whose `createMcpHandler` takes a Web
-  `Request` and returns a `Response`, so it runs the same on Vercel and a
-  container). Serves both the 2026-07-28 spec and older clients.
+  `Request` and returns a `Response`). Serves both the 2026-07-28 spec and older clients.
 - The route is thin: verify the token, then each tool dispatches a command or
   asks a query on the buses. Tool definitions live in
   `src/modules/tasks/ui/mcp/`, a second driving adapter beside the screens.
 - Tools (compact output by default, full detail only in `get_task`):
 
-| Tool              | What it does                                                                                                                                    |
-| ----------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
-| `list_tasks`      | Filter by status, repository, labels (any of), parent, text; `ready: true` gives the ready queue ordered by priority then age                   |
-| `list_labels`     | The owner's labels with colour, open-task counts and the skills each brings                                                                     |
-| `create_label`    | Add a label ahead of use, optionally in a chosen colour                                                                                         |
-| `save_label`      | Create a label, or rename or recolour an existing one; no delete                                                                                |
-| `list_skills`     | The owner's skills: name, description, labels, revision; filter by `label` or `text`                                                            |
-| `get_skill`       | One skill in full with its revision history; `revision` adds the text an earlier revision had                                                   |
-| `save_skill`      | Create a skill, or change its text (needs the `revision` read), `restore` an earlier revision, and link or unlink labels                        |
-| `get_task`        | The full handoff brief for one task; its skills by name and description only                                                                    |
-| `save_task`       | Create or update: title, description, priority, labels (or `add_labels`/`remove_labels`), repository, parent, criteria, links, `discoveredFrom` |
-| `start_task`      | Claim a ready task and open a session; returns the brief with the full instructions of every skill its labels bring                             |
-| `add_note`        | Append a journal entry (note, decision, discovery, question)                                                                                    |
-| `attach_picture`  | Add a picture to a task: returns an upload link and a `curl -T` command, or takes `data_base64` (up to 3 MB) when there is no shell             |
-| `get_picture`     | Show one of a task's pictures (ids come from `get_task`) as an image the agent can see                                                          |
-| `check_criterion` | Tick or untick an acceptance criterion, with evidence                                                                                           |
-| `link_tasks`      | Add or remove `blocks`, `relates-to`                                                                                                            |
-| `finish_session`  | End the session with a handoff summary and an outcome: `done`, `paused`, `blocked` (with a reason), `in_review`                                 |
-| `set_status`      | Move to backlog, todo or done, cancel, reopen, set or clear a hold                                                                              |
+| Tool              | What it does                                                                                                                                                         |
+| ----------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `list_tasks`      | Filter by status, type, epic, repository, labels (any of), parent, text; `ready: true` gives the ready queue ordered by priority then age                            |
+| `list_labels`     | The owner's labels with colour, open-task counts and the skills each brings                                                                                          |
+| `create_label`    | Add a label ahead of use, optionally in a chosen colour                                                                                                              |
+| `save_label`      | Create a label, or rename or recolour an existing one; no delete                                                                                                     |
+| `list_skills`     | The owner's skills: name, description, labels, revision; filter by `label` or `text`                                                                                 |
+| `get_skill`       | One skill in full with its revision history; `revision` adds the text an earlier revision had                                                                        |
+| `save_skill`      | Create a skill, or change its text (needs the `revision` read), `restore` an earlier revision, and link or unlink labels                                             |
+| `get_task`        | The full handoff brief for one task; its skills by name and description only                                                                                         |
+| `save_task`       | Create or update: type (task or epic), title, description, priority, labels (or `add_labels`/`remove_labels`), repository, parent, criteria, links, `discoveredFrom` |
+| `start_task`      | Claim a ready task and open a session; returns the brief with the full instructions of every skill its labels bring                                                  |
+| `add_note`        | Append a journal entry (note, decision, discovery, question)                                                                                                         |
+| `attach_picture`  | Add a picture to a task: returns an upload link and a `curl -T` command, or takes `data_base64` (up to 3 MB) when there is no shell                                  |
+| `get_picture`     | Show one of a task's pictures (ids come from `get_task`) as an image the agent can see                                                                               |
+| `check_criterion` | Tick or untick an acceptance criterion, with evidence                                                                                                                |
+| `link_tasks`      | Add or remove `blocks`, `relates-to`                                                                                                                                 |
+| `finish_session`  | End the session with a handoff summary and an outcome: `done`, `paused`, `blocked` (with a reason), `in_review`                                                      |
+| `set_status`      | Move to backlog, todo or done, cancel, reopen, set or clear a hold                                                                                                   |
 
 Plus one prompt, `work_on_next_task`, that tells an agent the loop:
 `list_tasks ready` → `start_task` → notes → `finish_session`. It takes an
@@ -283,58 +303,32 @@ Agents are told once, in the server instructions (`FORMATTING` in
 instructions also ask them to put acceptance criteria in `add_criteria`
 rather than as a checklist in the description, so they can be checked off.
 
-### Pictures _(2026-09-26)_
+### Pictures _(2026-09-26, S3 since 2026-10-14)_
 
-Daniel asked for pictures on tasks, added by people and by agents (designs
-from prototyping). Decisions:
-
-- **Storage: UploadThing's free plan**, one env key `UPLOADTHING_TOKEN`, no
-  bucket. It sits behind the `PictureStorage` port, so S3 or R2 would be one
-  more adapter.
 - **`Picture` is its own aggregate** in the tasks context, not part of `Task`:
   nothing about a picture changes a task's rules, and loading a task should not
   load its pictures. It records the adder and, when the adder holds the task's
   live session, that session. Pictures are added and removed, never edited.
-- **Every upload goes through the app's server** (`UTApi`), so there is no
-  UploadThing webhook to reach, which would fail on a laptop and on protected
-  previews. The file's type comes from its first bytes (PNG, JPEG, WebP, GIF;
-  SVG refused, as it can carry script); the limit is 4 MB, under Vercel's
-  4.5 MB request cap.
+- **Storage is a private S3 bucket** (`terraform/s3.tf`) behind the
+  `PictureStorage` port. In production the App Runner instance role may get,
+  put and delete objects in that bucket only, so there are no access keys.
+  Locally, S3Mock in `compose.yaml` stands in, because MinIO stopped
+  publishing a free image.
+- **Bytes go through the app both ways.** Uploads go through the server; the
+  file's type comes from its first bytes (PNG, JPEG, WebP, GIF; SVG refused,
+  as it can carry script), up to 4 MB. `/api/pictures/<id>` checks the owner
+  and sends the bytes with a week of private browser caching, so the bucket
+  has no public access, no CORS and no links that outlive a check.
 - **Agents** call `attach_picture` and get a link signed by the app (HMAC with
   a key derived from `BETTER_AUTH_SECRET`, 15 minutes, one picture id, so a
   retried upload adds it once) plus a `curl -T` command, so the bytes never
   pass through the model's context. Without a shell, `data_base64` takes up
   to 3 MB. `get_picture` returns the picture as MCP image content, so the next
   session can look at the design it is building.
-- **Pictures stay private.** Pages load `/api/pictures/<id>`, which checks the
-  owner and redirects to an UploadThing signed URL that expires within the
-  hour.
-- **UI (direction A of the prototype):** a Pictures section after the
-  description (drop, paste or pick; newest last), a strip of the newest three
-  in the task dialog, each batch of pictures as a line in the journal, and a
-  full-screen viewer with arrow-key stepping, Open original and Remove.
-
-### Pictures in S3 _(2026-10-14)_
-
-After the move to AWS, Daniel asked for pictures to leave UploadThing for a
-private S3 bucket made in Terraform, served through the app. Research in
-`/mnt/project-files/task-pictures-s3/research.md`. Decisions:
-
-- **Through the app, not presigned links.** `/api/pictures/<id>` checks the
-  owner and sends the bytes from S3 with a week of private browser caching, so the
-  bucket has no public access, no CORS and no links that outlive a check. The
-  port lost `link()`; pages and `get_picture` both use the content query.
-  Pictures are capped at 4 MB, so the 0.25 vCPU instance carries them easily.
-- **No keys in production.** The App Runner instance role may get, put and
-  delete objects in that bucket only. Access keys exist only for the local
-  stand-in.
-- **Same keys.** New pictures get a UUID key. Old ones are copied from
-  UploadThing under their existing key (a one-off script, since removed), so
-  no row changes and no migration is needed.
-- **Local: S3Mock** in `compose.yaml`, because MinIO stopped publishing a free
-  image.
-- Once the copy was done (2026-10-16), UploadThing, its token and the copy
-  script were removed.
+- **UI:** a Pictures section after the description (drop, paste or pick;
+  newest last), a strip of the newest three in the task dialog, each batch of
+  pictures as a line in the journal, and a full-screen viewer with arrow-key
+  stepping, Open original and Remove.
 
 ### Skills for agents _(2026-10-04)_
 
@@ -379,19 +373,13 @@ Better Auth's `@better-auth/mcp` plugin on the same URL and header; tokens are
 told apart by the `fenro_pat_` prefix, so existing agents keep working.
 Tokens live in the `identity` context.
 
-## 6. The Tasks column join (ticket 09)
+## 6. The Tasks column join
 
-Keep the plan's proposal: the route asks both buses and zips on `owner/name`.
+The repositories route asks both contexts' buses and zips on `owner/name`.
 Unwatching a repository leaves its tasks alone; they still show on the Tasks
 page.
 
-## 7. How it ships
+## 7. Not built yet
 
-- **PR 1**: domain model, Postgres tables and migration, commands and queries,
-  the MCP server, personal access tokens with a small Settings page to mint
-  and revoke them, and the real data behind the Tasks column and panel. Daniel
-  can connect Claude Code to it and work tasks end to end.
-- **PR 2**: the Tasks page (list, detail with the journal, creating and editing
-  by hand), **New task here** and **Make a task from this** on the repository
-  table.
-- **Later**: OAuth for Claude Desktop, compaction, pinning in the brief.
+OAuth for Claude Desktop and claude.ai connectors (section 5), compaction of
+old closed tasks, and pinning entries into the brief.

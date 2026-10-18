@@ -77,7 +77,7 @@ variable "apprunner_memory" {
 }
 
 variable "apprunner_max_size" {
-  description = "Maximum instances. Keep 1 until Next.js has a shared cache handler: its cache is per instance (README, Moving to AWS)."
+  description = "Maximum instances. Keep 1 until Next.js has a shared cache handler: its cache is per instance (README, More than one instance)."
   type        = number
   default     = 1
 }
@@ -166,7 +166,7 @@ variable "db_role" {
 }
 
 variable "better_auth_secret" {
-  description = "BETTER_AUTH_SECRET copied from Vercel production. It encrypts the stored GitHub tokens, so a new value would make every migrated token unreadable."
+  description = "BETTER_AUTH_SECRET. It encrypts the stored GitHub tokens, so changing it makes every stored token unreadable and signs everybody out."
   type        = string
   sensitive   = true
   default     = ""

@@ -4,9 +4,13 @@ An advanced GitHub dashboard for the repositories you care about — open pull
 requests and issues at a glance — and, in the same app, an agentic task list
 that carries context from one session to the next.
 
-The repository table is real: watch a repository and the app copies its open
-pull requests, reviews, CI checks and open issues from GitHub into Postgres,
-then serves the page from there. The Tasks column still runs on sample data.
+Watch a repository and the app copies its open pull requests, reviews, CI
+checks and open issues from GitHub into Postgres, then serves the page from
+there. Agents work the task list over MCP; people work it on the Tasks screen.
+
+Production runs at https://www.fenro-dashboard.com on AWS App Runner, with
+Postgres on RDS and task pictures in S3, all described in Terraform under
+[terraform/](./terraform/README.md).
 
 ## Stack
 
@@ -17,11 +21,13 @@ then serves the page from there. The Tasks column still runs on sample data.
 | Styling    | Tailwind CSS v4                                      |
 | Validation | Zod                                                  |
 | Database   | Postgres via Drizzle ORM (`pg` driver), drizzle-kit  |
-| Sign-in    | Better Auth, GitHub OAuth only                       |
+| Sign-in    | Better Auth, GitHub App only                         |
 | Tests      | Vitest + Testing Library (jsdom)                     |
 | Lint       | ESLint (`eslint-config-next`) + Prettier             |
 | Packages   | pnpm, lockfile committed                             |
 | CI         | GitHub Actions on pull requests and pushes to `main` |
+| Hosting    | AWS App Runner, RDS, S3, ECR, Terraform              |
+| Monitoring | Sentry (errors, traces, logs)                        |
 
 ## Getting started
 
@@ -135,10 +141,8 @@ Dependencies point inwards: `app` → `ui` → `application` → `domain`, and
 
 ## Docs
 
-Design and planning documents live in [docs/](./docs). Start with
-[the repository table](./docs/ui/repository-table.md) for the screen being built
-and the [implementation plan](./docs/implementation-plan.md) for how it maps onto
-the contexts above.
+[docs/](./docs/README.md) holds the task model and MCP tools, how screens are
+designed, and where specs and tickets go.
 
 ## Keeping GitHub data fresh
 
@@ -188,10 +192,10 @@ hash of the secret is stored. The model and the tools are described in
 [docs/tasks/agent-task-management.md](./docs/tasks/agent-task-management.md).
 
 People work the same tasks on the **Tasks** screen: the list by view (ready, in
-progress, blocked, closed), each task's brief and journal, and forms for
-everything an agent can change. **New task here** on a repository and **Make a
-task from this** on a pull request start a task already carrying where it came
-from.
+progress, blocked, closed) or as a board, scoped by epic, each task's brief
+and journal, and forms for everything an agent can change. **New task here**
+on a repository and **Make a task from this** on a pull request start a task
+already carrying where it came from.
 
 ### Pictures on tasks
 
@@ -267,7 +271,7 @@ same name; its header documents every flag.
 | `pnpm db:migrate`                            | `DATABASE_URL` from the shell or `.env.local`   | anyone                 |
 | `pnpm db:status:prod`                        | prints RDS's applied ledger, writes nothing     | anyone                 |
 | `pnpm db:migrate:prod`                       | RDS, connection string from SSM Parameter Store | a person at a terminal |
-| `DATABASE_URL=… ./scripts/db-migrate.sh url` | any other database, such as Neon                | a person at a terminal |
+| `DATABASE_URL=… ./scripts/db-migrate.sh url` | any other database                              | a person at a terminal |
 
 The production targets refuse to write unless stdin is a terminal, so an
 agent's shell cannot apply DDL to a live database. `prod` reads the SecureString
@@ -277,21 +281,10 @@ against the RDS CA bundle, which it caches in `~/.cache/fenro`. It needs the
 AWS CLI, `psql` and `curl`.
 
 **The migration history was squashed** into `0000_baseline` when the tables
-moved into `fenro`. A database migrated before that (tables in `public`, ledger
-in `drizzle`, last migration `0008_task_skills`), such as Neon or an older
-local one, is moved over once with `--adopt`: it moves the tables into `fenro`
-and records the baseline, in one transaction, and refuses on any other
-database. A plain migrate on such a database stops with a message that says
-so.
-
-Back up a production database first; it is the only write the move makes to
-Neon:
-
-```bash
-./scripts/db-migrate.sh local --adopt                         # your docker compose database
-pg_dump '<Neon direct string>' --format=custom --no-owner --no-privileges -f "neon-before-adopt-$(date +%Y%m%d-%H%M).dump"
-DATABASE_URL='<Neon direct string>' ./scripts/db-migrate.sh url --adopt
-```
+moved into `fenro`. A local database migrated before that (tables in `public`,
+ledger in `drizzle`) stops a plain migrate with a message; move it over once
+with `./scripts/db-migrate.sh local --adopt`, which moves the tables into
+`fenro` and records the baseline in one transaction.
 
 **On RDS, Fenro has a role of its own.** `scripts/rds-create-fenro-role.sql`,
 run once by the master user (Terraform's `database_bootstrap_command` output
@@ -304,60 +297,14 @@ and the app's container trusts the RDS CA through `NODE_EXTRA_CA_CERTS`.
 
 ## Deployment
 
-### Vercel (today)
+Every merge to `main` deploys itself to App Runner (below). The infrastructure,
+its secrets and the custom domain are in [terraform/README.md](./terraform/README.md).
 
-Import the repository in Vercel. `pnpm build` is the build command, the App
-Router runs on the Node.js runtime, and Vercel takes the Node version from
-`engines` in `package.json`. Set the variables from `.env.example` under
-Settings → Environment Variables, with `APP_URL` set to the production origin.
-
-- **pnpm.** Add `ENABLE_EXPERIMENTAL_COREPACK=1` as an environment variable.
-  Without it Vercel picks its own pnpm from the lockfile version rather than
-  the one pinned in `packageManager`.
-- **Database.** Any hosted Postgres works (Neon, Supabase, RDS, …); use its
-  pooled connection string as `DATABASE_URL`. Vercel's Neon integration sets
-  that for you, alongside `DATABASE_URL_UNPOOLED`; the app ignores the other
-  keys it adds. Apply migrations from your machine against the direct
-  (unpooled) string, `DATABASE_URL=<direct string> ./scripts/db-migrate.sh url`,
-  before deploying a change that adds one. The build does not run them.
-- **Pictures.** Production keeps them in S3 now (see below). Vercel would
-  need `PICTURES_S3_BUCKET` and an access key pair for it.
-- **GitHub App.** A second app for production, set up as above with the
-  callback URL `https://<your-domain>/api/auth/callback/github`, and its
-  `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET` and `GITHUB_APP_SLUG` set on
-  Production.
-- **Previews.** Preview deployments cannot sign in: GitHub sends sign-in back
-  only to the callback URLs the GitHub App lists, and a preview's URL is new
-  every time.
-
-### Moving to AWS later
-
-The app is deliberately portable, so nothing here is Vercel-only: no
-`@vercel/*` runtime packages, no Vercel KV or Blob, no Edge-runtime-only APIs,
-and no configuration outside standard environment variables.
-
-What would change:
-
-- **Output mode.** Done: `next.config.ts` builds `output: "standalone"`, and
-  the `Dockerfile` runs that server. Vercel ignores the setting.
-- **Images.** No page uses `next/image`, and `images.unoptimized` is on, so
-  nothing depends on Vercel's optimiser. Turn it back on (the standalone
-  server runs it) or point `images.loader` at CloudFront if that changes.
-- **Caching and ISR.** The default filesystem cache is per-instance. With more
-  than one instance, wire up a shared cache handler
-  (`cacheHandler` in `next.config.ts`) backed by Redis or S3.
-- **Secrets.** Environment variables come from Vercel today; on AWS they would
-  come from SSM Parameter Store or Secrets Manager, injected as the same
-  variable names.
-- **Database.** Flexi Day's RDS Postgres, in Fenro's own schema; see
-  [Database](#database). Each instance keeps its own pool (`pg`'s default of
-  10 connections) under the `fenro` role's limit of 20.
-- **Pictures.** Done: an S3 adapter for the `PictureStorage` port
-  (`src/modules/tasks/infrastructure/s3-picture.storage.ts`), the bucket in
-  `terraform/s3.tf`. The UploadThing pictures were copied over in October 2026.
-- **Sign-in.** Point the production GitHub App's callback at the new
-  origin and update `APP_URL`. Sessions and tokens live in Postgres, so they
-  survive the move as long as `BETTER_AUTH_SECRET` stays the same.
+The app stays portable: no `@vercel/*` runtime packages, no
+Edge-runtime-only APIs, AWS reached only through an adapter behind a port (the
+S3 picture storage), and no configuration outside standard environment
+variables, so another host that runs a Node container needs only the same
+variables and an S3-compatible bucket.
 
 ### AWS App Runner
 
@@ -385,12 +332,12 @@ signs in to AWS through GitHub's OIDC provider and needs these repository
 variables (Settings → Secrets and variables → Actions → Variables), all of
 which Terraform outputs:
 
-| Variable                 | Value                                                                             |
-| ------------------------ | --------------------------------------------------------------------------------- |
-| `AWS_REGION`             | The region of the ECR repository and the service                                  |
-| `AWS_ROLE_ARN`           | The deploy role; it trusts `repo:Daniel88dev/fenro-dashboard:ref:refs/heads/main` |
-| `ECR_REPOSITORY`         | The ECR repository name                                                           |
-| `APP_RUNNER_SERVICE_ARN` | The service; without it the release fails after pushing the image                 |
+| Variable                 | Value                                                             |
+| ------------------------ | ----------------------------------------------------------------- |
+| `AWS_REGION`             | The region of the ECR repository and the service                  |
+| `AWS_ROLE_ARN`           | The deploy role; it trusts only `main` of this repository         |
+| `ECR_REPOSITORY`         | The ECR repository name                                           |
+| `APP_RUNNER_SERVICE_ARN` | The service; without it the release fails after pushing the image |
 
 The deploy role needs ECR push to that repository (`ecr:GetAuthorizationToken`,
 `ecr:BatchCheckLayerAvailability`, `ecr:InitiateLayerUpload`,
@@ -405,6 +352,15 @@ hand with `pnpm db:migrate:prod` (see [Database](#database)) before merging a
 change that adds one, and keep each
 migration compatible with the code already running, since the merge deploys
 on its own.
+
+### More than one instance
+
+The service runs one instance (`apprunner_max_size` in Terraform). Before
+raising that, give Next.js a shared cache handler (`cacheHandler` in
+`next.config.ts`, backed by Redis or S3), since its default cache is per
+instance, and set the same `NEXT_SERVER_ACTIONS_ENCRYPTION_KEY` at build time
+so every instance accepts the others' server actions. Each instance keeps its
+own `pg` pool of up to 10 connections under the `fenro` role's limit of 20.
 
 ## Working with Claude Code
 

@@ -81,7 +81,8 @@ terminal anyway.
 **Configuration is environment variables only.** Add a key to the schema in
 `src/shared/config/env.ts` and to `.env.example`, then read it through
 `getEnv()`. Never read `process.env` elsewhere, and keep the app free of
-Vercel-only runtime APIs so a move to AWS stays a deployment change.
+host-specific runtime APIs (AWS, Vercel or any other) so moving hosts stays a
+deployment change.
 
 ## Designing screens
 
