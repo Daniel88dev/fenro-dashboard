@@ -56,8 +56,8 @@ Use the AWS profile of the account flexi-day-be runs in.
    `terraform output -raw github_actions_variables_commands`, then let the
    release workflow push the first image to ECR. Its deploy step fails until
    step 8; the push is what matters here.
-6. **Fill in the secrets.** Set `better_auth_secret` (the value from Vercel
-   production), `github_client_secret`, `github_client_id`, `github_app_slug`
+6. **Fill in the secrets.** Set `better_auth_secret` (`openssl rand -base64
+32`), `github_client_secret`, `github_client_id`, `github_app_slug`
    in `terraform.tfvars`. The plan
    refuses to create the service without the required ones.
 7. **Create the service.** Set `create_service = true` and apply. App Runner
@@ -80,9 +80,8 @@ name in capitals, except `database-password`, which only the bootstrap reads.
 App Runner resolves them when it deploys, so after changing one, run the
 `start_deployment_command` output or the old value stays live.
 
-`better_auth_secret` must be the production value from Vercel. It encrypts
-the GitHub tokens stored in the database, so a new value makes every migrated
-token unreadable and signs everybody out.
+`better_auth_secret` encrypts the GitHub tokens stored in the database, so
+changing it makes every stored token unreadable and signs everybody out.
 
 Adding a setting means `src/shared/config/env.ts`, `.env.example`,
 `variables.tf`, `terraform.tfvars.example`, and either
@@ -97,9 +96,6 @@ for `pictures_noncurrent_days` (30). The App Runner instance role may get, put
 and delete objects in it and nothing else, so the app holds no access keys.
 Browsers never reach the bucket: `/api/pictures/<id>` sends the bytes. At
 about 0.5 MB a picture, a thousand of them cost about a cent a month.
-
-Pictures added before October 2026 were copied from UploadThing under the
-keys it gave them, so their database rows did not change.
 
 ## Deploying
 

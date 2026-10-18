@@ -21,7 +21,7 @@ so any session opening this repository has it.
    the rows that only apply to marketing pages (hero, logo wall, bento,
    testimonials, marquee).
 5. **Wait for a pick.** No implementation until Daniel has chosen a
-   direction. Record the choice and the prototype link in `docs/ui/`.
+   direction. Record the choice and the prototype link in the log below.
 
 ## Where Fenro departs from the skill
 
@@ -64,15 +64,29 @@ disagree:
 - **Copy.** No em-dashes or en-dashes in anything a reader sees (the skill's
   9.G). The middle dot is rationed to one per line.
 
+## Accessibility
+
+Prototypes are pictures; the built screen has to meet these.
+
+- A control that expands something is a real `<button>` with
+  `aria-expanded` and `aria-controls`, and a bare count is not its accessible
+  name: label it (`12 open pull requests in owner/name`).
+- Colour never carries meaning alone. A failing check reads `failed`, a state
+  chip says its state, and a dot has a text alternative.
+- Expanding must not move focus; collapsing returns focus to the control that
+  opened the panel.
+- Relative times (`26 min ago`) sit in a `<time datetime>` with the absolute
+  value.
+
 ## Prototype log
 
-| Date       | What                                     | Link                                                                                        | Outcome                       |
-| ---------- | ---------------------------------------- | ------------------------------------------------------------------------------------------- | ----------------------------- |
-| 2026-09-20 | Repository table                         | [canvas](https://claude.ai/artifact/CHoCsPDAWY2tvnoL7gHW9t)                                 | Built (PR #3)                 |
-| 2026-09-24 | Whole-app redesign, 2 directions         | [canvas](https://claude.ai/artifact/Uj2hLnvUy6X9dYrzzAdDgr), [notes](./redesign-2026-09.md) | A picked                      |
-| 2026-09-26 | Pictures on tasks, 2 directions          | [canvas](https://claude.ai/artifact/35XeAhrc4aQRGTHxQWp1YA)                                 | A picked, plus a large viewer |
-| 2026-09-28 | App logo, 2 marks                        | [page](https://claude.ai/artifact/N6VV6A8ZvUkGGSp5KfSpHK)                                   | B (Task rows) picked, PR #31  |
-| 2026-10-04 | Skills & labels, 2 directions            | [canvas](https://claude.ai/artifact/SBLLj8uitB3xpX8WhbeR79)                                 | A (side by side) picked       |
-| 2026-10-16 | Epics, task menu and board, 2 directions | [canvas](https://claude.ai/artifact/NPUL4ziEJ5ZyiPMDqjdzXB)                                 | B (epic rail) picked          |
-| 2026-10-17 | Task state colours, 2 directions         | [canvas](https://claude.ai/artifact/9iA2z2nEw3WumeLMrQUJXM)                                 | A (colour only) picked        |
-| 2026-10-18 | Board Done column window, 2 controls     | [canvas](https://claude.ai/artifact/7REudfsa4nEBPMpePaeWcf)                                 | B (menu by the count) picked  |
+| Date       | What                                     | Link                                                        | Outcome                       |
+| ---------- | ---------------------------------------- | ----------------------------------------------------------- | ----------------------------- |
+| 2026-09-20 | Repository table                         | [canvas](https://claude.ai/artifact/CHoCsPDAWY2tvnoL7gHW9t) | Built (PR #3)                 |
+| 2026-09-24 | Whole-app redesign, 2 directions         | [canvas](https://claude.ai/artifact/Uj2hLnvUy6X9dYrzzAdDgr) | A picked                      |
+| 2026-09-26 | Pictures on tasks, 2 directions          | [canvas](https://claude.ai/artifact/35XeAhrc4aQRGTHxQWp1YA) | A picked, plus a large viewer |
+| 2026-09-28 | App logo, 2 marks                        | [page](https://claude.ai/artifact/N6VV6A8ZvUkGGSp5KfSpHK)   | B (Task rows) picked, PR #31  |
+| 2026-10-04 | Skills & labels, 2 directions            | [canvas](https://claude.ai/artifact/SBLLj8uitB3xpX8WhbeR79) | A (side by side) picked       |
+| 2026-10-16 | Epics, task menu and board, 2 directions | [canvas](https://claude.ai/artifact/NPUL4ziEJ5ZyiPMDqjdzXB) | B (epic rail) picked          |
+| 2026-10-17 | Task state colours, 2 directions         | [canvas](https://claude.ai/artifact/9iA2z2nEw3WumeLMrQUJXM) | A (colour only) picked        |
+| 2026-10-18 | Board Done column window, 2 controls     | [canvas](https://claude.ai/artifact/7REudfsa4nEBPMpePaeWcf) | B (menu by the count) picked  |

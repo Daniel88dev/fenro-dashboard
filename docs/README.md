@@ -1,16 +1,13 @@
 # Docs
 
-- **[The repository table](./ui/repository-table.md)** — the dashboard's home
-  screen: what it shows, how it expands, and the visual language it uses. The
-  design the prototypes settled on, plus the states they do not cover.
-- **[Implementation plan](./implementation-plan.md)** — how that screen lands on
-  the `github-insights` and `tasks` contexts, and the order to build it in.
-- **[Task management for AI agents](./tasks/agent-task-management.md)** — what
-  task trackers and agent-first tools do, the `Task` model built from it, the
-  MCP server's tools and how agents authenticate.
-- **[Issue tracker](./agents/issue-tracker.md)** — where issues and wayfinder
-  maps live for this repo, and what the engineering skills read.
+- **[Task management for AI agents](./tasks/agent-task-management.md)**: the
+  `Task` model, the rules it enforces, the MCP server's tools and how agents
+  authenticate.
+- **[Designing screens](./ui/design-taste.md)**: how every new screen starts as
+  a `design-taste-frontend` prototype, the project rules that override the
+  skill, and the log of directions Daniel picked.
+- **[Issue tracker](./agents/issue-tracker.md)**: where the engineering skills
+  write specs and tickets for this repo.
 
-Open design decisions are tracked on the wayfinder map at
-[`.scratch/repository-table/map.md`](../.scratch/repository-table/map.md). The
-plan says what the shape will be; the map says what is still undecided.
+Setup, deployment and the database are in the [README](../README.md); AWS
+infrastructure is in [terraform/README.md](../terraform/README.md).
