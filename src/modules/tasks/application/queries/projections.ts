@@ -26,6 +26,7 @@ import type {
   RepositoryTasks,
   SkillItem,
   SkillRevisionItem,
+  DoneWindow,
   TaskBoard,
   TaskBrief,
   TaskCountsByRepository,
@@ -61,7 +62,7 @@ export class TaskIndex {
 
   constructor(
     readonly records: readonly TaskRecord[],
-    private readonly now: Date,
+    readonly now: Date,
   ) {
     this.#byId = new Map(records.map((record) => [record.id, record]));
     for (const record of records) {
@@ -297,24 +298,50 @@ export const BOARD_STATUSES: readonly TaskStatus[] = [
 
 export const BOARD_COLUMN_LIMIT = 50;
 
+const DAY_MS = 24 * 60 * 60 * 1000;
+const DONE_WINDOW_DAYS: Record<DoneWindow, number> = {
+  week: 7,
+  month: 30,
+  all: Number.POSITIVE_INFINITY,
+};
+
+const finishedAt = (record: TaskRecord) =>
+  (record.completedAt ?? record.updatedAt).getTime();
+
 export function board(
   index: TaskIndex,
   filter: Omit<TaskFilter, "statuses" | "states" | "ready" | "limit">,
+  done: DoneWindow = "week",
   limit = BOARD_COLUMN_LIMIT,
 ): TaskBoard {
   const scoped = index.records.filter((record) =>
     matchesScope(index, record, filter),
   );
+  const since = index.now.getTime() - DONE_WINDOW_DAYS[done] * DAY_MS;
   return {
+    done,
     columns: BOARD_STATUSES.map((status) => {
       const records = scoped.filter((record) => record.status === status);
-      const items =
-        status === "done"
-          ? [...records]
-              .sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime())
-              .map((record) => index.item(record))
-          : records.map((record) => index.item(record)).sort(listOrder);
-      return { status, total: items.length, tasks: items.slice(0, limit) };
+      if (status !== "done") {
+        const items = records
+          .map((record) => index.item(record))
+          .sort(listOrder);
+        return {
+          status,
+          total: items.length,
+          tasks: items.slice(0, limit),
+          finishedEarlier: 0,
+        };
+      }
+      const recent = records
+        .filter((record) => finishedAt(record) >= since)
+        .sort((a, b) => finishedAt(b) - finishedAt(a));
+      return {
+        status,
+        total: recent.length,
+        tasks: recent.slice(0, limit).map((record) => index.item(record)),
+        finishedEarlier: records.length - recent.length,
+      };
     }),
   };
 }

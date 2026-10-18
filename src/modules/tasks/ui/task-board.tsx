@@ -1,6 +1,12 @@
 "use client";
 
-import { DotsThree, Check, Warning, X } from "@phosphor-icons/react/ssr";
+import {
+  CaretDown,
+  Check,
+  DotsThree,
+  Warning,
+  X,
+} from "@phosphor-icons/react/ssr";
 import Link from "next/link";
 import {
   startTransition,
@@ -12,9 +18,11 @@ import {
   type DragEvent,
 } from "react";
 
-import type {
-  BoardColumn,
-  TaskListItem,
+import {
+  DONE_WINDOWS,
+  type BoardColumn,
+  type DoneWindow,
+  type TaskListItem,
 } from "@/modules/tasks/application/queries/read-models";
 import type { TaskStatus } from "@/modules/tasks/domain";
 
@@ -48,6 +56,23 @@ const PRIORITY_WORDS: Record<TaskListItem["priority"], string | null> = {
 /** States worth a chip on a card: the column already says the rest. */
 const CHIP_STATES = new Set(["blocked", "waiting", "paused"]);
 
+export type DoneWindowLinks = {
+  readonly current: DoneWindow;
+  readonly hrefs: Readonly<Record<DoneWindow, string>>;
+};
+
+const WINDOW_WORDS: Record<DoneWindow, string> = {
+  week: "Past week",
+  month: "Past month",
+  all: "All",
+};
+
+const WIDER: Record<DoneWindow, DoneWindow | null> = {
+  week: "month",
+  month: "all",
+  all: null,
+};
+
 type Move = { readonly key: string; readonly to: TaskStatus };
 
 function moved(columns: readonly BoardColumn[], move: Move): BoardColumn[] {
@@ -78,10 +103,12 @@ export function TaskBoard({
   columns,
   labels,
   move,
+  done,
 }: {
   columns: readonly BoardColumn[];
   labels: readonly LabelOption[];
   move: MoveTask;
+  done?: DoneWindowLinks;
 }) {
   const [shown, moveOptimistically] = useOptimistic(columns, moved);
   const [dragging, setDragging] = useState<string | null>(null);
@@ -149,14 +176,19 @@ export function TaskBoard({
                 : "bg-surface-sunken outline-transparent"
             }`}
           >
-            <h2 className="flex items-baseline gap-2 px-1.5 pt-1 pb-0.5">
-              <span className="text-ink text-[13px] font-semibold">
-                {COLUMN_WORDS[column.status]}
-              </span>
-              <span className="text-ink-faint font-mono text-[12px]">
-                {column.total}
-              </span>
-            </h2>
+            <div className="flex min-h-7 items-center gap-2 px-1.5 pt-1 pb-0.5">
+              <h2 className="m-0 flex items-baseline gap-2">
+                <span className="text-ink text-[13px] font-semibold">
+                  {COLUMN_WORDS[column.status]}
+                </span>
+                <span className="text-ink-faint font-mono text-[12px]">
+                  {column.total}
+                </span>
+              </h2>
+              {column.status === "done" && done ? (
+                <DoneWindowMenu done={done} />
+              ) : null}
+            </div>
             {column.tasks.length === 0 ? (
               <p className="border-hairline text-ink-faint rounded-lg border border-dashed px-2.5 py-3.5 text-center text-[12px]">
                 Drop a task here
@@ -188,6 +220,9 @@ export function TaskBoard({
               <p className="text-ink-muted px-1.5 text-[12px]">
                 {`and ${column.total - column.tasks.length} more; narrow the board to see them`}
               </p>
+            ) : null}
+            {column.status === "done" && done && column.finishedEarlier > 0 ? (
+              <FinishedEarlier count={column.finishedEarlier} done={done} />
             ) : null}
           </section>
         ))}
@@ -294,6 +329,108 @@ function CardFacts({
         </span>
       ) : null}
       {chip ? <StateChip state={task.state} /> : null}
+    </div>
+  );
+}
+
+function FinishedEarlier({
+  count,
+  done,
+}: {
+  count: number;
+  done: DoneWindowLinks;
+}) {
+  const wider = WIDER[done.current];
+  return (
+    <p className="text-ink-muted m-0 px-1.5 text-[12px] leading-[1.4]">
+      {`${count} finished earlier.`}
+      {wider ? (
+        <>
+          {" "}
+          <Link
+            href={done.hrefs[wider]}
+            scroll={false}
+            className="text-pr focus-visible:outline-pr rounded-sm underline underline-offset-2 focus-visible:outline-2"
+          >
+            {wider === "all"
+              ? "Show all"
+              : `Show ${WINDOW_WORDS[wider].toLowerCase()}`}
+          </Link>
+        </>
+      ) : null}
+    </p>
+  );
+}
+
+function DoneWindowMenu({ done }: { done: DoneWindowLinks }) {
+  const [open, setOpen] = useState(false);
+  const root = useRef<HTMLDivElement>(null);
+  const menuId = useId();
+
+  useEffect(() => {
+    if (!open) return;
+    root.current
+      ?.querySelector<HTMLAnchorElement>("[aria-checked=true]")
+      ?.focus();
+    const onPointerDown = (event: PointerEvent) => {
+      if (!root.current?.contains(event.target as Node)) setOpen(false);
+    };
+    document.addEventListener("pointerdown", onPointerDown);
+    return () => document.removeEventListener("pointerdown", onPointerDown);
+  }, [open]);
+
+  return (
+    <div ref={root} className="relative ml-auto">
+      <button
+        type="button"
+        aria-label={`Done tasks shown: ${WINDOW_WORDS[done.current]}`}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        aria-controls={menuId}
+        onClick={() => setOpen(!open)}
+        className={`text-ink-muted hover:border-hairline hover:text-ink focus-visible:outline-pr inline-flex cursor-pointer items-center gap-1 rounded-md border px-2 py-1 text-[12px] font-medium focus-visible:outline-2 ${
+          open ? "border-hairline text-ink" : "border-transparent"
+        }`}
+      >
+        {WINDOW_WORDS[done.current]}
+        <CaretDown aria-hidden="true" weight="bold" className="size-2.5" />
+      </button>
+      {open ? (
+        <div
+          id={menuId}
+          role="menu"
+          aria-label="Show done tasks finished in"
+          onKeyDown={(event) => {
+            if (event.key !== "Escape") return;
+            event.stopPropagation();
+            setOpen(false);
+            root.current?.querySelector<HTMLButtonElement>("button")?.focus();
+          }}
+          className="border-hairline bg-surface absolute top-full right-0 z-30 mt-1 flex w-44 flex-col rounded-xl border p-1.5 font-normal shadow-[0_8px_24px_-12px_rgba(20,18,10,0.35)]"
+        >
+          {DONE_WINDOWS.map((window) => (
+            <Link
+              key={window}
+              href={done.hrefs[window]}
+              scroll={false}
+              role="menuitemradio"
+              aria-checked={window === done.current}
+              onClick={() => setOpen(false)}
+              className="text-ink hover:bg-surface-sunken focus-visible:outline-pr flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-[12.5px] focus-visible:outline-2"
+            >
+              <span
+                aria-hidden="true"
+                className="grid size-3.5 shrink-0 place-items-center"
+              >
+                {window === done.current ? (
+                  <Check weight="bold" className="size-3" />
+                ) : null}
+              </span>
+              {window === "all" ? "All done tasks" : WINDOW_WORDS[window]}
+            </Link>
+          ))}
+        </div>
+      ) : null}
     </div>
   );
 }

@@ -434,7 +434,6 @@ export class InMemoryTaskStore
         .filter((picture) => picture.taskId === id)
         .sort((a, b) => a.addedAt.getTime() - b.addedAt.getTime())
         .map((picture) => this.#pictureRecord(picture)),
-      completedAt: state.completedAt,
     };
   }
 
@@ -501,6 +500,7 @@ export class InMemoryTaskStore
       journalEntries: this.#journalOf(stored.id).length,
       createdAt: stored.createdAt,
       updatedAt: state.updatedAt,
+      completedAt: state.completedAt,
     };
   }
 }

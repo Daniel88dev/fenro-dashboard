@@ -445,6 +445,48 @@ describe("the board", () => {
     expect(keysIn("todo")).toEqual([]);
   });
 
+  it("keeps only tasks finished within the done window, latest first", async () => {
+    await create({ title: "Long ago" });
+    await create({ title: "This month" });
+    await create({ title: "This week" });
+    const finish = async (task: string, at: string) => {
+      now = new Date(at);
+      await changeStatus({ actor: DANIEL, task, status: "done" });
+    };
+    await finish("T-1", "2026-06-01T10:00:00Z");
+    await finish("T-3", "2026-09-20T10:00:00Z");
+    await finish("T-2", "2026-09-05T10:00:00Z");
+    now = new Date("2026-09-23T10:00:00Z");
+
+    const doneIn = async (window: "week" | "month" | "all") => {
+      const { columns } = await new TaskBoardHandler(store, clock).handle(
+        taskBoardQuery(OWNER, {}, window),
+      );
+      const done = columns.find((column) => column.status === "done")!;
+      return {
+        keys: done.tasks.map((task) => task.key),
+        total: done.total,
+        earlier: done.finishedEarlier,
+      };
+    };
+
+    expect(await doneIn("week")).toEqual({
+      keys: ["T-3"],
+      total: 1,
+      earlier: 2,
+    });
+    expect(await doneIn("month")).toEqual({
+      keys: ["T-3", "T-2"],
+      total: 2,
+      earlier: 1,
+    });
+    expect(await doneIn("all")).toEqual({
+      keys: ["T-3", "T-2", "T-1"],
+      total: 3,
+      earlier: 0,
+    });
+  });
+
   it("shows a task moved into progress by hand as paused", async () => {
     await create({ title: "Board" });
 

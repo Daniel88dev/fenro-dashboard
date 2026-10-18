@@ -104,13 +104,20 @@ export type TaskList = {
   readonly tasks: readonly TaskListItem[];
 };
 
+export const DONE_WINDOWS = ["week", "month", "all"] as const;
+export type DoneWindow = (typeof DONE_WINDOWS)[number];
+
 export type BoardColumn = {
   readonly status: TaskStatus;
   readonly total: number;
   readonly tasks: readonly TaskListItem[];
+  readonly finishedEarlier: number;
 };
 
-export type TaskBoard = { readonly columns: readonly BoardColumn[] };
+export type TaskBoard = {
+  readonly columns: readonly BoardColumn[];
+  readonly done: DoneWindow;
+};
 
 export type TaskMention = {
   readonly key: string;

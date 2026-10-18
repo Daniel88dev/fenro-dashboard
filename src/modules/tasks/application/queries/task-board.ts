@@ -3,7 +3,7 @@ import type { Query, QueryHandler } from "@/shared/application";
 import type { TaskReadStore } from "../ports/task-read-store";
 import { resolveFilter, type TaskListFilterInput } from "./list-tasks";
 import { board, BOARD_STATUSES, TaskIndex } from "./projections";
-import type { TaskBoard } from "./read-models";
+import type { DoneWindow, TaskBoard } from "./read-models";
 
 export type TaskBoardQuery = Query<"tasks.task-board", TaskBoard> & {
   readonly ownerId: string;
@@ -11,13 +11,15 @@ export type TaskBoardQuery = Query<"tasks.task-board", TaskBoard> & {
     TaskListFilterInput,
     "statuses" | "states" | "ready" | "includeClosed" | "limit"
   >;
+  readonly done: DoneWindow;
 };
 
 export function taskBoardQuery(
   ownerId: string,
   filter: TaskBoardQuery["filter"] = {},
+  done: DoneWindow = "week",
 ): TaskBoardQuery {
-  return { type: "tasks.task-board", ownerId, filter };
+  return { type: "tasks.task-board", ownerId, filter, done };
 }
 
 export class TaskBoardHandler implements QueryHandler<
@@ -37,13 +39,15 @@ export class TaskBoardHandler implements QueryHandler<
     const filter = resolveFilter(index, query.filter);
     if (!filter) {
       return {
+        done: query.done,
         columns: BOARD_STATUSES.map((status) => ({
           status,
           total: 0,
           tasks: [],
+          finishedEarlier: 0,
         })),
       };
     }
-    return board(index, filter);
+    return board(index, filter, query.done);
   }
 }

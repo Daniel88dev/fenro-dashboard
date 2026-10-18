@@ -41,11 +41,11 @@ const epic: TaskListItem = {
 };
 
 const columns: BoardColumn[] = [
-  { status: "backlog", total: 0, tasks: [] },
-  { status: "todo", total: 1, tasks: [card] },
-  { status: "in_progress", total: 0, tasks: [] },
-  { status: "in_review", total: 0, tasks: [] },
-  { status: "done", total: 0, tasks: [] },
+  { status: "backlog", total: 0, tasks: [], finishedEarlier: 0 },
+  { status: "todo", total: 1, tasks: [card], finishedEarlier: 0 },
+  { status: "in_progress", total: 0, tasks: [], finishedEarlier: 0 },
+  { status: "in_review", total: 0, tasks: [], finishedEarlier: 0 },
+  { status: "done", total: 0, tasks: [], finishedEarlier: 0 },
 ];
 
 function column(name: string) {
@@ -128,6 +128,55 @@ describe("TaskBoard", () => {
     expect(
       within(column("Done")).queryByRole("link", { name: /Fix the lint job/ }),
     ).not.toBeInTheDocument();
+  });
+});
+
+describe("the Done column", () => {
+  const done = {
+    current: "week" as const,
+    hrefs: {
+      week: "/tasks?layout=board",
+      month: "/tasks?layout=board&done=month",
+      all: "/tasks?layout=board&done=all",
+    },
+  };
+  const withEarlier = columns.map((entry) =>
+    entry.status === "done" ? { ...entry, finishedEarlier: 269 } : entry,
+  );
+
+  it("says how many finished before the window and links a wider one", () => {
+    render(
+      <TaskBoard
+        columns={withEarlier}
+        labels={[]}
+        move={vi.fn()}
+        done={done}
+      />,
+    );
+
+    expect(
+      within(column("Done")).getByText(/269 finished earlier/),
+    ).toBeVisible();
+    expect(
+      within(column("Done")).getByRole("link", { name: "Show past month" }),
+    ).toHaveAttribute("href", "/tasks?layout=board&done=month");
+  });
+
+  it("offers every window from the menu, the current one checked", () => {
+    render(
+      <TaskBoard columns={columns} labels={[]} move={vi.fn()} done={done} />,
+    );
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Done tasks shown: Past week" }),
+    );
+
+    expect(
+      screen.getByRole("menuitemradio", { name: "Past week" }),
+    ).toHaveAttribute("aria-checked", "true");
+    expect(
+      screen.getByRole("menuitemradio", { name: "All done tasks" }),
+    ).toHaveAttribute("href", "/tasks?layout=board&done=all");
   });
 });
 
