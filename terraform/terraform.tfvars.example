@@ -51,13 +51,12 @@ github_app_slug  = ""
 sentry_dsn                = ""
 sentry_traces_sample_rate = 1
 
-# better_auth_secret: copy the value from Vercel production. It encrypts the
-# stored GitHub tokens; a fresh value makes every migrated token unreadable and
-# signs everybody out.
+# better_auth_secret: `openssl rand -base64 32`. It encrypts the stored GitHub
+# tokens; changing it makes every stored token unreadable and signs everybody
+# out.
 better_auth_secret = ""
 
-# github_client_secret: a client secret of its own for AWS, generated in the
-# GitHub App beside the one Vercel uses.
+# github_client_secret: a client secret generated in the production GitHub App.
 github_client_secret = ""
 
 pictures_noncurrent_days = 30
