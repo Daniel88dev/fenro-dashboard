@@ -13,6 +13,11 @@ import type {
 export interface TaskReadStore {
   records(ownerId: string): Promise<TaskRecord[]>;
   detail(ownerId: string, id: string): Promise<TaskDetailRecord | undefined>;
+  descriptionsContaining(
+    ownerId: string,
+    words: readonly string[],
+    limit: number,
+  ): Promise<TaskDescriptionRecord[]>;
   labels(ownerId: string): Promise<LabelRecord[]>;
   picture(ownerId: string, id: string): Promise<PictureRecord | undefined>;
   skills(ownerId: string): Promise<SkillRecord[]>;
@@ -26,6 +31,11 @@ export interface TaskReadStore {
     labels: readonly string[],
   ): Promise<SkillTextRecord[]>;
 }
+
+export type TaskDescriptionRecord = {
+  readonly id: string;
+  readonly description: string;
+};
 
 export type SkillRecord = {
   readonly id: string;

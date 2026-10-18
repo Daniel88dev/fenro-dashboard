@@ -354,6 +354,36 @@ describe.skipIf(!url)("Postgres tasks adapters", () => {
       });
     });
 
+    it("finds descriptions holding every word, with LIKE wildcards taken literally", async () => {
+      await saved(
+        aTask({
+          number: 1,
+          description: "Keep the board in SYNC after a drop.",
+        }),
+        aTask({ number: 2, description: "Sync is 100% done." }),
+        aTask({ number: 3, description: "Nothing here." }),
+      );
+      const store = new DrizzleTaskReadStore(db);
+      const found = async (words: string[]) =>
+        (await store.descriptionsContaining("user-1", words, 10))
+          .map(({ description }) => description)
+          .sort();
+
+      expect(await found(["sync"])).toEqual([
+        "Keep the board in SYNC after a drop.",
+        "Sync is 100% done.",
+      ]);
+      expect(await found(["sync", "board"])).toEqual([
+        "Keep the board in SYNC after a drop.",
+      ]);
+      expect(await found(["100%"])).toEqual(["Sync is 100% done."]);
+      expect(await found(["%"])).toEqual(["Sync is 100% done."]);
+      expect(await found(["_"])).toEqual([]);
+      expect(
+        await store.descriptionsContaining("user-2", ["sync"], 10),
+      ).toEqual([]);
+    });
+
     it("reads one task in full", async () => {
       const { blocker, task } = await aWorkedTask();
       const store = new DrizzleTaskReadStore(db);

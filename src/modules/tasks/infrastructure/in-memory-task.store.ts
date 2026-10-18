@@ -5,6 +5,7 @@ import type {
   SkillDetailRecord,
   SkillRecord,
   SkillTextRecord,
+  TaskDescriptionRecord,
   TaskDetailRecord,
   TaskReadStore,
   TaskRecord,
@@ -391,6 +392,21 @@ export class InMemoryTaskStore
 
   async records(ownerId: string): Promise<TaskRecord[]> {
     return this.#owned(ownerId).map((task) => this.#record(task));
+  }
+
+  async descriptionsContaining(
+    ownerId: string,
+    words: readonly string[],
+    limit: number,
+  ): Promise<TaskDescriptionRecord[]> {
+    if (words.length === 0) return [];
+    return this.#owned(ownerId)
+      .filter(({ state }) => {
+        const description = state.description.toLowerCase();
+        return words.every((word) => description.includes(word.toLowerCase()));
+      })
+      .slice(0, limit)
+      .map(({ id, state }) => ({ id, description: state.description }));
   }
 
   async detail(

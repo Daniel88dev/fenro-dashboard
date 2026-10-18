@@ -28,6 +28,11 @@ import {
   listTaskRepositoriesQuery,
 } from "./queries/list-task-repositories";
 import { ListTasksHandler, listTasksQuery } from "./queries/list-tasks";
+import {
+  excerpt,
+  SearchTasksHandler,
+  searchTasksQuery,
+} from "./queries/search-tasks";
 import { TaskBoardHandler, taskBoardQuery } from "./queries/task-board";
 import {
   TaskCountsByRepositoryHandler,
@@ -513,5 +518,82 @@ describe("the board", () => {
     });
 
     expect(!moved.ok && moved.error.code).toBe("invalid-transition");
+  });
+});
+
+describe("searching tasks", () => {
+  const search = (text: string, descriptions = false) =>
+    new SearchTasksHandler(store, clock).handle(
+      searchTasksQuery(OWNER, text, descriptions),
+    );
+  const keys = (hits: readonly { key: string }[]) => hits.map((hit) => hit.key);
+
+  beforeEach(async () => {
+    await create({ title: "GitHub sync reliability", kind: "epic" });
+    await create({
+      title: "Retry the sync after a rate limit",
+      description: "Wait for the reset header.",
+    });
+    await create({
+      title: "Board on touch screens",
+      description: "Keep the board in SYNC with the list after a drop.",
+    });
+    await create({ title: "Someone else's sync" }, "user-2");
+  });
+
+  it("finds tasks and epics by every word of their name, never another owner's", async () => {
+    const found = await search("  Sync  ");
+
+    expect(keys(found.tasks)).toEqual(["T-2"]);
+    expect(keys(found.epics)).toEqual(["T-1"]);
+    expect(found.tasks[0]).toMatchObject({ state: "ready", excerpt: null });
+    expect(keys((await search("rate sync")).tasks)).toEqual(["T-2"]);
+  });
+
+  it("only counts description matches until descriptions are switched on", async () => {
+    const off = await search("sync");
+    expect(off.inDescriptions).toEqual([]);
+    expect(off.moreInDescriptions).toBe(1);
+
+    const on = await search("sync", true);
+    expect(keys(on.inDescriptions)).toEqual(["T-3"]);
+    expect(on.inDescriptions[0]!.excerpt).toBe(
+      "Keep the board in SYNC with the list after a drop.",
+    );
+    expect(on.moreInDescriptions).toBe(0);
+  });
+
+  it("finds a task by its key, the exact number first", async () => {
+    for (let n = 4; n <= 12; n += 1) await create({ title: `Task ${n}` });
+
+    expect(keys((await search("T-1")).byNumber)).toEqual([
+      "T-1",
+      "T-10",
+      "T-11",
+      "T-12",
+    ]);
+    expect(keys((await search("#2")).byNumber)).toEqual(["T-2"]);
+    const twelve = await search("12");
+    expect(keys(twelve.byNumber)).toEqual(["T-12"]);
+    expect(twelve.tasks).toEqual([]);
+    expect(twelve.moreInDescriptions).toBe(0);
+  });
+
+  it("offers recently changed tasks when nothing is typed", async () => {
+    now = new Date("2026-09-24T10:00:00Z");
+    await changeStatus({ actor: DANIEL, task: "T-3", status: "in_progress" });
+
+    const found = await search("");
+    expect(keys(found.recent)).toEqual(["T-3", "T-1", "T-2"]);
+    expect(found.tasks).toEqual([]);
+  });
+
+  it("cuts a long description down to the words around the match", () => {
+    const text = `${"a".repeat(100)}\n\nthe sync ${"b".repeat(200)}`;
+    const cut = excerpt(text, ["sync"]);
+
+    expect(cut.startsWith("…")).toBe(true);
+    expect(cut.endsWith("…")).toBe(true);
+    expect(cut).toContain(" the sync b");
   });
 });

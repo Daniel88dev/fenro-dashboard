@@ -83,6 +83,10 @@ const READABLE_PAIRS: readonly [string, string, string][] = [
   ["state-review-wash", "state-review", "a in-review chip"],
   ["state-done-wash", "state-done", "a done chip"],
   ["state-cancelled-wash", "state-cancelled", "a cancelled chip"],
+  ["bar-active", "bar-ink-muted", "the search field in the top bar"],
+  ["state-running-wash", "ink", "a matched word in a search result"],
+  ["surface-sunken", "ink", "the highlighted search result"],
+  ["surface-sunken", "ink-muted", "a key or excerpt on the highlighted result"],
 ];
 
 // Label dots are graphics, not text: WCAG asks 3:1 against a chip or a row.

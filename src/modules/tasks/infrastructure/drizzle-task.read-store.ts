@@ -5,6 +5,7 @@ import {
   desc,
   eq,
   getTableColumns,
+  ilike,
   inArray,
   sql,
 } from "drizzle-orm";
@@ -16,6 +17,7 @@ import type {
   SkillDetailRecord,
   SkillRecord,
   SkillTextRecord,
+  TaskDescriptionRecord,
   TaskDetailRecord,
   TaskReadStore,
   TaskRecord,
@@ -76,6 +78,10 @@ type ListedTaskRow = Omit<
   "description" | "criteria"
 > & { readonly criteriaTotal: number; readonly criteriaMet: number };
 
+function escapeLike(word: string): string {
+  return word.replace(/[\\%_]/g, "\\$&");
+}
+
 const listedSkill = without(getTableColumns(taskSkill), "instructions");
 type ListedSkillRow = Omit<typeof taskSkill.$inferSelect, "instructions">;
 
@@ -89,6 +95,26 @@ export class DrizzleTaskReadStore implements TaskReadStore {
       .where(eq(taskTable.ownerId, ownerId));
     if (rows.length === 0) return [];
     return this.#records(rows);
+  }
+
+  async descriptionsContaining(
+    ownerId: string,
+    words: readonly string[],
+    limit: number,
+  ): Promise<TaskDescriptionRecord[]> {
+    if (words.length === 0) return [];
+    return this.db
+      .select({ id: taskTable.id, description: taskTable.description })
+      .from(taskTable)
+      .where(
+        and(
+          eq(taskTable.ownerId, ownerId),
+          ...words.map((word) =>
+            ilike(taskTable.description, `%${escapeLike(word)}%`),
+          ),
+        ),
+      )
+      .limit(limit);
   }
 
   async detail(

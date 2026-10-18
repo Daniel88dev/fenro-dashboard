@@ -25,7 +25,28 @@ function applyTheme(theme: Theme) {
   document.cookie = `${THEME_COOKIE}=${theme}; path=/; max-age=${THEME_COOKIE_MAX_AGE}; samesite=lax`;
 }
 
-export function ThemeToggle({ initial }: { initial: Theme }) {
+const TONES = {
+  bar: {
+    chosen: "bg-bar-active text-bar-ink",
+    other: "text-bar-ink-muted hover:text-bar-ink",
+    focus: "focus-visible:outline-bar-ink",
+  },
+  menu: {
+    chosen: "bg-surface-sunken text-ink",
+    other: "text-ink-muted hover:text-ink",
+    focus: "focus-visible:outline-pr",
+  },
+} as const;
+
+export type ThemeToggleTone = keyof typeof TONES;
+
+export function ThemeToggle({
+  initial,
+  tone = "bar",
+}: {
+  initial: Theme;
+  tone?: ThemeToggleTone;
+}) {
   const [theme, setTheme] = useState(initial);
 
   function choose(next: Theme) {
@@ -49,10 +70,8 @@ export function ThemeToggle({ initial }: { initial: Theme }) {
             aria-pressed={chosen}
             title={label}
             onClick={() => choose(choice)}
-            className={`focus-visible:outline-bar-ink grid size-7 cursor-pointer place-items-center rounded-lg focus-visible:outline-2 ${
-              chosen
-                ? "bg-bar-active text-bar-ink"
-                : "text-bar-ink-muted hover:text-bar-ink"
+            className={`${TONES[tone].focus} grid size-7 cursor-pointer place-items-center rounded-lg focus-visible:outline-2 ${
+              chosen ? TONES[tone].chosen : TONES[tone].other
             }`}
           >
             <ChoiceIcon aria-hidden="true" className="size-[15px]" />
