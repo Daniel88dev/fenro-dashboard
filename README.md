@@ -377,7 +377,10 @@ docker run --rm -p 3000:3000 --env-file .env.local fenro-dashboard
 `:latest`, and starts an App Runner deployment of `:latest` without waiting
 for it to finish, so the run stays short. A deployment App Runner refuses
 fails the run; one that fails or rolls back later shows only in the service's
-event log. Run it from the Actions tab to redeploy by hand. It
+event log. Each run also records a GitHub deployment to the `Production`
+environment, so the repository's Deployments panel turns green once App
+Runner has accepted the release, or red when the run fails. Run it from the
+Actions tab to redeploy by hand. It
 signs in to AWS through GitHub's OIDC provider and needs these repository
 variables (Settings → Secrets and variables → Actions → Variables), all of
 which Terraform outputs:
