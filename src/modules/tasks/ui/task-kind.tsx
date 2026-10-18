@@ -57,15 +57,23 @@ export function EpicTag({ title }: { title: string }) {
 export function EpicProgress({
   progress,
   pips = 12,
+  stacked = false,
 }: {
   progress: { readonly done: number; readonly total: number };
   pips?: number;
+  stacked?: boolean;
 }) {
   const { done, total } = progress;
   const shown = Math.min(total, pips);
   const filled = total > pips ? Math.round((done / total) * pips) : done;
   return (
-    <span className="inline-flex items-center gap-2">
+    <span
+      className={
+        stacked
+          ? "flex flex-col items-start gap-1"
+          : "inline-flex items-center gap-2"
+      }
+    >
       {shown > 0 ? (
         <span aria-hidden="true" className="flex gap-0.5">
           {Array.from({ length: shown }, (_, index) => (
@@ -76,7 +84,7 @@ export function EpicProgress({
           ))}
         </span>
       ) : null}
-      <span className="text-epic-strong font-mono text-[12px]">
+      <span className="text-epic-strong font-mono text-[12px] whitespace-nowrap">
         {total === 0 ? "no tasks yet" : `${done} of ${total} done`}
       </span>
     </span>

@@ -66,7 +66,7 @@ export function EpicRail({
               <span className="truncate">{epic.title}</span>
               {epic.progress ? (
                 <span className="max-md:hidden">
-                  <EpicProgress progress={epic.progress} pips={10} />
+                  <EpicProgress progress={epic.progress} pips={10} stacked />
                 </span>
               ) : null}
             </span>
