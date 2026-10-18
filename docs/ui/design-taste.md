@@ -76,3 +76,4 @@ disagree:
 | 2026-10-16 | Epics, task menu and board, 2 directions | [canvas](https://claude.ai/artifact/NPUL4ziEJ5ZyiPMDqjdzXB)                                 | B (epic rail) picked          |
 | 2026-10-17 | Task state colours, 2 directions         | [canvas](https://claude.ai/artifact/9iA2z2nEw3WumeLMrQUJXM)                                 | A (colour only) picked        |
 | 2026-10-18 | Board Done column window, 2 controls     | [canvas](https://claude.ai/artifact/7REudfsa4nEBPMpePaeWcf)                                 | B (menu by the count) picked  |
+| 2026-10-18 | Description Markdown editor, 2 layouts   | [page](https://claude.ai/artifact/NTAtgryorFCUrJbcukoryt)                                   | A (tabs on the box) picked    |
