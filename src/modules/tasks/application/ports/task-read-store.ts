@@ -105,6 +105,7 @@ export type TaskRecord = {
   readonly journalEntries: number;
   readonly createdAt: Date;
   readonly updatedAt: Date;
+  readonly completedAt: Date | null;
 };
 
 export type TaskDetailRecord = TaskRecord & {
@@ -142,5 +143,4 @@ export type TaskDetailRecord = TaskRecord & {
   }[];
   /** Oldest first. */
   readonly pictures: readonly PictureRecord[];
-  readonly completedAt: Date | null;
 };

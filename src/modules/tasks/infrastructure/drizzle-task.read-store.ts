@@ -189,7 +189,6 @@ export class DrizzleTaskReadStore implements TaskReadStore {
             : null,
         ),
       ),
-      completedAt: row.completedAt,
     };
   }
 
@@ -388,6 +387,7 @@ export class DrizzleTaskReadStore implements TaskReadStore {
       journalEntries: entries.get(row.id) ?? 0,
       createdAt: row.createdAt,
       updatedAt: row.updatedAt,
+      completedAt: row.completedAt,
     }));
   }
 }

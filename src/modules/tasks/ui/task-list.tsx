@@ -7,12 +7,14 @@ import {
 import Form from "next/form";
 import Link from "next/link";
 
-import type {
-  TaskBoard as TaskBoardResult,
-  TaskListItem,
-  TaskList as TaskListResult,
-  TaskRepositoryItem,
-  TaskState,
+import {
+  DONE_WINDOWS,
+  type DoneWindow,
+  type TaskBoard as TaskBoardResult,
+  type TaskListItem,
+  type TaskList as TaskListResult,
+  type TaskRepositoryItem,
+  type TaskState,
 } from "@/modules/tasks/application/queries/read-models";
 
 import { EpicRail } from "./epic-rail";
@@ -45,6 +47,7 @@ export type TaskListFilter = {
   readonly labels: readonly string[];
   readonly epic?: EpicScope;
   readonly layout?: TaskLayout;
+  readonly done?: DoneWindow;
 };
 
 /** A label name never holds a comma. */
@@ -66,6 +69,9 @@ function hrefFor(filter: TaskListFilter): string {
     params.set("view", filter.view);
   }
   if (filter.layout === "board") params.set("layout", "board");
+  if (filter.layout === "board" && filter.done && filter.done !== "week") {
+    params.set("done", filter.done);
+  }
   if (filter.epic) params.set("epic", filter.epic);
   if (filter.repository) params.set("repository", filter.repository);
   if (filter.labels.length > 0) params.set("labels", filter.labels.join(","));
@@ -106,6 +112,10 @@ export function parseEpicParam(value: string): EpicScope {
   const scope = value.trim();
   if (scope === "epics" || scope === "none") return scope;
   return /^t-\d+$/i.test(scope) ? scope.toUpperCase() : "";
+}
+
+export function parseDoneParam(value: string): DoneWindow {
+  return DONE_WINDOWS.find((window) => window === value) ?? "week";
 }
 
 export function TaskList({
@@ -390,6 +400,9 @@ function hiddenFields(filter: TaskListFilter): [string, string][] {
   if (filter.labels.length > 0)
     fields.push(["labels", filter.labels.join(",")]);
   if (filter.layout === "board") fields.push(["layout", "board"]);
+  if (filter.layout === "board" && filter.done && filter.done !== "week") {
+    fields.push(["done", filter.done]);
+  }
   return fields;
 }
 

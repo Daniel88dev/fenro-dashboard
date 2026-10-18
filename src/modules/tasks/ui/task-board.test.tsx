@@ -41,11 +41,11 @@ const epic: TaskListItem = {
 };
 
 const columns: BoardColumn[] = [
-  { status: "backlog", total: 0, tasks: [] },
-  { status: "todo", total: 1, tasks: [card] },
-  { status: "in_progress", total: 0, tasks: [] },
-  { status: "in_review", total: 0, tasks: [] },
-  { status: "done", total: 0, tasks: [] },
+  { status: "backlog", total: 0, tasks: [], finishedEarlier: 0 },
+  { status: "todo", total: 1, tasks: [card], finishedEarlier: 0 },
+  { status: "in_progress", total: 0, tasks: [], finishedEarlier: 0 },
+  { status: "in_review", total: 0, tasks: [], finishedEarlier: 0 },
+  { status: "done", total: 0, tasks: [], finishedEarlier: 0 },
 ];
 
 function column(name: string) {

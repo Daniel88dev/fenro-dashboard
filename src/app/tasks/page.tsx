@@ -10,6 +10,7 @@ import { listTasksQuery } from "@/modules/tasks/application/queries/list-tasks";
 import { taskBoardQuery } from "@/modules/tasks/application/queries/task-board";
 import {
   isTaskView,
+  parseDoneParam,
   parseEpicParam,
   parseLabelsParam,
   TASK_VIEWS,
@@ -71,6 +72,7 @@ async function TasksScreen({
     labels: parseLabelsParam(one(params.labels)),
     epic: parseEpicParam(one(params.epic)),
     layout: one(params.layout) === "board" ? "board" : "list",
+    done: parseDoneParam(one(params.done)),
   };
 
   const { container, ownerId } = await tasksContext();
@@ -97,7 +99,7 @@ async function TasksScreen({
       ask(listTaskRepositoriesQuery(ownerId)),
       ask(listTasksQuery(ownerId, { kinds: ["epic"], limit: EPIC_LIMIT })),
       onBoard
-        ? ask(taskBoardQuery(ownerId, scope))
+        ? ask(taskBoardQuery(ownerId, scope, filter.done))
         : ask(
             listTasksQuery(ownerId, {
               ...VIEW_FILTERS[filter.view],
