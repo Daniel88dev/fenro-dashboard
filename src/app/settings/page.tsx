@@ -1,6 +1,8 @@
 import { Suspense } from "react";
 
 import { DashboardChrome } from "@/modules/github-insights/ui/dashboard-chrome";
+import { myGroupsQuery } from "@/modules/groups/application/queries/my-groups";
+import { GroupsSection } from "@/modules/groups/ui/groups-section";
 import { accessTokensQuery } from "@/modules/identity/application/queries/access-tokens";
 import { signedInUserQuery } from "@/modules/identity/application/queries/signed-in-user";
 import { AccountSection } from "@/modules/identity/ui/account-section";
@@ -9,13 +11,14 @@ import { SignInPanel } from "@/modules/identity/ui/sign-in-panel";
 import { getEnv } from "@/shared/config/env";
 import { getContainer } from "@/shared/infrastructure/container";
 
+import { answerInvitationAction, createGroupAction } from "../groups/actions";
 import { signInWithGitHubAction, signOutAction } from "../sign-in/actions";
 import { SignedInAccount } from "../signed-in-account";
 import { issueAccessTokenAction, revokeAccessTokenAction } from "./actions";
 
 export const metadata = {
   title: "Settings · Fenro Dashboard",
-  description: "Tokens that let AI agents work on your tasks.",
+  description: "Your groups, and tokens that let AI agents work on your tasks.",
 };
 
 export default function SettingsPage() {
@@ -52,10 +55,19 @@ async function SettingsSections() {
     );
   }
 
-  const tokens = await queryBus.ask(accessTokensQuery(user.id));
+  const [tokens, { groups, invitations }] = await Promise.all([
+    queryBus.ask(accessTokensQuery(user.id)),
+    queryBus.ask(myGroupsQuery({ id: user.id, login: user.githubLogin })),
+  ]);
   return (
     <>
       <AccountSection user={user} signOutAction={signOutAction} />
+      <GroupsSection
+        groups={groups}
+        invitations={invitations}
+        createAction={createGroupAction}
+        answerAction={answerInvitationAction}
+      />
       <AgentAccess
         serverUrl={new URL("/api/mcp", getEnv().APP_URL).toString()}
         tokens={tokens}

@@ -244,6 +244,25 @@ describe.skipIf(!url)("Postgres tasks adapters", () => {
       expect(await repository.nextNumber("user-2")).toBe(1);
     });
 
+    it("keeps a group's key prefix and reads several owners at once", async () => {
+      await saved(
+        aTask({ number: 1 }),
+        aTask({ number: 1, ownerId: "group-hal", keyPrefix: "HAL" }),
+      );
+
+      const records = await new DrizzleTaskReadStore(db).records([
+        "user-1",
+        "group-hal",
+      ]);
+      const graph = await new DrizzleTaskRepository(db).graph("group-hal");
+
+      expect(
+        records.map((row) => `${row.ownerId}:${row.keyPrefix}-${row.number}`),
+      ).toEqual(expect.arrayContaining(["user-1:T-1", "group-hal:HAL-1"]));
+      expect(graph.keyPrefix).toBe("HAL");
+      expect(await new DrizzleTaskReadStore(db).records([])).toEqual([]);
+    });
+
     it("builds the graph from blocking links and parents", async () => {
       const parent = aTask({ number: 1 });
       const child = aTask({ number: 2, parentId: parent.id.value });
