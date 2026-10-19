@@ -885,7 +885,7 @@ export function TaskDetail({
           </div>
         </div>
 
-        <aside className="flex flex-col gap-6 lg:sticky lg:top-6">
+        <aside className="flex flex-col gap-6 lg:sticky lg:top-20">
           <div className="flex flex-col gap-1.5">
             <h2 className="text-ink text-[13px] font-semibold">Agent</h2>
             <AgentLine task={task} />

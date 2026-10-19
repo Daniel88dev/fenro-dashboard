@@ -67,7 +67,7 @@ export function DashboardChrome({
 }) {
   return (
     <div className="bg-ground text-ink flex min-h-full flex-1 flex-col font-sans">
-      <header className="bg-bar text-bar-ink flex shrink-0 flex-wrap items-center gap-x-3 px-4 sm:flex-nowrap sm:gap-x-6 sm:px-[26px]">
+      <header className="bg-bar text-bar-ink flex shrink-0 flex-wrap items-center gap-x-3 px-4 sm:sticky sm:top-0 sm:z-40 sm:flex-nowrap sm:gap-x-6 sm:px-[26px]">
         <span className="text-bar-ink flex h-14 items-center gap-2 font-mono text-[15px] font-semibold tracking-tight">
           <FenroMark className="size-5" />
           Fenro
