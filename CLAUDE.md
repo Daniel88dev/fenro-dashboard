@@ -28,7 +28,8 @@ src/
 └── shared/{domain,application,infrastructure,config}/
 ```
 
-Contexts today: `github-insights`, `tasks`, and `identity` (GitHub sign-in).
+Contexts today: `github-insights`, `tasks`, `identity` (GitHub sign-in) and
+`groups` (shared task spaces).
 Add code, don't reshape the folders without a reason.
 
 ## Conventions
