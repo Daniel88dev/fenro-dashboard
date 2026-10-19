@@ -46,7 +46,7 @@ export default async function RootLayout({
     <html
       lang="en"
       data-theme={themeAttribute(theme)}
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased sm:scroll-pt-14`}
     >
       <head>
         {sentry && (
