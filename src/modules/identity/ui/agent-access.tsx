@@ -46,6 +46,32 @@ export function connectCommand(serverUrl: string, secret: string): string {
   return `claude mcp add --transport http fenro ${serverUrl} --header "Authorization: Bearer ${secret}"`;
 }
 
+export function cursorConfig(serverUrl: string, secret: string): string {
+  return JSON.stringify(
+    {
+      mcpServers: {
+        fenro: {
+          url: serverUrl,
+          headers: { Authorization: `Bearer ${secret}` },
+        },
+      },
+    },
+    null,
+    2,
+  );
+}
+
+export function codexConfig(serverUrl: string, secret: string): string {
+  return [
+    "[mcp_servers.fenro]",
+    `url = "${serverUrl}"`,
+    `http_headers = { "Authorization" = "Bearer ${secret}" }`,
+  ].join("\n");
+}
+
+const AGENTS = ["Claude Code", "Cursor", "Codex", "ChatGPT"] as const;
+type Agent = (typeof AGENTS)[number];
+
 export function AgentAccess({
   serverUrl,
   tokens,
@@ -66,6 +92,11 @@ export function AgentAccess({
     issueAction,
     EMPTY_ISSUE_STATE,
   );
+  const [showRevoked, setShowRevoked] = useState(false);
+  const revokedCount = tokens.filter((t) => t.state === "revoked").length;
+  const shown = showRevoked
+    ? tokens
+    : tokens.filter((t) => t.state !== "revoked");
 
   return (
     <section
@@ -170,31 +201,61 @@ export function AgentAccess({
           No tokens yet. Agents cannot reach your tasks until you make one.
         </p>
       ) : (
-        <div className="border-hairline bg-surface overflow-hidden rounded-xl border">
-          <div
-            aria-hidden="true"
-            className={`${TOKEN_GRID} bg-surface-raised text-ink-muted border-hairline hidden border-b py-2.5 text-[12px] font-medium md:grid`}
-          >
-            <span>Name</span>
-            <span>Access</span>
-            <span>Created</span>
-            <span>Expires</span>
-            <span>Last used</span>
-            <span>State</span>
-            <span />
-          </div>
-          <ul
-            aria-label="Agent tokens"
-            className="divide-hairline-soft divide-y"
-          >
-            {tokens.map((token) => (
-              <TokenRow
-                key={token.id}
-                token={token}
-                revokeAction={revokeAction}
-              />
-            ))}
-          </ul>
+        <div className="flex flex-col gap-2.5">
+          {revokedCount > 0 ? (
+            <div className="flex items-center justify-end">
+              <button
+                type="button"
+                aria-pressed={showRevoked}
+                onClick={() => setShowRevoked((on) => !on)}
+                className={`focus-visible:outline-pr inline-flex h-[28px] cursor-pointer items-center gap-1.5 rounded-full border px-3 text-[12px] font-medium focus-visible:outline-2 ${
+                  showRevoked
+                    ? "border-pr bg-pr-wash text-pr-strong"
+                    : "border-hairline text-ink-soft hover:bg-surface-sunken"
+                }`}
+              >
+                {showRevoked ? (
+                  <Check aria-hidden="true" className="size-3.5" />
+                ) : null}
+                Show revoked
+                <span className="text-ink-muted tabular-nums">
+                  {revokedCount}
+                </span>
+              </button>
+            </div>
+          ) : null}
+          {shown.length === 0 ? (
+            <p className="text-ink-muted border-hairline bg-surface rounded-xl border px-4 py-3 text-[13px]">
+              No active tokens. Every token you made has been revoked.
+            </p>
+          ) : (
+            <div className="border-hairline bg-surface overflow-hidden rounded-xl border">
+              <div
+                aria-hidden="true"
+                className={`${TOKEN_GRID} bg-surface-raised text-ink-muted border-hairline hidden border-b py-2.5 text-[12px] font-medium md:grid`}
+              >
+                <span>Name</span>
+                <span>Access</span>
+                <span>Created</span>
+                <span>Expires</span>
+                <span>Last used</span>
+                <span>State</span>
+                <span />
+              </div>
+              <ul
+                aria-label="Agent tokens"
+                className="divide-hairline-soft divide-y"
+              >
+                {shown.map((token) => (
+                  <TokenRow
+                    key={token.id}
+                    token={token}
+                    revokeAction={revokeAction}
+                  />
+                ))}
+              </ul>
+            </div>
+          )}
         </div>
       )}
     </section>
@@ -210,7 +271,6 @@ function NewSecret({
   secret: string;
   serverUrl: string;
 }) {
-  const command = connectCommand(serverUrl, secret);
   return (
     <div
       role="status"
@@ -221,11 +281,70 @@ function NewSecret({
         the one time you see it.
       </p>
       <CopyLine label="Token" value={secret} button="Copy token" />
-      <CopyLine
-        label="Connect Claude Code"
-        value={command}
-        button="Copy command"
-      />
+      <ConnectAgent secret={secret} serverUrl={serverUrl} />
+    </div>
+  );
+}
+
+function ConnectAgent({
+  secret,
+  serverUrl,
+}: {
+  secret: string;
+  serverUrl: string;
+}) {
+  const [agent, setAgent] = useState<Agent>("Claude Code");
+  return (
+    <div className="flex min-w-0 flex-col gap-2">
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="text-ink-soft text-[12px]">Connect</span>
+        <div
+          role="group"
+          aria-label="Agent to connect"
+          className="bg-surface inline-flex flex-wrap gap-0.5 rounded-lg p-0.5"
+        >
+          {AGENTS.map((option) => (
+            <button
+              key={option}
+              type="button"
+              aria-pressed={agent === option}
+              onClick={() => setAgent(option)}
+              className={`focus-visible:outline-pr h-[26px] cursor-pointer rounded-md px-2.5 text-[12px] focus-visible:outline-2 ${
+                agent === option
+                  ? "bg-ink text-ground font-medium"
+                  : "text-ink-muted hover:text-ink"
+              }`}
+            >
+              {option}
+            </button>
+          ))}
+        </div>
+      </div>
+      {agent === "Claude Code" ? (
+        <CopyLine
+          label="Run in a terminal"
+          value={connectCommand(serverUrl, secret)}
+          button="Copy command"
+        />
+      ) : agent === "Cursor" ? (
+        <CopyLine
+          label="Add to ~/.cursor/mcp.json, or .cursor/mcp.json in a project"
+          value={cursorConfig(serverUrl, secret)}
+          button="Copy config"
+        />
+      ) : agent === "Codex" ? (
+        <CopyLine
+          label="Add to ~/.codex/config.toml"
+          value={codexConfig(serverUrl, secret)}
+          button="Copy config"
+        />
+      ) : (
+        <p className="text-ink-soft max-w-[72ch] text-[12.5px] leading-relaxed">
+          ChatGPT connects to MCP servers only through OAuth or with no
+          authentication, so it cannot send a Fenro token yet. Codex, OpenAI’s
+          coding agent, can: pick Codex above.
+        </p>
+      )}
     </div>
   );
 }
@@ -255,13 +374,13 @@ function CopyLine({
     <div className="flex min-w-0 flex-col gap-1">
       <span className="text-ink-soft text-[12px]">{label}</span>
       <div className="flex items-start gap-2">
-        <code className="border-hairline bg-surface text-ink min-h-[34px] min-w-0 flex-1 rounded-lg border px-3 py-[7px] font-mono text-[12px] leading-[18px] break-all select-all sm:flex-initial">
+        <code className="border-hairline bg-surface text-ink min-h-[34px] min-w-0 flex-1 rounded-lg border px-3 py-[7px] font-mono text-[12px] leading-[18px] break-all whitespace-pre-wrap select-all sm:flex-initial">
           {value}
         </code>
         <button
           type="button"
           onClick={copy}
-          aria-label={`Copy ${label.toLowerCase()}`}
+          aria-label={button}
           className={`${SECONDARY} shrink-0`}
         >
           {copied ? (

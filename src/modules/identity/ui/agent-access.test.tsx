@@ -53,6 +53,86 @@ describe("AgentAccess", () => {
     ).toBeTruthy();
   });
 
+  it("gives Cursor and Codex a config with the token as a bearer header, and says ChatGPT cannot use one", async () => {
+    render(
+      <AgentAccess
+        serverUrl={SERVER}
+        tokens={[]}
+        issueAction={async () => ({
+          error: null,
+          issued: { name: "Review bot", secret: SECRET },
+        })}
+        revokeAction={vi.fn()}
+      />,
+    );
+    fireEvent.change(screen.getByLabelText("Name"), {
+      target: { value: "Review bot" },
+    });
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Create token" }));
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Cursor" }));
+    const cursor = JSON.parse(
+      screen.getByText(/mcpServers/).textContent ?? "",
+    ) as {
+      mcpServers: { fenro: { url: string; headers: Record<string, string> } };
+    };
+    expect(cursor.mcpServers.fenro).toEqual({
+      url: SERVER,
+      headers: { Authorization: `Bearer ${SECRET}` },
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Codex" }));
+    expect(screen.getByText(/\[mcp_servers\.fenro\]/).textContent).toBe(
+      `[mcp_servers.fenro]\nurl = "${SERVER}"\nhttp_headers = { "Authorization" = "Bearer ${SECRET}" }`,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "ChatGPT" }));
+    expect(screen.getByText(/cannot send a Fenro token/)).toBeTruthy();
+    expect(screen.queryByText(new RegExp(`Bearer ${SECRET}`))).toBeNull();
+  });
+
+  it("hides revoked tokens until the person asks to see them", () => {
+    render(
+      <AgentAccess
+        serverUrl={SERVER}
+        tokens={[
+          token,
+          { ...token, id: "token-2", name: "Old", state: "revoked" },
+          { ...token, id: "token-3", name: "Lapsed", state: "expired" },
+        ]}
+        issueAction={vi.fn()}
+        revokeAction={vi.fn()}
+      />,
+    );
+
+    const list = screen.getByRole("list", { name: "Agent tokens" });
+    expect(within(list).queryByText("Old")).toBeNull();
+    expect(within(list).getByText("Lapsed")).toBeTruthy();
+
+    const toggle = screen.getByRole("button", { name: /Show revoked/ });
+    expect(toggle.getAttribute("aria-pressed")).toBe("false");
+    fireEvent.click(toggle);
+    expect(toggle.getAttribute("aria-pressed")).toBe("true");
+    expect(within(list).getByText("Old")).toBeTruthy();
+  });
+
+  it("says so when every token is revoked", () => {
+    render(
+      <AgentAccess
+        serverUrl={SERVER}
+        tokens={[{ ...token, state: "revoked" }]}
+        issueAction={vi.fn()}
+        revokeAction={vi.fn()}
+      />,
+    );
+    expect(screen.queryByRole("list", { name: "Agent tokens" })).toBeNull();
+    expect(
+      screen.getByText(/Every token you made has been revoked/),
+    ).toBeTruthy();
+  });
+
   it("lists tokens by name and hint, never by secret, with a way to revoke", () => {
     render(
       <AgentAccess
@@ -65,6 +145,7 @@ describe("AgentAccess", () => {
         revokeAction={vi.fn()}
       />,
     );
+    fireEvent.click(screen.getByRole("button", { name: /Show revoked/ }));
 
     const list = screen.getByRole("list", { name: "Agent tokens" });
     expect(within(list).getAllByText(/…WXYZ/)).toHaveLength(2);
