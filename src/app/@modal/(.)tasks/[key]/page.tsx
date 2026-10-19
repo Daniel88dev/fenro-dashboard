@@ -14,14 +14,13 @@ const JOURNAL_LIMIT = 20;
 export default async function TaskDialogPage({
   params,
 }: PageProps<"/tasks/[key]">) {
-  const { key } = await params;
-  const { container, ownerId } = await tasksContext();
-  if (!ownerId) return null;
+  const key = decodeURIComponent((await params).key);
+  const { container, spaces } = await tasksContext();
+  if (!spaces) return null;
 
+  const ownerId = spaces.ownerOf(key);
   const [task, labels] = await Promise.all([
-    container.queryBus.ask(
-      taskBriefQuery(ownerId, decodeURIComponent(key), JOURNAL_LIMIT),
-    ),
+    container.queryBus.ask(taskBriefQuery(ownerId, key, JOURNAL_LIMIT)),
     container.queryBus.ask(listLabelsQuery(ownerId)),
   ]);
   if (!task.ok) notFound();

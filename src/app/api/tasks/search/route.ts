@@ -2,6 +2,8 @@ import { signedInUserQuery } from "@/modules/identity/application/queries/signed
 import { searchTasksQuery } from "@/modules/tasks/application/queries/search-tasks";
 import { getContainer } from "@/shared/infrastructure/container";
 
+import { spacesOf } from "../../../tasks/spaces";
+
 // A GET route rather than a server action: the palette asks on every
 // keystroke, and server actions queue one behind another and can't be aborted.
 export async function GET(request: Request): Promise<Response> {
@@ -15,9 +17,10 @@ export async function GET(request: Request): Promise<Response> {
   }
 
   const params = new URL(request.url).searchParams;
+  const spaces = await spacesOf(queryBus, user);
   const search = await queryBus.ask(
     searchTasksQuery(
-      user.id,
+      spaces.all.map((space) => space.ownerId),
       params.get("q") ?? "",
       params.get("descriptions") === "1",
     ),

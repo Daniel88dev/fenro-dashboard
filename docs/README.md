@@ -3,6 +3,8 @@
 - **[Task management for AI agents](./tasks/agent-task-management.md)**: the
   `Task` model, the rules it enforces, the MCP server's tools and how agents
   authenticate.
+- **[Groups and shared tasks](./groups/groups.md)**: groups, their task key
+  prefixes, how a task's space is resolved, and what agents reach.
 - **[Designing screens](./ui/design-taste.md)**: how every new screen starts as
   a `design-taste-frontend` prototype, the project rules that override the
   skill, and the log of directions Daniel picked.

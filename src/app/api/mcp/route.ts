@@ -11,6 +11,8 @@ import {
 
 import { recordAccessTokenUseCommand } from "@/modules/identity/application/commands/record-access-token-use";
 import { authenticateAgentQuery } from "@/modules/identity/application/queries/authenticate-agent";
+import { myGroupsQuery } from "@/modules/groups/application/queries/my-groups";
+import { personalSpace, type TaskSpace } from "@/modules/tasks/domain";
 import {
   createTasksMcpServer,
   type AgentAccess,
@@ -49,6 +51,9 @@ async function handle(request: Request): Promise<Response> {
       await commandBus.dispatch(
         recordAccessTokenUseCommand(agent.value.tokenId),
       );
+      const { groups } = await queryBus.ask(
+        myGroupsQuery({ id: agent.value.ownerId, login: "" }),
+      );
       return {
         token,
         clientId: `token:${agent.value.tokenId}`,
@@ -56,6 +61,15 @@ async function handle(request: Request): Promise<Response> {
         expiresAt: Math.floor(agent.value.expiresAt.getTime() / 1000),
         extra: {
           ownerId: agent.value.ownerId,
+          spaces: [
+            personalSpace(agent.value.ownerId),
+            ...groups.map((group): TaskSpace => ({
+              ownerId: group.id,
+              prefix: group.prefix,
+              name: group.name,
+              kind: "group",
+            })),
+          ],
           tokenId: agent.value.tokenId,
           name: agent.value.name,
         },
@@ -73,13 +87,15 @@ async function handle(request: Request): Promise<Response> {
 }
 
 function toAccess(auth: AuthInfo): AgentAccess {
-  const { ownerId, tokenId, name } = auth.extra as {
+  const { ownerId, spaces, tokenId, name } = auth.extra as {
     ownerId: string;
+    spaces: readonly TaskSpace[];
     tokenId: string;
     name: string;
   };
   return {
     ownerId,
+    spaces,
     actor: { kind: "agent", id: tokenId, name },
     canWrite: auth.scopes.includes("tasks:write"),
   };

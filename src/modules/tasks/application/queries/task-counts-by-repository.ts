@@ -1,16 +1,16 @@
 import type { Query, QueryHandler } from "@/shared/application";
 
-import type { TaskReadStore } from "../ports/task-read-store";
+import type { TaskOwners, TaskReadStore } from "../ports/task-read-store";
 import { countsByRepository, TaskIndex } from "./projections";
 import type { TaskCountsByRepository } from "./read-models";
 
 export type TaskCountsByRepositoryQuery = Query<
   "tasks.task-counts-by-repository",
   TaskCountsByRepository
-> & { readonly ownerId: string };
+> & { readonly ownerId: TaskOwners };
 
 export function taskCountsByRepositoryQuery(
-  ownerId: string,
+  ownerId: TaskOwners,
 ): TaskCountsByRepositoryQuery {
   return { type: "tasks.task-counts-by-repository", ownerId };
 }

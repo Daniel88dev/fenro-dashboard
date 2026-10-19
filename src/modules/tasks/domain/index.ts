@@ -17,5 +17,6 @@ export * from "./task-graph";
 export * from "./task-key";
 export * from "./task-kind";
 export * from "./task-link";
+export * from "./task-space";
 export * from "./task-status";
 export * from "./task.repository";

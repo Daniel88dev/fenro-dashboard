@@ -1,8 +1,12 @@
-import { formatTaskKey, isOpen, parseTaskKey } from "@/modules/tasks/domain";
+import { isOpen, keyMatches, readTaskKey } from "@/modules/tasks/domain";
 import type { Query, QueryHandler } from "@/shared/application";
 
-import type { TaskReadStore, TaskRecord } from "../ports/task-read-store";
-import { TaskIndex } from "./projections";
+import type {
+  TaskOwners,
+  TaskReadStore,
+  TaskRecord,
+} from "../ports/task-read-store";
+import { TaskIndex, taskKey } from "./projections";
 import type { TaskSearch, TaskSearchHit } from "./read-models";
 
 export const SEARCH_GROUP_LIMIT = 8;
@@ -11,13 +15,13 @@ export const DESCRIPTION_SCAN_LIMIT = 100;
 export const SEARCH_TEXT_MAX = 200;
 
 export type SearchTasksQuery = Query<"tasks.search-tasks", TaskSearch> & {
-  readonly ownerId: string;
+  readonly ownerId: TaskOwners;
   readonly text: string;
   readonly descriptions: boolean;
 };
 
 export function searchTasksQuery(
-  ownerId: string,
+  ownerId: TaskOwners,
   text: string,
   descriptions = false,
 ): SearchTasksQuery {
@@ -62,16 +66,18 @@ export class SearchTasksHandler implements QueryHandler<
       };
     }
 
-    const number = parseTaskKey(text);
-    const byNumber = number.ok
+    const key = readTaskKey(text);
+    const byNumber = key.ok
       ? index.records
-          .filter((record) =>
-            String(record.number).startsWith(String(number.value)),
+          .filter(
+            (record) =>
+              keyMatches(key.value, record.keyPrefix) &&
+              String(record.number).startsWith(String(key.value.number)),
           )
           .sort(
             (a, b) =>
-              Number(b.number === number.value) -
-                Number(a.number === number.value) || a.number - b.number,
+              Number(b.number === key.value.number) -
+                Number(a.number === key.value.number) || a.number - b.number,
           )
           .slice(0, SEARCH_GROUP_LIMIT)
       : [];
@@ -87,15 +93,23 @@ export class SearchTasksHandler implements QueryHandler<
       .sort(byRelevance);
     const titled = new Set(inTitle.map((record) => record.id));
 
-    const described = number.ok
+    const described = key.ok
       ? []
       : (
-          await this.tasks.descriptionsContaining(
-            query.ownerId,
-            words,
-            DESCRIPTION_SCAN_LIMIT,
+          await Promise.all(
+            [query.ownerId]
+              .flat()
+              .map((ownerId) =>
+                this.tasks.descriptionsContaining(
+                  ownerId,
+                  words,
+                  DESCRIPTION_SCAN_LIMIT,
+                ),
+              ),
           )
-        ).filter(({ id }) => !titled.has(id) && index.get(id));
+        )
+          .flat()
+          .filter(({ id }) => !titled.has(id) && index.get(id));
 
     return {
       recent: [],
@@ -150,7 +164,7 @@ function searchHit(
   excerpt: string | null,
 ): TaskSearchHit {
   return {
-    key: formatTaskKey(record.number),
+    key: taskKey(record),
     kind: record.kind,
     title: record.title,
     state: index.state(record),

@@ -12,6 +12,7 @@ export function newTaskDefaults(params: Params): NewTaskDefaults {
     repository: one(params.repository),
     parent: one(params.parent),
     source,
+    space: one(params.space).toUpperCase(),
     title:
       one(params.title) ||
       (pullRequest ? `Get pull request #${pullRequest[1]} merged` : ""),

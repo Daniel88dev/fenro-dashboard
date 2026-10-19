@@ -1,5 +1,5 @@
 import {
-  parseTaskKey,
+  readTaskKey,
   taskNotFound,
   type Actor,
   type TaskError,
@@ -11,6 +11,7 @@ import { NOT_CONFIGURED } from "../commands/add-picture";
 import type { PictureStorage } from "../ports/picture-storage";
 import type { TaskReadStore } from "../ports/task-read-store";
 import type { UploadTickets } from "../ports/upload-tickets";
+import { matchesKey } from "./projections";
 
 /** Long enough to find the file and run curl, short enough not to leak. */
 export const UPLOAD_TICKET_TTL_MS = 15 * 60 * 1000;
@@ -51,9 +52,9 @@ export class PictureUploadTicketHandler implements QueryHandler<
 
     const reference = query.task.trim();
     const records = await this.tasks.records(query.ownerId);
-    const number = parseTaskKey(reference);
-    const task = number.ok
-      ? records.find((record) => record.number === number.value)
+    const key = readTaskKey(reference);
+    const task = key.ok
+      ? records.find((record) => matchesKey(record, key.value))
       : records.find((record) => record.id === reference.toLowerCase());
     if (!task) return err(taskNotFound(reference));
 

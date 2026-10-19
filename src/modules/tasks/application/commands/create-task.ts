@@ -28,6 +28,8 @@ export type ReferenceInput = {
 
 export type CreateTaskCommand = TaskCommand<"tasks.create-task"> & {
   readonly taskId: string;
+  /** The space's prefix; a personal task can leave it out. */
+  readonly keyPrefix?: string;
   readonly kind?: TaskKind;
   readonly title: string;
   readonly description?: string;
@@ -80,6 +82,7 @@ export class CreateTaskHandler implements CommandHandler<CreateTaskCommand> {
       const created = Task.create({
         id: command.taskId,
         ownerId,
+        keyPrefix: command.keyPrefix,
         number: await this.tasks.nextNumber(ownerId),
         kind: command.kind,
         title: command.title,

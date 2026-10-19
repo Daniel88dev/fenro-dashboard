@@ -2,6 +2,7 @@ import type { AddPictureCommand } from "@/modules/tasks/application/commands/add
 import { signedInUserQuery } from "@/modules/identity/application/queries/signed-in-user";
 import { getContainer } from "@/shared/infrastructure/container";
 
+import { spacesOf } from "../../../../tasks/spaces";
 import { failure, pictureBytes, refusal } from "../../../pictures/responses";
 
 // A route handler rather than a server action, so the browser can show the
@@ -18,13 +19,15 @@ export async function POST(
   const bytes = await pictureBytes(request);
   if (bytes instanceof Response) return bytes;
 
+  const task = decodeURIComponent(key);
+  const spaces = await spacesOf(queryBus, user);
   const pictureId = crypto.randomUUID();
   const command: AddPictureCommand = {
     type: "tasks.add-picture",
-    ownerId: user.id,
+    ownerId: spaces.ownerOf(task),
     actor: { kind: "human", id: user.id, name: user.githubLogin },
     pictureId,
-    task: decodeURIComponent(key),
+    task,
     fileName: new URL(request.url).searchParams.get("name") ?? "picture",
     bytes,
   };

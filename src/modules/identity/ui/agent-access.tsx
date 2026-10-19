@@ -112,8 +112,8 @@ export function AgentAccess({
         </h2>
         <p className="text-ink-muted max-w-[72ch] text-[13px] leading-relaxed">
           Agents connect to the tasks MCP server with a token made here and work
-          on your tasks as you. Give each agent its own token and revoke it when
-          you stop using it.
+          as you, on your own tasks and those of every group you belong to. Give
+          each agent its own token and revoke it when you stop using it.
         </p>
       </div>
 

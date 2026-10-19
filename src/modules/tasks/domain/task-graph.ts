@@ -1,4 +1,4 @@
-import { formatTaskKey } from "./task-key";
+import { formatTaskKey, PERSONAL_KEY_PREFIX } from "./task-key";
 import type { TaskSurroundings } from "./task";
 import { isOpen, type TaskStatus } from "./task-status";
 
@@ -18,7 +18,10 @@ export class TaskGraph {
   readonly #nodes: ReadonlyMap<string, TaskNode>;
   readonly #children = new Map<string, string[]>();
 
-  constructor(nodes: Iterable<TaskNode>) {
+  constructor(
+    nodes: Iterable<TaskNode>,
+    readonly keyPrefix: string = PERSONAL_KEY_PREFIX,
+  ) {
     this.#nodes = new Map([...nodes].map((node) => [node.id, node]));
     for (const node of this.#nodes.values()) {
       if (!node.parentId) continue;
@@ -29,7 +32,7 @@ export class TaskGraph {
   }
 
   with(node: TaskNode): TaskGraph {
-    return new TaskGraph([...this.#nodes.values(), node]);
+    return new TaskGraph([...this.#nodes.values(), node], this.keyPrefix);
   }
 
   surroundingsOf(id: string): TaskSurroundings {
@@ -37,11 +40,11 @@ export class TaskGraph {
     const openBlockers = (node?.blockedBy ?? [])
       .map((blockerId) => this.#nodes.get(blockerId))
       .filter((blocker) => blocker !== undefined && isOpen(blocker.status))
-      .map((blocker) => formatTaskKey(blocker!.number));
+      .map((blocker) => formatTaskKey(blocker!.number, this.keyPrefix));
     const openSubtasks = (this.#children.get(id) ?? [])
       .map((childId) => this.#nodes.get(childId)!)
       .filter((child) => isOpen(child.status))
-      .map((child) => formatTaskKey(child.number));
+      .map((child) => formatTaskKey(child.number, this.keyPrefix));
     return { openBlockers, openSubtasks };
   }
 

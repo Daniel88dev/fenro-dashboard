@@ -59,8 +59,10 @@ contends on the same row.
 ### What a `Task` holds
 
 - **Identity**: a UUID plus a short key per owner, `T-1`, `T-2`… (agents and
-  humans both read keys better than UUIDs).
-- **Owner**: the signed-in user id. Every read and write is scoped to it.
+  humans both read keys better than UUIDs). A group's tasks use its prefix,
+  `HAL-1`; see [Groups and shared tasks](../groups/groups.md).
+- **Owner**: the signed-in user id, or a group's id for a shared task. Every
+  read and write is scoped to it.
 - **Title, description** (markdown), **priority** (`urgent`, `high`, `medium`,
   `low`, `none`), **labels**.
 - **Repository** (optional `owner/name`, a plain string pair). Sub-tasks inherit it from their parent unless given one.

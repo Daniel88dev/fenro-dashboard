@@ -1,5 +1,6 @@
 import {
-  parseTaskKey,
+  keyMatches,
+  readTaskKey,
   taskError,
   taskNotFound,
   type Actor,
@@ -34,10 +35,13 @@ export async function findTask(
     const task = await tasks.findById(ownerId, trimmed.toLowerCase());
     return task ? ok(task) : err(taskNotFound(trimmed));
   }
-  const number = parseTaskKey(trimmed);
-  if (!number.ok) return number;
-  const task = await tasks.findByNumber(ownerId, number.value);
-  return task ? ok(task) : err(taskNotFound(trimmed));
+  const key = readTaskKey(trimmed);
+  if (!key.ok) return key;
+  const task = await tasks.findByNumber(ownerId, key.value.number);
+  // An owner numbers its tasks on its own, so HAL-12 must not find T-12.
+  return task && keyMatches(key.value, task.keyPrefix)
+    ? ok(task)
+    : err(taskNotFound(trimmed));
 }
 
 const ATTEMPTS = 3;

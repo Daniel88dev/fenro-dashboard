@@ -43,12 +43,18 @@ import {
   type Actor,
   type LinkKind,
   type TaskError,
+  type TaskSpace,
+  spaceOfTask,
+  spaceWithPrefix,
 } from "@/modules/tasks/domain";
 import type { CommandBus, QueryBus } from "@/shared/application";
 import { ok, type Result } from "@/shared/domain";
 
 export type AgentAccess = {
+  /** The token's person: their own tasks, skills and labels. */
   readonly ownerId: string;
+  /** Their personal space and every group they belong to. */
+  readonly spaces: readonly TaskSpace[];
   readonly actor: Extract<Actor, { kind: "agent" }>;
   readonly canWrite: boolean;
 };
@@ -70,7 +76,9 @@ The loop:
 4. check_criterion for each acceptance criterion with its evidence.
 5. finish_session with a handoff summary and an outcome: done, in_review (a person must look, e.g. a pull request is open), paused, blocked (say on what), or released (give it back).
 
-A task is not done while it has open sub-tasks or unmet criteria. Tasks are named by key, like T-12; a person may paste a task's link instead (…/tasks/T-12), which works wherever a key does. A task can sit under a parent: get_task shows its parent and sub-tasks, save_task with parent moves it, and list_tasks with parent lists a parent's sub-tasks.
+A task is not done while it has open sub-tasks or unmet criteria. Tasks are named by key, like T-12; a person may paste a task's link instead (…/tasks/T-12), which works wherever a key does.
+
+Tasks live in spaces. T- keys are the person's own; a group they belong to shares its tasks with every member, and its keys carry the group's prefix, like HAL-12. list_tasks and start_task cover every space; give list_tasks a space to narrow it. save_task files new work in the parent's or discovered_from's space, or in the space you name. Parents, sub-tasks and blockers never cross spaces. A task can sit under a parent: get_task shows its parent and sub-tasks, save_task with parent moves it, and list_tasks with parent lists a parent's sub-tasks.
 
 An epic (type: "epic") is a larger piece of work that holds tasks. It sits at the top, has no parent, and is done when its tasks are; nobody starts a session on one, so work its tasks instead. File work that belongs to an epic with save_task and the epic's key as parent, and list an epic's tasks with list_tasks and epic. list_tasks with type: "epic" lists the epics.
 
@@ -94,7 +102,10 @@ export function createTasksMcpServer(
     readonly task: (key: string) => string;
   },
 ): McpServer {
-  const { ownerId, actor } = access;
+  const { ownerId, actor, spaces } = access;
+  const owners = spaces.map((space) => space.ownerId);
+  const ownerOf = (task: string) =>
+    (spaceOfTask(spaces, task) ?? spaces[0])?.ownerId ?? ownerId;
   const { commandBus, queryBus } = buses;
   const server = new McpServer(
     { name: "fenro-tasks", version: "1.0.0" },
@@ -105,18 +116,20 @@ export function createTasksMcpServer(
     task: string,
     journalLimit?: number,
     skillInstructions = false,
+    owner = ownerOf(task),
   ) =>
     queryBus.ask(
-      taskBriefQuery(ownerId, task, journalLimit, { skillInstructions }),
+      taskBriefQuery(owner, task, journalLimit, { skillInstructions }),
     );
   const url = (key: string) => ({ url: links.task(key) });
 
   const standing = async (
     task: string,
     outcome: Result<void, TaskError>,
+    owner = ownerOf(task),
   ): Promise<CallToolResult> => {
     if (!outcome.ok) return refused(outcome.error);
-    const found = await brief(task, 0);
+    const found = await brief(task, 0, false, owner);
     return found.ok
       ? json({ ...standingOf(found.value), ...url(found.value.key) })
       : refused(found.error);
@@ -156,14 +169,24 @@ export function createTasksMcpServer(
           .optional()
           .describe("Only the tasks under this epic, at any depth"),
         text: z.string().optional().describe("Words in the title"),
+        space: z
+          .string()
+          .optional()
+          .describe(
+            "Only one space's tasks, by key prefix: T for personal, or a group's, like HAL",
+          ),
         limit: z.number().int().min(1).max(100).optional(),
       }),
       annotations: { readOnlyHint: true, openWorldHint: false },
     },
-    async (input) =>
-      json(
+    async (input) => {
+      const space = input.space
+        ? spaceWithPrefix(spaces, input.space)
+        : undefined;
+      if (input.space && !space) return unknownSpace(input.space);
+      return json(
         await queryBus.ask(
-          listTasksQuery(ownerId, {
+          listTasksQuery(space ? space.ownerId : owners, {
             ready: input.ready,
             statuses: input.status,
             includeClosed: input.include_closed,
@@ -176,7 +199,8 @@ export function createTasksMcpServer(
             limit: input.limit,
           }),
         ),
-      ),
+      );
+    },
   );
 
   server.registerTool(
@@ -213,7 +237,7 @@ export function createTasksMcpServer(
       annotations: { readOnlyHint: true, openWorldHint: false },
     },
     async () =>
-      json((await queryBus.ask(listLabelsQuery(ownerId))).map(labelOf)),
+      json((await queryBus.ask(listLabelsQuery(owners))).map(labelOf)),
   );
 
   server.registerTool(
@@ -311,7 +335,12 @@ export function createTasksMcpServer(
       annotations: { readOnlyHint: true, openWorldHint: false },
     },
     async ({ picture }) => {
-      const found = await queryBus.ask(pictureContentQuery(ownerId, picture));
+      // A picture id names no space, so each space is asked in turn.
+      let found = await queryBus.ask(pictureContentQuery(ownerId, picture));
+      for (const owner of owners) {
+        if (found.ok) break;
+        found = await queryBus.ask(pictureContentQuery(owner, picture));
+      }
       if (!found.ok) return refused(found.error);
       return {
         content: [
@@ -420,6 +449,12 @@ export function createTasksMcpServer(
         blocked_by: z.array(z.string()).optional().describe("On create only"),
         relates_to: z.array(z.string()).optional().describe("On create only"),
         discovered_from: z.string().optional().describe("On create only"),
+        space: z
+          .string()
+          .optional()
+          .describe(
+            "On create only: the space's key prefix, T for personal or a group's, like HAL. Default: the parent's or discovered_from's space, else personal",
+          ),
       }),
       annotations: { readOnlyHint: false, destructiveHint: false },
     },
@@ -434,7 +469,7 @@ export function createTasksMcpServer(
         const task = input.task;
         const command: UpdateTaskCommand = {
           type: "tasks.update-task",
-          ownerId,
+          ownerId: ownerOf(task),
           actor,
           task,
           kind: input.type,
@@ -460,10 +495,18 @@ export function createTasksMcpServer(
           true,
         );
       }
+      const related = input.parent ?? input.discovered_from;
+      const space = input.space
+        ? spaceWithPrefix(spaces, input.space)
+        : related
+          ? spaceOfTask(spaces, related)
+          : spaces[0];
+      if (!space) return unknownSpace(input.space ?? related ?? "");
       const taskId = crypto.randomUUID();
       const command: CreateTaskCommand = {
         type: "tasks.create-task",
-        ownerId,
+        ownerId: space.ownerId,
+        keyPrefix: space.prefix,
         actor,
         taskId,
         kind: input.type,
@@ -480,7 +523,11 @@ export function createTasksMcpServer(
         relatesTo: input.relates_to,
         discoveredFrom: input.discovered_from,
       };
-      return standing(taskId, await commandBus.dispatch(command));
+      return standing(
+        taskId,
+        await commandBus.dispatch(command),
+        space.ownerId,
+      );
     },
   );
 
@@ -764,7 +811,7 @@ export function createTasksMcpServer(
         ? [task]
         : (
             await queryBus.ask(
-              listTasksQuery(ownerId, { ready: true, limit: 5 }),
+              listTasksQuery(owners, { ready: true, limit: 5 }),
             )
           ).tasks.map((item) => item.key);
       if (candidates.length === 0) {
@@ -775,7 +822,7 @@ export function createTasksMcpServer(
       for (const candidate of candidates) {
         const command: StartTaskCommand = {
           type: "tasks.start-task",
-          ownerId,
+          ownerId: ownerOf(candidate),
           actor,
           task: candidate,
         };
@@ -810,7 +857,7 @@ export function createTasksMcpServer(
     async (input) => {
       const command: RecordNoteCommand = {
         type: "tasks.record-note",
-        ownerId,
+        ownerId: ownerOf(input.task),
         actor,
         task: input.task,
         kind: input.kind as RecordNoteCommand["kind"],
@@ -841,7 +888,7 @@ export function createTasksMcpServer(
       if (input.data_base64 === undefined) {
         const query: PictureUploadTicketQuery = {
           type: "tasks.picture-upload-ticket",
-          ownerId,
+          ownerId: ownerOf(input.task),
           actor,
           task: input.task,
           pictureId,
@@ -867,7 +914,7 @@ export function createTasksMcpServer(
       }
       const command: AddPictureCommand = {
         type: "tasks.add-picture",
-        ownerId,
+        ownerId: ownerOf(input.task),
         actor,
         pictureId,
         task: input.task,
@@ -908,7 +955,7 @@ export function createTasksMcpServer(
     async (input) => {
       const command: CheckCriterionCommand = {
         type: "tasks.check-criterion",
-        ownerId,
+        ownerId: ownerOf(input.task),
         actor,
         task: input.task,
         criterion: input.criterion,
@@ -940,7 +987,7 @@ export function createTasksMcpServer(
     async (input) => {
       const command: LinkTasksCommand = {
         type: "tasks.link-tasks",
-        ownerId,
+        ownerId: ownerOf(input.task),
         actor,
         task: input.task,
         kind: input.kind.replace("_", "-") as LinkKind,
@@ -968,7 +1015,7 @@ export function createTasksMcpServer(
     async (input) => {
       const command: FinishSessionCommand = {
         type: "tasks.finish-session",
-        ownerId,
+        ownerId: ownerOf(input.task),
         actor,
         task: input.task,
         outcome: input.outcome,
@@ -1001,7 +1048,7 @@ export function createTasksMcpServer(
     async (input) => {
       const command: ChangeStatusCommand = {
         type: "tasks.change-status",
-        ownerId,
+        ownerId: ownerOf(input.task),
         actor,
         task: input.task,
         status: input.status,
@@ -1033,6 +1080,13 @@ function workOnNextTask(repository: string | undefined): string {
  */
 const INLINE_PICTURE_BYTES = 3 * 1024 * 1024;
 const INLINE_LIMIT_BASE64 = Math.ceil(INLINE_PICTURE_BYTES / 3) * 4;
+
+function unknownSpace(space: string): CallToolResult {
+  return text(
+    `invalid-task: "${space}" is not a space you can reach. Use T for personal tasks, or a group's prefix.`,
+    true,
+  );
+}
 
 function standingOf(task: TaskBrief) {
   return {

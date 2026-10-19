@@ -1,8 +1,17 @@
-import { parseTaskKey } from "@/modules/tasks/domain";
+import { readTaskKey } from "@/modules/tasks/domain";
 import type { Query, QueryHandler } from "@/shared/application";
 
-import type { TaskRecord, TaskReadStore } from "../ports/task-read-store";
-import { listTasks, TaskIndex, type TaskFilter } from "./projections";
+import type {
+  TaskOwners,
+  TaskRecord,
+  TaskReadStore,
+} from "../ports/task-read-store";
+import {
+  listTasks,
+  matchesKey,
+  TaskIndex,
+  type TaskFilter,
+} from "./projections";
 import type { TaskList } from "./read-models";
 
 export type TaskListFilterInput = Omit<TaskFilter, "parentId" | "epicId"> & {
@@ -11,12 +20,12 @@ export type TaskListFilterInput = Omit<TaskFilter, "parentId" | "epicId"> & {
 };
 
 export type ListTasksQuery = Query<"tasks.list-tasks", TaskList> & {
-  readonly ownerId: string;
+  readonly ownerId: TaskOwners;
   readonly filter: TaskListFilterInput;
 };
 
 export function listTasksQuery(
-  ownerId: string,
+  ownerId: TaskOwners,
   filter: ListTasksQuery["filter"] = {},
 ): ListTasksQuery {
   return { type: "tasks.list-tasks", ownerId, filter };
@@ -64,8 +73,8 @@ function findRecord(
   index: TaskIndex,
   reference: string,
 ): TaskRecord | undefined {
-  const number = parseTaskKey(reference);
+  const key = readTaskKey(reference);
   return index.records.find((record) =>
-    number.ok ? record.number === number.value : record.id === reference.trim(),
+    key.ok ? matchesKey(record, key.value) : record.id === reference.trim(),
   );
 }

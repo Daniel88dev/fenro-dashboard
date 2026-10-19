@@ -1,14 +1,14 @@
 import { defaultLabelColour, isOpen } from "@/modules/tasks/domain";
 import type { Query, QueryHandler } from "@/shared/application";
 
-import type { TaskReadStore } from "../ports/task-read-store";
+import type { TaskOwners, TaskReadStore } from "../ports/task-read-store";
 import type { LabelItem } from "./read-models";
 
 export type ListLabelsQuery = Query<"tasks.list-labels", LabelItem[]> & {
-  readonly ownerId: string;
+  readonly ownerId: TaskOwners;
 };
 
-export function listLabelsQuery(ownerId: string): ListLabelsQuery {
+export function listLabelsQuery(ownerId: TaskOwners): ListLabelsQuery {
   return { type: "tasks.list-labels", ownerId };
 }
 
@@ -19,16 +19,21 @@ export class ListLabelsHandler implements QueryHandler<
   constructor(private readonly tasks: TaskReadStore) {}
 
   async handle(query: ListLabelsQuery): Promise<LabelItem[]> {
-    const [catalogue, records, skills] = await Promise.all([
-      this.tasks.labels(query.ownerId),
-      this.tasks.records(query.ownerId),
-      this.tasks.skills(query.ownerId),
+    const owners = [query.ownerId].flat();
+    const [catalogues, records, skillLists] = await Promise.all([
+      Promise.all(owners.map((owner) => this.tasks.labels(owner))),
+      this.tasks.records(owners),
+      Promise.all(owners.map((owner) => this.tasks.skills(owner))),
     ]);
+    const catalogue = catalogues.flat();
+    const skills = skillLists.flat();
 
     const linked = new Map<string, string[]>();
     for (const skill of skills) {
       for (const name of skill.labels) {
-        linked.set(name, [...(linked.get(name) ?? []), skill.name]);
+        const names = linked.get(name) ?? [];
+        if (!names.includes(skill.name))
+          linked.set(name, [...names, skill.name]);
       }
     }
     const blank = (name: string) => ({
@@ -38,12 +43,12 @@ export class ListLabelsHandler implements QueryHandler<
       skills: (linked.get(name) ?? []).sort((a, b) => a.localeCompare(b)),
     });
 
-    const items = new Map<string, LabelItem>(
-      catalogue.map((label) => [
-        label.name,
-        { ...blank(label.name), colour: label.colour },
-      ]),
-    );
+    const items = new Map<string, LabelItem>();
+    for (const label of catalogue) {
+      if (!items.has(label.name)) {
+        items.set(label.name, { ...blank(label.name), colour: label.colour });
+      }
+    }
     for (const record of records) {
       for (const name of record.labels) {
         // A name a task carries is always listed, even one written before

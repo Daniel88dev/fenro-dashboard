@@ -15,16 +15,23 @@ import { TASK_ACTIONS } from "../../../tasks/task-actions";
 export default async function NewTaskDialogPage({
   searchParams,
 }: PageProps<"/tasks/new">) {
-  const { container, ownerId, repositoryOptions, parentOptions } =
-    await tasksContext();
-  if (!ownerId) return null;
+  const {
+    container,
+    ownerId,
+    spaces,
+    repositoryOptions,
+    parentOptions,
+    spaceOptions,
+  } = await tasksContext();
+  if (!ownerId || !spaces) return null;
 
   const params = await searchParams;
   const defaults = newTaskDefaults(params);
-  const [labels, repositories, parents] = await Promise.all([
+  const [labels, repositories, parents, spaceChoices] = await Promise.all([
     container.queryBus.ask(listLabelsQuery(ownerId)),
     repositoryOptions(),
-    parentOptions(),
+    parentOptions(spaces.all.map((space) => space.ownerId)),
+    spaceOptions(),
   ]);
   const query = new URLSearchParams(
     Object.entries({
@@ -33,6 +40,7 @@ export default async function NewTaskDialogPage({
       parent: defaults.parent,
       from: defaults.source,
       title: defaults.title,
+      space: defaults.space ?? "",
     }).filter(([, value]) => value !== ""),
   ).toString();
   const fullPage = `/tasks/new${query ? `?${query}` : ""}`;
@@ -75,6 +83,7 @@ export default async function NewTaskDialogPage({
           labels={labels}
           repositories={repositories}
           parents={parents}
+          spaces={spaceChoices}
           variant="dialog"
           cancel={<CancelDialogButton />}
         />
