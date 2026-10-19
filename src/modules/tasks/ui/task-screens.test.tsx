@@ -337,6 +337,34 @@ describe("TaskList", () => {
     ).toHaveAttribute("aria-current", "true");
   });
 
+  it("filters by space, and names the group on its tasks", () => {
+    const spaces = [
+      { prefix: "T", name: "Personal", kind: "personal" },
+      { prefix: "HAL", name: "Halcyon Labs", kind: "group" },
+      { prefix: "ORB", name: "Orbit", kind: "group" },
+    ] as const;
+    const item = list.tasks[0]!;
+    render(
+      <TaskList
+        list={{ total: 1, tasks: [{ ...item, key: "HAL-7" }] }}
+        filter={{ view: "open", repository: "", text: "", labels: [] }}
+        spaces={spaces}
+      />,
+    );
+
+    expect(screen.getByRole("link", { name: /HAL-7/ })).toHaveTextContent(
+      "Halcyon Labs",
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Spaces: All spaces" }));
+    expect(
+      screen.getByRole("radio", { name: "Only my personal tasks" }),
+    ).toHaveAttribute("href", "/tasks?spaces=T");
+    expect(screen.getByRole("checkbox", { name: /Orbit/ })).toHaveAttribute(
+      "href",
+      "/tasks?spaces=T%2CHAL",
+    );
+  });
+
   it("explains an empty view", () => {
     render(
       <TaskList
@@ -614,6 +642,60 @@ describe("task trail", () => {
 
 describe("NewTaskForm", () => {
   const defaults = { repository: "o/r", parent: "", source: "", title: "" };
+
+  it("files the task in the space picked, offering that space's parents", async () => {
+    const create = vi.fn(async () => ({ error: null, saved: 1 }));
+    render(
+      <NewTaskForm
+        action={create}
+        defaults={{ ...defaults, parent: "HAL-2" }}
+        parents={[
+          { key: "T-1", title: "Mine" },
+          { key: "HAL-2", title: "Shared" },
+        ]}
+        spaces={[
+          {
+            prefix: "T",
+            name: "Personal",
+            kind: "personal",
+            who: "Only you",
+            next: "T-9",
+            labels: [],
+          },
+          {
+            prefix: "HAL",
+            name: "Halcyon Labs",
+            kind: "group",
+            who: "3 members",
+            next: "HAL-3",
+            labels: [{ name: "design", colour: "pink" }],
+          },
+        ]}
+      />,
+    );
+
+    expect(screen.getByText("HAL-3")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^Parent/ })).toHaveTextContent(
+      "HAL-2",
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /^Space:/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Personal/ }));
+    expect(screen.getByText("T-9")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^Parent/ })).toHaveTextContent(
+      "No parent",
+    );
+
+    fireEvent.change(screen.getByLabelText("Title"), {
+      target: { value: "Retry webhooks" },
+    });
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Create task" }));
+    });
+    const sent = create.mock.calls[0] as unknown as [unknown, FormData];
+    expect(sent[1].get("space")).toBe("T");
+    expect(sent[1].get("parent")).toBe("");
+  });
 
   it("tells the server it was sent from the dialog, so history is replaced", async () => {
     const create = vi.fn(async () => ({ error: null, saved: 1 }));

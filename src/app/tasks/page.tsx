@@ -13,6 +13,7 @@ import {
   parseDoneParam,
   parseEpicParam,
   parseLabelsParam,
+  parseSpacesParam,
   TASK_VIEWS,
   TaskList,
   type TaskListFilter,
@@ -73,10 +74,11 @@ async function TasksScreen({
     epic: parseEpicParam(one(params.epic)),
     layout: one(params.layout) === "board" ? "board" : "list",
     done: parseDoneParam(one(params.done)),
+    spaces: parseSpacesParam(one(params.spaces)),
   };
 
-  const { container, ownerId } = await tasksContext();
-  if (!ownerId) {
+  const { container, spaces } = await tasksContext();
+  if (!spaces) {
     return (
       <SignInPanel
         heading="Sign in to see your tasks"
@@ -84,6 +86,11 @@ async function TasksScreen({
       />
     );
   }
+
+  const shown = filter.spaces?.length
+    ? spaces.all.filter((space) => filter.spaces!.includes(space.prefix))
+    : spaces.all;
+  const ownerId = shown.map((space) => space.ownerId);
 
   const scope: ListTasksQuery["filter"] = {
     repository: filter.repository || undefined,
@@ -140,6 +147,7 @@ async function TasksScreen({
       repositories={repositories}
       epics={epics.tasks}
       scopeCounts={{ all: all!, epics: epicsOnly!, none: none! }}
+      spaces={spaces.all}
       move={moveTaskAction}
     />
   );

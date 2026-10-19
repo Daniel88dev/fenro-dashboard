@@ -3,6 +3,7 @@ import {
   ListBullets,
   MagnifyingGlass,
   Plus,
+  UsersThree,
 } from "@phosphor-icons/react/ssr";
 import Form from "next/form";
 import Link from "next/link";
@@ -16,11 +17,13 @@ import {
   type TaskRepositoryItem,
   type TaskState,
 } from "@/modules/tasks/application/queries/read-models";
+import { PERSONAL_KEY_PREFIX } from "@/modules/tasks/domain";
 
 import { EpicRail } from "./epic-rail";
 import { LabelFilter, type LabelFilterOption } from "./label-filter";
 import { colourOf, LabelDot, type LabelOption } from "./labels";
 import { RepositoryFilter } from "./repository-filter";
+import { SpaceFilter } from "./space-filter";
 import { TaskBoard, type MoveTask } from "./task-board";
 import { EpicProgress, EpicTag, TaskKindIcon } from "./task-kind";
 import { StateChip } from "./state-chip";
@@ -48,7 +51,26 @@ export type TaskListFilter = {
   readonly epic?: EpicScope;
   readonly layout?: TaskLayout;
   readonly done?: DoneWindow;
+  /** Key prefixes of the spaces shown; empty shows every space. */
+  readonly spaces?: readonly string[];
 };
+
+export type ListSpace = {
+  readonly prefix: string;
+  readonly name: string;
+  readonly kind: "personal" | "group";
+};
+
+export function parseSpacesParam(value: string): string[] {
+  return [
+    ...new Set(
+      value
+        .split(",")
+        .map((prefix) => prefix.trim().toUpperCase())
+        .filter((prefix) => /^[A-Z]{1,5}$/.test(prefix)),
+    ),
+  ];
+}
 
 /** A label name never holds a comma. */
 export function parseLabelsParam(value: string): string[] {
@@ -72,6 +94,7 @@ function hrefFor(filter: TaskListFilter): string {
   if (filter.layout === "board" && filter.done && filter.done !== "week") {
     params.set("done", filter.done);
   }
+  if (filter.spaces?.length) params.set("spaces", filter.spaces.join(","));
   if (filter.epic) params.set("epic", filter.epic);
   if (filter.repository) params.set("repository", filter.repository);
   if (filter.labels.length > 0) params.set("labels", filter.labels.join(","));
@@ -127,6 +150,7 @@ export function TaskList({
   repositories = [],
   epics,
   scopeCounts,
+  spaces = [],
   move,
 }: {
   list?: TaskListResult;
@@ -141,9 +165,18 @@ export function TaskList({
     readonly epics: number;
     readonly none: number;
   };
+  spaces?: readonly ListSpace[];
   move?: MoveTask;
 }) {
   const layout = filter.layout ?? "list";
+  const groups = spaces.filter((space) => space.kind === "group");
+  const shownSpaces = filter.spaces?.length
+    ? spaces.filter((space) => filter.spaces!.includes(space.prefix))
+    : spaces;
+  const groupNames =
+    shownSpaces.length > 1
+      ? new Map(groups.map((group) => [group.prefix, group.name]))
+      : undefined;
   const scope = filter.epic ?? "";
   const pickedEpic =
     scope && scope !== "epics" && scope !== "none" ? scope : "";
@@ -201,6 +234,9 @@ export function TaskList({
           </p>
         )}
         <div className="flex flex-wrap items-center gap-2 md:mb-2 md:flex-nowrap">
+          {groups.length > 0 ? (
+            <SpaceFilter {...spaceFilterProps(filter, groups)} />
+          ) : null}
           <LabelFilter
             options={labelOptions(filter, labels)}
             clearHref={hrefFor({ ...filter, labels: [] })}
@@ -279,7 +315,11 @@ export function TaskList({
             <ul className="border-hairline bg-surface divide-hairline-soft m-0 list-none divide-y overflow-hidden rounded-xl border p-0">
               {group.tasks.map((task) => (
                 <li key={task.key}>
-                  <TaskRow task={task} labels={labels} />
+                  <TaskRow
+                    task={task}
+                    labels={labels}
+                    groupNames={groupNames}
+                  />
                 </li>
               ))}
             </ul>
@@ -407,6 +447,7 @@ function hiddenFields(filter: TaskListFilter): [string, string][] {
   if (filter.view !== "open" && (filter.layout ?? "list") === "list") {
     fields.push(["view", filter.view]);
   }
+  if (filter.spaces?.length) fields.push(["spaces", filter.spaces.join(",")]);
   if (filter.epic) fields.push(["epic", filter.epic]);
   if (filter.repository) fields.push(["repository", filter.repository]);
   if (filter.labels.length > 0)
@@ -416,6 +457,49 @@ function hiddenFields(filter: TaskListFilter): [string, string][] {
     fields.push(["done", filter.done]);
   }
   return fields;
+}
+
+function spaceFilterProps(
+  filter: TaskListFilter,
+  groups: readonly ListSpace[],
+) {
+  const all = groups.map((group) => group.prefix);
+  const chosen = filter.spaces ?? [];
+  const personalOnly =
+    chosen.length > 0 && !chosen.some((prefix) => all.includes(prefix));
+  const picked =
+    chosen.length === 0 ? all : chosen.filter((p) => p !== PERSONAL_KEY_PREFIX);
+  const withGroups = (next: readonly string[]) =>
+    hrefFor({
+      ...filter,
+      spaces:
+        next.length === all.length
+          ? []
+          : next.length === 0
+            ? [PERSONAL_KEY_PREFIX]
+            : [PERSONAL_KEY_PREFIX, ...next],
+    });
+  return {
+    personalOnly,
+    personalHref: hrefFor({ ...filter, spaces: [PERSONAL_KEY_PREFIX] }),
+    allHref: hrefFor({ ...filter, spaces: [] }),
+    manageHref: "/settings#groups",
+    groups: groups.map((group) => {
+      const on = !personalOnly && picked.includes(group.prefix);
+      return {
+        prefix: group.prefix,
+        name: group.name,
+        picked: on,
+        href: withGroups(
+          personalOnly
+            ? [group.prefix]
+            : on
+              ? picked.filter((prefix) => prefix !== group.prefix)
+              : [...picked, group.prefix],
+        ),
+      };
+    }),
+  };
 }
 
 function labelOptions(
@@ -488,16 +572,18 @@ const PRIORITY_WORDS: Record<TaskListItem["priority"], string | null> = {
 function TaskRow({
   task,
   labels,
+  groupNames,
 }: {
   task: TaskListItem;
   labels: readonly LabelOption[];
+  groupNames?: ReadonlyMap<string, string>;
 }) {
   const priority = PRIORITY_WORDS[task.priority];
   return (
     <Link
       href={taskHref(task.key)}
       scroll={false}
-      className={`hover:bg-surface-raised focus-visible:outline-pr grid grid-cols-[18px_48px_minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1 px-4 py-3 focus-visible:outline-2 focus-visible:-outline-offset-2 md:grid-cols-[18px_52px_minmax(0,1fr)_170px_64px_92px] md:px-[18px] ${
+      className={`hover:bg-surface-raised focus-visible:outline-pr grid grid-cols-[18px_64px_minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1 px-4 py-3 focus-visible:outline-2 focus-visible:-outline-offset-2 md:grid-cols-[18px_68px_minmax(0,1fr)_170px_64px_92px] md:px-[18px] ${
         task.kind === "epic" ? "bg-epic-wash/40" : ""
       }`}
     >
@@ -513,7 +599,11 @@ function TaskRow({
         >
           {task.title}
         </span>
-        <Meta task={task} labels={labels} />
+        <Meta
+          task={task}
+          labels={labels}
+          group={groupNames?.get(task.key.slice(0, task.key.lastIndexOf("-")))}
+        />
       </span>
       <span className="text-ink-soft hidden items-center gap-[7px] text-[12px] md:flex">
         {task.workedOnBy ? (
@@ -536,9 +626,11 @@ function TaskRow({
 function Meta({
   task,
   labels,
+  group,
 }: {
   task: TaskListItem;
   labels: readonly LabelOption[];
+  group?: string;
 }) {
   const facts: {
     text: string;
@@ -573,6 +665,7 @@ function Meta({
   }
   if (
     facts.length === 0 &&
+    !group &&
     task.labels.length === 0 &&
     !task.epic &&
     !task.progress
@@ -582,6 +675,12 @@ function Meta({
 
   return (
     <span className="text-ink-muted flex flex-wrap items-center gap-x-3.5 gap-y-0.5 text-[12px]">
+      {group ? (
+        <span className="text-ink-soft inline-flex items-center gap-1.5">
+          <UsersThree aria-hidden="true" className="size-3" />
+          {group}
+        </span>
+      ) : null}
       {task.progress ? <EpicProgress progress={task.progress} /> : null}
       {task.epic ? <EpicTag title={task.epic.title} /> : null}
       {task.labels.map((name) => (
