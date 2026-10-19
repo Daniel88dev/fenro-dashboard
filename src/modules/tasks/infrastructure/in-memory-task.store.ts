@@ -53,6 +53,7 @@ type StoredSkill = {
 type Stored = {
   readonly id: string;
   readonly ownerId: string;
+  readonly keyPrefix: string;
   readonly number: number;
   readonly createdAt: Date;
   readonly state: TaskState;
@@ -95,14 +96,16 @@ export class InMemoryTaskStore
   }
 
   async graph(ownerId: string): Promise<TaskGraph> {
+    const owned = this.#owned(ownerId);
     return new TaskGraph(
-      this.#owned(ownerId).map((task) => ({
+      owned.map((task) => ({
         id: task.id,
         number: task.number,
         status: task.state.status,
         parentId: task.state.parentId,
         blockedBy: blockedBy(task.state),
       })),
+      owned[0]?.keyPrefix,
     );
   }
 
@@ -131,6 +134,7 @@ export class InMemoryTaskStore
     this.#tasks.set(task.id.value, {
       id: task.id.value,
       ownerId: task.ownerId,
+      keyPrefix: task.keyPrefix,
       number: task.number,
       createdAt: task.createdAt,
       state: task.state,
@@ -390,8 +394,11 @@ export class InMemoryTaskStore
       }));
   }
 
-  async records(ownerId: string): Promise<TaskRecord[]> {
-    return this.#owned(ownerId).map((task) => this.#record(task));
+  async records(owners: string | readonly string[]): Promise<TaskRecord[]> {
+    const ids = [owners].flat();
+    return [...this.#tasks.values()]
+      .filter((task) => ids.includes(task.ownerId))
+      .map((task) => this.#record(task));
   }
 
   async descriptionsContaining(
@@ -484,6 +491,7 @@ export class InMemoryTaskStore
       UniqueId.create(stored.id),
       {
         ownerId: stored.ownerId,
+        keyPrefix: stored.keyPrefix,
         number: stored.number,
         createdAt: stored.createdAt,
       },
@@ -498,6 +506,8 @@ export class InMemoryTaskStore
     const latest = state.sessions.at(-1);
     return {
       id: stored.id,
+      ownerId: stored.ownerId,
+      keyPrefix: stored.keyPrefix,
       number: stored.number,
       kind: state.kind,
       title: state.title,

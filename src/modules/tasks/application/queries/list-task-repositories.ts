@@ -1,16 +1,16 @@
 import { isOpen } from "@/modules/tasks/domain";
 import type { Query, QueryHandler } from "@/shared/application";
 
-import type { TaskReadStore } from "../ports/task-read-store";
+import type { TaskOwners, TaskReadStore } from "../ports/task-read-store";
 import type { TaskRepositoryItem } from "./read-models";
 
 export type ListTaskRepositoriesQuery = Query<
   "tasks.list-task-repositories",
   TaskRepositoryItem[]
-> & { readonly ownerId: string };
+> & { readonly ownerId: TaskOwners };
 
 export function listTaskRepositoriesQuery(
-  ownerId: string,
+  ownerId: TaskOwners,
 ): ListTaskRepositoriesQuery {
   return { type: "tasks.list-task-repositories", ownerId };
 }

@@ -10,8 +10,11 @@ import type {
   TaskStatus,
 } from "@/modules/tasks/domain";
 
+/** One owner id, or several when a reader sees more than one space at once. */
+export type TaskOwners = string | readonly string[];
+
 export interface TaskReadStore {
-  records(ownerId: string): Promise<TaskRecord[]>;
+  records(owners: TaskOwners): Promise<TaskRecord[]>;
   detail(ownerId: string, id: string): Promise<TaskDetailRecord | undefined>;
   descriptionsContaining(
     ownerId: string,
@@ -99,6 +102,8 @@ export type SessionRecord = {
 
 export type TaskRecord = {
   readonly id: string;
+  readonly ownerId: string;
+  readonly keyPrefix: string;
   readonly number: number;
   readonly kind: TaskKind;
   readonly title: string;

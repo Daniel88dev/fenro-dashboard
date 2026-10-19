@@ -1,5 +1,5 @@
 import {
-  parseTaskKey,
+  readTaskKey,
   taskNotFound,
   type TaskError,
 } from "@/modules/tasks/domain";
@@ -7,7 +7,7 @@ import type { Query, QueryHandler } from "@/shared/application";
 import { err, ok, type Result } from "@/shared/domain";
 
 import type { TaskReadStore } from "../ports/task-read-store";
-import { brief, briefSkills, TaskIndex } from "./projections";
+import { brief, briefSkills, matchesKey, TaskIndex } from "./projections";
 import type { TaskBrief } from "./read-models";
 
 export type TaskBriefResult = Result<TaskBrief, TaskError>;
@@ -51,9 +51,9 @@ export class TaskBriefHandler implements QueryHandler<
     const byId = index.get(reference.toLowerCase());
     let id = byId?.id;
     if (!id) {
-      const number = parseTaskKey(reference);
-      if (!number.ok) return number;
-      id = index.records.find((record) => record.number === number.value)?.id;
+      const key = readTaskKey(reference);
+      if (!key.ok) return key;
+      id = index.records.find((record) => matchesKey(record, key.value))?.id;
     }
 
     const detail = id ? await this.tasks.detail(query.ownerId, id) : undefined;

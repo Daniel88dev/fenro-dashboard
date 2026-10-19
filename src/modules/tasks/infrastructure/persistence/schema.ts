@@ -31,6 +31,7 @@ export const task = fenro.table(
   {
     id: text("id").primaryKey(),
     ownerId: text("owner_id").notNull(),
+    keyPrefix: text("key_prefix").notNull().default("T"),
     number: integer("number").notNull(),
     kind: text("kind").notNull().default("task"),
     title: text("title").notNull(),

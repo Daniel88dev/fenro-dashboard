@@ -16,6 +16,8 @@ import {
   NOTE_KINDS,
   PRIORITIES,
   isTaskKind,
+  PERSONAL_KEY_PREFIX,
+  spaceWithPrefix,
   type Actor,
   type LinkKind,
   type NoteKind,
@@ -28,6 +30,8 @@ import { signedInUserQuery } from "@/modules/identity/application/queries/signed
 import type { Result } from "@/shared/domain";
 import { getContainer } from "@/shared/infrastructure/container";
 
+import { spacesOf, type Spaces } from "./spaces";
+
 const STATUS_TARGETS: readonly StatusTarget[] = [
   "backlog",
   "todo",
@@ -38,7 +42,7 @@ const STATUS_TARGETS: readonly StatusTarget[] = [
 ];
 
 type Signed = {
-  readonly ownerId: string;
+  readonly spaces: Spaces;
   readonly actor: Actor;
   readonly container: Awaited<ReturnType<typeof getContainer>>;
 };
@@ -48,7 +52,7 @@ async function signedIn(): Promise<Signed | null> {
   const user = await container.queryBus.ask(signedInUserQuery());
   if (!user) return null;
   return {
-    ownerId: user.id,
+    spaces: await spacesOf(container.queryBus, user),
     actor: { kind: "human", id: user.id, name: user.githubLogin },
     container,
   };
@@ -87,7 +91,18 @@ export async function createTaskAction(
 ): Promise<TaskFormState> {
   const session = await signedIn();
   if (!session) return { error: SIGNED_OUT, saved: state.saved };
-  const { ownerId, actor, container } = session;
+  const { spaces, actor, container } = session;
+  const space = spaceWithPrefix(
+    spaces.all,
+    text(formData, "space") || PERSONAL_KEY_PREFIX,
+  );
+  if (!space) {
+    return {
+      error: "You are no longer a member of that group.",
+      saved: state.saved,
+    };
+  }
+  const ownerId = space.ownerId;
 
   const priority = text(formData, "priority");
   const source = text(formData, "source");
@@ -95,6 +110,7 @@ export async function createTaskAction(
   const command: CreateTaskCommand = {
     type: "tasks.create-task",
     ownerId,
+    keyPrefix: space.prefix,
     actor,
     taskId,
     kind: text(formData, "kind") === "epic" ? "epic" : "task",
@@ -132,9 +148,10 @@ export async function updateTaskAction(
 ): Promise<TaskFormState> {
   const session = await signedIn();
   if (!session) return { error: SIGNED_OUT, saved: state.saved };
-  const { ownerId, actor, container } = session;
+  const { spaces, actor, container } = session;
 
   const task = text(formData, "task");
+  const ownerId = spaces.ownerOf(task);
   const priority = text(formData, "priority");
   const kind = text(formData, "kind");
   const command: UpdateTaskCommand = {
@@ -163,9 +180,10 @@ export async function changeKindAction(
 ): Promise<TaskFormState> {
   const session = await signedIn();
   if (!session) return { error: SIGNED_OUT, saved: state.saved };
-  const { ownerId, actor, container } = session;
+  const { spaces, actor, container } = session;
 
   const task = text(formData, "task");
+  const ownerId = spaces.ownerOf(task);
   const kind = text(formData, "kind");
   if (!isTaskKind(kind)) {
     return { error: "Pick task or epic.", saved: state.saved };
@@ -195,9 +213,10 @@ export async function setLabelsAction(
 ): Promise<TaskFormState> {
   const session = await signedIn();
   if (!session) return { error: SIGNED_OUT, saved: state.saved };
-  const { ownerId, actor, container } = session;
+  const { spaces, actor, container } = session;
 
   const task = text(formData, "task");
+  const ownerId = spaces.ownerOf(task);
   const command: UpdateTaskCommand = {
     type: "tasks.update-task",
     ownerId,
@@ -216,9 +235,10 @@ export async function editTaskAction(
 ): Promise<TaskFormState> {
   const session = await signedIn();
   if (!session) return { error: SIGNED_OUT, saved: state.saved };
-  const { ownerId, actor, container } = session;
+  const { spaces, actor, container } = session;
 
   const task = text(formData, "task");
+  const ownerId = spaces.ownerOf(task);
   const attach = text(formData, "attach");
   const detach = text(formData, "detach");
   const removeCriterion = Number(text(formData, "removeCriterion"));
@@ -243,9 +263,10 @@ export async function recordNoteAction(
 ): Promise<TaskFormState> {
   const session = await signedIn();
   if (!session) return { error: SIGNED_OUT, saved: state.saved };
-  const { ownerId, actor, container } = session;
+  const { spaces, actor, container } = session;
 
   const task = text(formData, "task");
+  const ownerId = spaces.ownerOf(task);
   const kind = text(formData, "kind") as NoteKind;
   const command: RecordNoteCommand = {
     type: "tasks.record-note",
@@ -264,9 +285,10 @@ export async function checkCriterionAction(
 ): Promise<TaskFormState> {
   const session = await signedIn();
   if (!session) return { error: SIGNED_OUT, saved: state.saved };
-  const { ownerId, actor, container } = session;
+  const { spaces, actor, container } = session;
 
   const task = text(formData, "task");
+  const ownerId = spaces.ownerOf(task);
   const command: CheckCriterionCommand = {
     type: "tasks.check-criterion",
     ownerId,
@@ -285,9 +307,10 @@ export async function changeStatusAction(
 ): Promise<TaskFormState> {
   const session = await signedIn();
   if (!session) return { error: SIGNED_OUT, saved: state.saved };
-  const { ownerId, actor, container } = session;
+  const { spaces, actor, container } = session;
 
   const task = text(formData, "task");
+  const ownerId = spaces.ownerOf(task);
   const status = text(formData, "status") as StatusTarget;
   const hold = formData.has("hold") ? text(formData, "hold") : undefined;
   const command: ChangeStatusCommand = {
@@ -310,7 +333,8 @@ export async function moveTaskAction(
 ): Promise<{ readonly error: string | null }> {
   const session = await signedIn();
   if (!session) return { error: SIGNED_OUT };
-  const { ownerId, actor, container } = session;
+  const { spaces, actor, container } = session;
+  const ownerId = spaces.ownerOf(task);
 
   const target = STATUS_TARGETS.find((candidate) => candidate === status);
   if (!target) return { error: "Pick a column to move the task to." };
@@ -334,9 +358,10 @@ export async function linkTasksAction(
 ): Promise<TaskFormState> {
   const session = await signedIn();
   if (!session) return { error: SIGNED_OUT, saved: state.saved };
-  const { ownerId, actor, container } = session;
+  const { spaces, actor, container } = session;
 
   const task = text(formData, "task");
+  const ownerId = spaces.ownerOf(task);
   const kind = text(formData, "kind") as LinkKind;
   if (!LINK_KINDS.includes(kind)) {
     return { error: "Pick how the tasks relate.", saved: state.saved };
@@ -359,9 +384,10 @@ export async function removePictureAction(
 ): Promise<TaskFormState> {
   const session = await signedIn();
   if (!session) return { error: SIGNED_OUT, saved: state.saved };
-  const { ownerId, actor, container } = session;
+  const { spaces, actor, container } = session;
 
   const task = text(formData, "task");
+  const ownerId = spaces.ownerOf(task);
   const command: RemovePictureCommand = {
     type: "tasks.remove-picture",
     ownerId,

@@ -23,7 +23,7 @@ import {
 } from "./journal-entry";
 import type { RepositoryReference } from "./repository-reference";
 import { Session, type FinishOutcome, type SessionOutcome } from "./session";
-import { formatTaskKey } from "./task-key";
+import { formatTaskKey, PERSONAL_KEY_PREFIX } from "./task-key";
 import type { TaskKind } from "./task-kind";
 import type { LinkKind, TaskLink } from "./task-link";
 import { isOpen, type Priority, type TaskStatus } from "./task-status";
@@ -42,6 +42,8 @@ export type Hold = { readonly reason: string; readonly since: Date };
 
 type Props = {
   readonly ownerId: string;
+  /** Copied from the task's space when it is created; a prefix never changes. */
+  readonly keyPrefix: string;
   readonly number: number;
   readonly createdAt: Date;
 };
@@ -67,6 +69,7 @@ export type TaskState = {
 export type NewTask = {
   readonly id: string;
   readonly ownerId: string;
+  readonly keyPrefix?: string;
   readonly number: number;
   readonly kind?: TaskKind;
   readonly title: string;
@@ -126,7 +129,12 @@ export class Task extends AggregateRoot<Props> {
 
     const task = new Task(
       UniqueId.create(input.id),
-      { ownerId: input.ownerId, number: input.number, createdAt: input.now },
+      {
+        ownerId: input.ownerId,
+        keyPrefix: input.keyPrefix ?? PERSONAL_KEY_PREFIX,
+        number: input.number,
+        createdAt: input.now,
+      },
       {
         kind,
         title: title.value,
@@ -145,9 +153,7 @@ export class Task extends AggregateRoot<Props> {
         completedAt: null,
       },
     );
-    task.record(
-      new TaskCreated(task.id.value, formatTaskKey(input.number), input.now),
-    );
+    task.record(new TaskCreated(task.id.value, task.key, input.now));
     return ok(task);
   }
 
@@ -578,8 +584,12 @@ export class Task extends AggregateRoot<Props> {
     return this.props.number;
   }
 
+  get keyPrefix(): string {
+    return this.props.keyPrefix;
+  }
+
   get key(): string {
-    return formatTaskKey(this.props.number);
+    return formatTaskKey(this.props.number, this.props.keyPrefix);
   }
 
   get createdAt(): Date {

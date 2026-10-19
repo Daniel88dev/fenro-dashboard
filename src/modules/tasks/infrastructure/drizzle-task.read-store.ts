@@ -88,11 +88,13 @@ type ListedSkillRow = Omit<typeof taskSkill.$inferSelect, "instructions">;
 export class DrizzleTaskReadStore implements TaskReadStore {
   constructor(private readonly db: Database) {}
 
-  async records(ownerId: string): Promise<TaskRecord[]> {
+  async records(owners: string | readonly string[]): Promise<TaskRecord[]> {
+    const ids = [owners].flat();
+    if (ids.length === 0) return [];
     const rows = await this.db
       .select(listedTask)
       .from(taskTable)
-      .where(eq(taskTable.ownerId, ownerId));
+      .where(inArray(taskTable.ownerId, ids));
     if (rows.length === 0) return [];
     return this.#records(rows);
   }
@@ -391,6 +393,8 @@ export class DrizzleTaskReadStore implements TaskReadStore {
 
     return rows.map((row) => ({
       id: row.id,
+      ownerId: row.ownerId,
+      keyPrefix: row.keyPrefix,
       number: row.number,
       kind: row.kind as TaskKind,
       title: row.title,

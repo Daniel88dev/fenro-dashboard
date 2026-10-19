@@ -98,6 +98,45 @@ import {
 import type { AccessTokenRepository } from "@/modules/identity/domain";
 import { DrizzleAccessTokenRepository } from "@/modules/identity/infrastructure/drizzle-access-token.repository";
 import {
+  CreateGroupHandler,
+  type CreateGroupCommand,
+} from "@/modules/groups/application/commands/create-group";
+import {
+  DeleteGroupHandler,
+  type DeleteGroupCommand,
+} from "@/modules/groups/application/commands/delete-group";
+import {
+  AcceptInvitationHandler,
+  CancelInvitationHandler,
+  ChangeMemberRoleHandler,
+  DeclineInvitationHandler,
+  InviteMemberHandler,
+  RemoveMemberHandler,
+  type AcceptInvitationCommand,
+  type CancelInvitationCommand,
+  type ChangeMemberRoleCommand,
+  type DeclineInvitationCommand,
+  type InviteMemberCommand,
+  type RemoveMemberCommand,
+} from "@/modules/groups/application/commands/membership-commands";
+import type { GroupReadStore } from "@/modules/groups/application/ports/group-read-store";
+import {
+  MyGroupsHandler,
+  type MyGroups,
+  type MyGroupsQuery,
+} from "@/modules/groups/application/queries/my-groups";
+import {
+  GroupHandler,
+  type GroupQuery,
+  type GroupResult,
+} from "@/modules/groups/application/queries/group";
+import type { GroupRepository } from "@/modules/groups/domain";
+import {
+  DrizzleGroupReadStore,
+  DrizzleGroupRepository,
+} from "@/modules/groups/infrastructure/drizzle-group.repository";
+import { TaskReadStoreGroupTasks } from "@/modules/groups/infrastructure/task-read-store.group-tasks";
+import {
   AddPictureHandler,
   UploadPictureHandler,
   type AddPictureCommand,
@@ -195,6 +234,10 @@ import {
   type ListTasksQuery,
 } from "@/modules/tasks/application/queries/list-tasks";
 import {
+  NextTaskKeyHandler,
+  type NextTaskKeyQuery,
+} from "@/modules/tasks/application/queries/next-task-key";
+import {
   PictureContentHandler,
   type PictureContentQuery,
   type PictureContentResult,
@@ -278,6 +321,8 @@ export type ContainerParts = {
   readonly uploadTickets: UploadTickets;
   readonly taskReads: TaskReadStore;
   readonly accessTokens: AccessTokenRepository;
+  readonly groups: GroupRepository;
+  readonly groupReads: GroupReadStore;
   readonly authenticator: Authenticator;
   readonly clock: () => Date;
   readonly tracer?: MessageTracer;
@@ -353,6 +398,7 @@ export function buildContainer(parts: ContainerParts): Container {
   );
   registerTasks(commandBus, queryBus, parts);
   registerAccessTokens(commandBus, queryBus, parts);
+  registerGroups(commandBus, queryBus, parts);
 
   return { commandBus, queryBus };
 }
@@ -483,6 +529,10 @@ function registerTasks(
     "tasks.list-task-repositories",
     new ListTaskRepositoriesHandler(taskReads),
   );
+  queryBus.register<NextTaskKeyQuery, string>(
+    "tasks.next-task-key",
+    new NextTaskKeyHandler(taskReads),
+  );
   queryBus.register<TaskBriefQuery, TaskBriefResult>(
     "tasks.task-brief",
     new TaskBriefHandler(taskReads, clock),
@@ -537,6 +587,54 @@ function registerAccessTokens(
   );
 }
 
+function registerGroups(
+  commandBus: CommandBus,
+  queryBus: QueryBus,
+  { groups, groupReads, taskReads, clock }: ContainerParts,
+): void {
+  const groupTasks = new TaskReadStoreGroupTasks(taskReads);
+  commandBus.register<CreateGroupCommand>(
+    "groups.create-group",
+    new CreateGroupHandler(groups, clock),
+  );
+  commandBus.register<InviteMemberCommand>(
+    "groups.invite-member",
+    new InviteMemberHandler(groups, clock),
+  );
+  commandBus.register<AcceptInvitationCommand>(
+    "groups.accept-invitation",
+    new AcceptInvitationHandler(groups, clock),
+  );
+  commandBus.register<DeclineInvitationCommand>(
+    "groups.decline-invitation",
+    new DeclineInvitationHandler(groups, clock),
+  );
+  commandBus.register<CancelInvitationCommand>(
+    "groups.cancel-invitation",
+    new CancelInvitationHandler(groups, clock),
+  );
+  commandBus.register<ChangeMemberRoleCommand>(
+    "groups.change-member-role",
+    new ChangeMemberRoleHandler(groups, clock),
+  );
+  commandBus.register<RemoveMemberCommand>(
+    "groups.remove-member",
+    new RemoveMemberHandler(groups, clock),
+  );
+  commandBus.register<DeleteGroupCommand>(
+    "groups.delete-group",
+    new DeleteGroupHandler(groups, groupTasks),
+  );
+  queryBus.register<MyGroupsQuery, MyGroups>(
+    "groups.my-groups",
+    new MyGroupsHandler(groupReads),
+  );
+  queryBus.register<GroupQuery, GroupResult>(
+    "groups.group",
+    new GroupHandler(groupReads, groupTasks),
+  );
+}
+
 // Created on first use, so a build or test that never signs in needs neither
 // Better Auth nor Postgres configured.
 const auth = () => getAuth(getDatabase);
@@ -585,6 +683,8 @@ function containerFor(
     uploadTickets: uploadTickets(),
     taskReads: new DrizzleTaskReadStore(db),
     accessTokens: new DrizzleAccessTokenRepository(db),
+    groups: new DrizzleGroupRepository(db),
+    groupReads: new DrizzleGroupReadStore(db),
     authenticator,
     clock,
     tracer: sentryMessageTracer,

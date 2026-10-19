@@ -11,6 +11,7 @@ import {
 } from "@/modules/tasks/domain";
 import { err, ok, UniqueId, type Result } from "@/shared/domain";
 import type { Database } from "@/shared/infrastructure/database/client";
+import { isUniqueViolation } from "@/shared/infrastructure/database/unique-violation";
 
 import {
   taskSkill,
@@ -19,8 +20,6 @@ import {
 } from "./persistence/schema";
 
 type SkillRow = typeof taskSkill.$inferSelect;
-
-const UNIQUE_VIOLATION = "23505";
 
 export class DrizzleSkillRepository implements SkillRepository {
   readonly #loadedVersions = new WeakMap<Skill, number>();
@@ -192,16 +191,4 @@ export class DrizzleSkillRepository implements SkillRepository {
 
 function actor(kind: string, id: string, name: string): Actor {
   return { kind: kind === "agent" ? "agent" : "human", id, name };
-}
-
-// Drizzle wraps the node-postgres error, so the code may be on a `cause`.
-export function isUniqueViolation(error: unknown): boolean {
-  for (
-    let current: unknown = error;
-    current && typeof current === "object";
-    current = (current as { cause?: unknown }).cause
-  ) {
-    if ((current as { code?: unknown }).code === UNIQUE_VIOLATION) return true;
-  }
-  return false;
 }

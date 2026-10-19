@@ -1,6 +1,6 @@
 import type { Query, QueryHandler } from "@/shared/application";
 
-import type { TaskReadStore } from "../ports/task-read-store";
+import type { TaskOwners, TaskReadStore } from "../ports/task-read-store";
 import { repositoryTasks, TaskIndex } from "./projections";
 import type { RepositoryTasks } from "./read-models";
 
@@ -8,13 +8,13 @@ export type TasksForRepositoryQuery = Query<
   "tasks.tasks-for-repository",
   RepositoryTasks
 > & {
-  readonly ownerId: string;
+  readonly ownerId: TaskOwners;
   readonly owner: string;
   readonly name: string;
 };
 
 export function tasksForRepositoryQuery(
-  ownerId: string,
+  ownerId: TaskOwners,
   owner: string,
   name: string,
 ): TasksForRepositoryQuery {

@@ -1,10 +1,12 @@
 import {
   formatTaskKey,
   isOpen,
+  keyMatches,
   normaliseLabelName,
   priorityRank,
   SESSION_LEASE_MS,
   type Priority,
+  type TaskKey,
   type TaskKind,
   type TaskStatus,
 } from "@/modules/tasks/domain";
@@ -51,6 +53,17 @@ export type TaskFilter = {
   readonly text?: string;
   readonly limit?: number;
 };
+
+export function matchesKey(record: TaskRecord, key: TaskKey): boolean {
+  return record.number === key.number && keyMatches(key, record.keyPrefix);
+}
+
+export function taskKey(record: {
+  readonly number: number;
+  readonly keyPrefix: string;
+}): string {
+  return formatTaskKey(record.number, record.keyPrefix);
+}
 
 export const DEFAULT_LIMIT = 25;
 export const MAX_LIMIT = 100;
@@ -129,7 +142,7 @@ export class TaskIndex {
   epicMention(record: TaskRecord): EpicMention | null {
     if (record.kind === "epic") return null;
     const epic = this.epicOf(record);
-    return epic ? { key: formatTaskKey(epic.number), title: epic.title } : null;
+    return epic ? { key: taskKey(epic), title: epic.title } : null;
   }
 
   progress(record: TaskRecord): { done: number; total: number } | null {
@@ -147,7 +160,7 @@ export class TaskIndex {
     const children = this.children(record.id);
     const live = this.liveSession(record);
     return {
-      key: formatTaskKey(record.number),
+      key: taskKey(record),
       kind: record.kind,
       title: record.title,
       status: record.status,
@@ -158,9 +171,7 @@ export class TaskIndex {
       parent: this.#keyOf(record.parentId),
       epic: this.epicMention(record),
       progress: this.progress(record),
-      blockedBy: this.openBlockers(record).map((blocker) =>
-        formatTaskKey(blocker.number),
-      ),
+      blockedBy: this.openBlockers(record).map((blocker) => taskKey(blocker)),
       hold: record.hold?.reason ?? null,
       workedOnBy: live?.actorName ?? null,
       subtasks: {
@@ -177,7 +188,7 @@ export class TaskIndex {
     const record = this.#byId.get(id);
     if (!record) return null;
     return {
-      key: formatTaskKey(record.number),
+      key: taskKey(record),
       kind: record.kind,
       title: record.title,
       status: record.status,
@@ -187,7 +198,7 @@ export class TaskIndex {
 
   #keyOf(id: string | null): string | null {
     const record = id ? this.#byId.get(id) : undefined;
-    return record ? formatTaskKey(record.number) : null;
+    return record ? taskKey(record) : null;
   }
 }
 
@@ -281,8 +292,7 @@ function matchesScope(
   }
   if (filter.parentId && record.parentId !== filter.parentId) return false;
   if (words.length > 0) {
-    const haystack =
-      `${formatTaskKey(record.number)} ${record.title}`.toLowerCase();
+    const haystack = `${taskKey(record)} ${record.title}`.toLowerCase();
     if (!words.every((word) => haystack.includes(word))) return false;
   }
   return true;
@@ -376,7 +386,7 @@ export function brief(
   const latest = detail.latestSession;
 
   return {
-    key: formatTaskKey(detail.number),
+    key: taskKey(detail),
     id: detail.id,
     kind: detail.kind,
     title: detail.title,
@@ -578,7 +588,7 @@ export function repositoryTasks(
   const shown: TaskSummary[] = open
     .slice(0, PANEL_LIMIT)
     .map(({ record, state }) => ({
-      id: formatTaskKey(record.number),
+      id: taskKey(record),
       title: record.title,
       lastActivity: lastActivity(index, record, state, now),
       state,
@@ -628,7 +638,7 @@ function lastActivity(
       }
       return `Blocked by ${index
         .openBlockers(record)
-        .map((blocker) => formatTaskKey(blocker.number))
+        .map((blocker) => taskKey(blocker))
         .join(", ")}`;
     case "in-review":
       return `In review for ${duration(record.updatedAt, now)}`;
@@ -648,7 +658,7 @@ function fullName(record: TaskRecord): string | null {
 }
 
 function keyNumber(item: TaskListItem): number {
-  return Number(item.key.slice(2));
+  return Number(item.key.slice(item.key.lastIndexOf("-") + 1));
 }
 
 function duration(from: Date, to: Date): string {

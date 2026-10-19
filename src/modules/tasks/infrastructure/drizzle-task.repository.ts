@@ -71,6 +71,7 @@ export class DrizzleTaskRepository implements TaskRepository {
       this.db
         .select({
           id: taskTable.id,
+          keyPrefix: taskTable.keyPrefix,
           number: taskTable.number,
           status: taskTable.status,
           parentId: taskTable.parentId,
@@ -101,6 +102,7 @@ export class DrizzleTaskRepository implements TaskRepository {
         parentId: row.parentId,
         blockedBy: blockedBy.get(row.id) ?? [],
       })),
+      tasks[0]?.keyPrefix,
     );
   }
 
@@ -233,7 +235,12 @@ export function restoreTask(
 ): Task {
   return Task.restore(
     UniqueId.create(row.id),
-    { ownerId: row.ownerId, number: row.number, createdAt: row.createdAt },
+    {
+      ownerId: row.ownerId,
+      keyPrefix: row.keyPrefix,
+      number: row.number,
+      createdAt: row.createdAt,
+    },
     {
       kind: row.kind as TaskKind,
       title: row.title,
@@ -301,6 +308,7 @@ function toRow(task: Task) {
   return {
     id: task.id.value,
     ownerId: task.ownerId,
+    keyPrefix: task.keyPrefix,
     number: task.number,
     kind: state.kind,
     title: state.title,

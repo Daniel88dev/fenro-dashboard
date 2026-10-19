@@ -24,6 +24,7 @@ import { MarkdownEditor } from "./markdown-editor";
 import type { LabelOption } from "./labels";
 import { ParentSelect, type ParentOption } from "./parent-select";
 import { RepositorySelect, type RepositoryOption } from "./repository-select";
+import { SpaceSelect, type SpaceOption } from "./space-select";
 import { EMPTY_FORM_STATE, type TaskFormState } from "./task-form-state";
 
 export type TaskAction = (
@@ -145,6 +146,8 @@ export type NewTaskDefaults = {
   readonly parent: string;
   readonly source: string;
   readonly title: string;
+  /** The space's key prefix; a parent's own prefix wins over it. */
+  readonly space?: string;
 };
 
 function KindSegments({
@@ -264,6 +267,7 @@ export function NewTaskForm({
   labels = [],
   repositories = [],
   parents = [],
+  spaces = [],
   variant = "page",
   cancel,
 }: {
@@ -272,12 +276,25 @@ export function NewTaskForm({
   parents?: readonly ParentOption[];
   labels?: readonly LabelOption[];
   repositories?: readonly RepositoryOption[];
+  spaces?: readonly SpaceOption[];
   variant?: "page" | "dialog";
   cancel?: ReactNode;
 }) {
   const dialog = variant === "dialog";
   const [kind, setKind] = useState<TaskKind>(defaults.kind ?? "task");
   const epic = kind === "epic";
+  const [spacePrefix, setSpacePrefix] = useState(() =>
+    initialSpace(spaces, defaults),
+  );
+  const space = spaces.find((option) => option.prefix === spacePrefix);
+  const catalogue = space ? space.labels : labels;
+  const parentsHere = space
+    ? parents.filter((option) => keyPrefixOf(option.key) === space.prefix)
+    : parents;
+  const parentHere =
+    !space || keyPrefixOf(defaults.parent) === space.prefix
+      ? defaults.parent
+      : "";
 
   const title = (
     <Field label="Title">
@@ -345,7 +362,7 @@ export function NewTaskForm({
       <legend className="text-ink mb-1.5 p-0 text-[12.5px] font-medium">
         Labels
       </legend>
-      <LabelPicker catalogue={labels} />
+      <LabelPicker key={spacePrefix} catalogue={catalogue} />
     </fieldset>
   );
   const rest = (
@@ -354,9 +371,10 @@ export function NewTaskForm({
         <Field label="Parent" hint="Sub-task of, or the epic it is part of">
           {(id) => (
             <ParentSelect
+              key={spacePrefix}
               id={id}
-              options={parents}
-              defaultValue={defaults.parent}
+              options={parentsHere}
+              defaultValue={parentHere}
             />
           )}
         </Field>
@@ -391,6 +409,29 @@ export function NewTaskForm({
       {(pending) => (
         <>
           {dialog ? <input type="hidden" name="from" value="dialog" /> : null}
+          {spaces.length > 1 && space ? (
+            <div
+              className={`flex flex-wrap items-center gap-x-3 gap-y-1.5 ${dialog ? "border-hairline-soft border-b px-5 py-3 sm:px-[22px]" : "pb-2"}`}
+            >
+              <span className="text-ink-soft text-[13px]">In</span>
+              <SpaceSelect
+                options={spaces}
+                value={space.prefix}
+                onChange={setSpacePrefix}
+              />
+              <span className="text-ink-muted text-[12.5px]">
+                {space.kind === "personal"
+                  ? "Only you see it."
+                  : `Shared with ${space.who} of ${space.name}.`}
+              </span>
+              <span className="text-ink-muted ml-auto text-[12.5px]">
+                Becomes{" "}
+                <span className="text-ink font-mono font-semibold">
+                  {space.next}
+                </span>
+              </span>
+            </div>
+          ) : null}
           {dialog ? (
             <div className="flex flex-col gap-4 px-5 py-[18px] sm:px-[22px]">
               <KindSegments value={kind} onChange={setKind} />
@@ -458,6 +499,25 @@ export function NewTaskForm({
         </>
       )}
     </ActionForm>
+  );
+}
+
+function keyPrefixOf(key: string): string {
+  const dash = key.lastIndexOf("-");
+  return dash > 0 ? key.slice(0, dash).toUpperCase() : "";
+}
+
+function initialSpace(
+  spaces: readonly SpaceOption[],
+  defaults: NewTaskDefaults,
+): string {
+  const wanted = [keyPrefixOf(defaults.parent), defaults.space?.toUpperCase()];
+  return (
+    wanted.find(
+      (prefix) => prefix && spaces.some((space) => space.prefix === prefix),
+    ) ??
+    spaces[0]?.prefix ??
+    ""
   );
 }
 

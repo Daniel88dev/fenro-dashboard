@@ -1,12 +1,12 @@
 import type { Query, QueryHandler } from "@/shared/application";
 
-import type { TaskReadStore } from "../ports/task-read-store";
+import type { TaskOwners, TaskReadStore } from "../ports/task-read-store";
 import { resolveFilter, type TaskListFilterInput } from "./list-tasks";
 import { board, BOARD_STATUSES, TaskIndex } from "./projections";
 import type { DoneWindow, TaskBoard } from "./read-models";
 
 export type TaskBoardQuery = Query<"tasks.task-board", TaskBoard> & {
-  readonly ownerId: string;
+  readonly ownerId: TaskOwners;
   readonly filter: Omit<
     TaskListFilterInput,
     "statuses" | "states" | "ready" | "includeClosed" | "limit"
@@ -15,7 +15,7 @@ export type TaskBoardQuery = Query<"tasks.task-board", TaskBoard> & {
 };
 
 export function taskBoardQuery(
-  ownerId: string,
+  ownerId: TaskOwners,
   filter: TaskBoardQuery["filter"] = {},
   done: DoneWindow = "week",
 ): TaskBoardQuery {

@@ -10,8 +10,8 @@ import {
 } from "@/modules/tasks/domain";
 import { err, ok, UniqueId, type Result } from "@/shared/domain";
 import type { Database } from "@/shared/infrastructure/database/client";
+import { isUniqueViolation } from "@/shared/infrastructure/database/unique-violation";
 
-import { isUniqueViolation } from "./drizzle-skill.repository";
 import {
   task as taskTable,
   taskLabel,
