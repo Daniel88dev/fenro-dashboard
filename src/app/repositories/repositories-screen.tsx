@@ -48,6 +48,7 @@ import {
   getContainer,
 } from "@/shared/infrastructure/container";
 
+import { spacesOf } from "../tasks/spaces";
 import { signInWithGitHubAction } from "../sign-in/actions";
 import {
   addRepositoriesAction,
@@ -117,10 +118,13 @@ export async function RepositoriesScreen({
     return <SignInPanel action={signInWithGitHubAction} />;
   }
   const watcher: Watcher = { id: user.id, login: user.githubLogin };
+  const owners = (await spacesOf(queryBus, user)).all.map(
+    (space) => space.ownerId,
+  );
 
   const [rows, taskCounts] = await Promise.all([
     queryBus.ask(repositoryRowsQuery(watcher)),
-    queryBus.ask(taskCountsByRepositoryQuery(user.id)),
+    queryBus.ask(taskCountsByRepositoryQuery(owners)),
   ]);
 
   if (isErr(rows)) {
@@ -208,7 +212,7 @@ export async function RepositoriesScreen({
           >
             <TasksSection
               queryBus={queryBus}
-              ownerId={user.id}
+              owners={owners}
               repository={repository}
             />
           </StreamedPanel>
@@ -491,17 +495,15 @@ async function IssuesSection({
 
 async function TasksSection({
   queryBus,
-  ownerId,
+  owners,
   repository,
 }: {
   queryBus: Bus;
-  ownerId: string;
+  owners: readonly string[];
   repository: Repository;
 }) {
   const { owner, name } = repository;
   const id = panelId({ owner, name, column: "tasks" });
-  const data = await queryBus.ask(
-    tasksForRepositoryQuery(ownerId, owner, name),
-  );
+  const data = await queryBus.ask(tasksForRepositoryQuery(owners, owner, name));
   return <TasksPanel id={id} data={data} repository={`${owner}/${name}`} />;
 }

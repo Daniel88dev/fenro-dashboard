@@ -13,6 +13,7 @@ describe("newTaskDefaults", () => {
       repository: "nordwind/billing-core",
       parent: "",
       source: "https://github.com/nordwind/billing-core/pull/476",
+      space: "",
       title: "Get pull request #476 merged",
     });
   });
@@ -21,6 +22,10 @@ describe("newTaskDefaults", () => {
     expect(
       newTaskDefaults({ title: " Tidy up ", parent: ["T-3", "T-4"] }),
     ).toMatchObject({ title: "Tidy up", parent: "T-3" });
+  });
+
+  it("reads the space as a key prefix", () => {
+    expect(newTaskDefaults({ space: "hal" })).toMatchObject({ space: "HAL" });
   });
 
   it("starts as an epic from New epic", () => {

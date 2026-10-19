@@ -179,7 +179,7 @@ export function SearchPalette({ pages }: { pages: readonly PalettePage[] }) {
   }
 
   const words = searchWords(query);
-  const digits = /^(?:t-?|#)?(\d+)$/i.exec(query.trim())?.[1];
+  const digits = /^(?:[a-z]{1,5}-?|#)?(\d+)$/i.exec(query.trim())?.[1];
   const shownPages = pages.filter((page) =>
     words.every((word) => page.label.toLowerCase().includes(word)),
   );
@@ -439,14 +439,7 @@ function HitItem({
       <span className="flex min-w-0 flex-1 flex-col gap-0.5 py-[7px]">
         <span className="flex min-w-0 items-baseline gap-2">
           <span className="text-ink-muted shrink-0 font-mono text-[12px]">
-            {digits && hit.key.startsWith(`T-${digits}`) ? (
-              <>
-                T-<Mark>{digits}</Mark>
-                {hit.key.slice(2 + digits.length)}
-              </>
-            ) : (
-              hit.key
-            )}
+            <KeyWithDigits value={hit.key} digits={digits} />
           </span>
           <span
             className={`truncate ${hit.state === "cancelled" ? "text-ink-muted line-through" : ""}`}
@@ -495,5 +488,17 @@ function Mark({ children }: { children: ReactNode }) {
     <mark className="bg-state-running-wash text-ink rounded-[3px]">
       {children}
     </mark>
+  );
+}
+
+function KeyWithDigits({ value, digits }: { value: string; digits?: string }) {
+  const dash = value.lastIndexOf("-") + 1;
+  if (!digits || !value.startsWith(digits, dash)) return value;
+  return (
+    <>
+      {value.slice(0, dash)}
+      <Mark>{digits}</Mark>
+      {value.slice(dash + digits.length)}
+    </>
   );
 }

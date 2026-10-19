@@ -111,7 +111,7 @@ export type TaskLayout = "list" | "board";
 export function parseEpicParam(value: string): EpicScope {
   const scope = value.trim();
   if (scope === "epics" || scope === "none") return scope;
-  return /^t-\d+$/i.test(scope) ? scope.toUpperCase() : "";
+  return /^[a-z]{1,5}-\d+$/i.test(scope) ? scope.toUpperCase() : "";
 }
 
 export function parseDoneParam(value: string): DoneWindow {

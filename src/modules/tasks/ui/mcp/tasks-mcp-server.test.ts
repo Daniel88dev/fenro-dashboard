@@ -118,6 +118,8 @@ import { InMemoryPictureStorage } from "@/modules/tasks/infrastructure/in-memory
 import { InMemoryTaskStore } from "@/modules/tasks/infrastructure/in-memory-task.store";
 import { CommandBus, QueryBus } from "@/shared/application";
 
+import { personalSpace } from "@/modules/tasks/domain";
+
 import { createTasksMcpServer, type AgentAccess } from "./tasks-mcp-server";
 
 const OWNER = "user-1";
@@ -325,9 +327,17 @@ async function connect(access: AgentAccess) {
   };
 }
 
+const HAL = {
+  ownerId: "group-hal",
+  prefix: "HAL",
+  name: "Halcyon Labs",
+  kind: "group",
+} as const;
+
 function agent(id: string, canWrite = true): AgentAccess {
   return {
     ownerId: OWNER,
+    spaces: [personalSpace(OWNER), HAL],
     actor: { kind: "agent", id, name: `Agent ${id}` },
     canWrite,
   };
@@ -496,6 +506,36 @@ describe("the tasks MCP server", () => {
       }),
     );
     expect(keys(children)).toEqual(["T-2"]);
+  });
+
+  it("files and finds tasks in a group's space by its prefix", async () => {
+    const planner = await connect(agent("planner"));
+    await planner.call("save_task", { title: "Personal chore" });
+    const shared = parse<{ key: string; url: string }>(
+      await planner.call("save_task", { title: "Shared work", space: "hal" }),
+    );
+    await planner.call("save_task", { title: "Follow-up", parent: "HAL-1" });
+
+    expect(shared).toMatchObject({
+      key: "HAL-1",
+      url: "https://fenro.test/tasks/HAL-1",
+    });
+    expect(keys(parse<TaskList>(await planner.call("list_tasks")))).toEqual(
+      expect.arrayContaining(["T-1", "HAL-1", "HAL-2"]),
+    );
+    expect(
+      keys(parse<TaskList>(await planner.call("list_tasks", { space: "HAL" }))),
+    ).toEqual(expect.arrayContaining(["HAL-1", "HAL-2"]));
+    expect(
+      parse<TaskBrief>(await planner.call("get_task", { task: "HAL-2" })).parent
+        ?.key,
+    ).toBe("HAL-1");
+    expect((await planner.call("get_task", { task: "HAL-3" })).isError).toBe(
+      true,
+    );
+    expect((await planner.call("list_tasks", { space: "NOPE" })).isError).toBe(
+      true,
+    );
   });
 
   it("keeps a task open until its criteria are met", async () => {
