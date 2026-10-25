@@ -57,3 +57,13 @@ every group they belong to. `list_tasks` and `start_task` cover every space
 (`list_tasks` takes `space` to narrow it); `save_task` files new work in the
 parent's or `discovered_from`'s space, or the `space` it is given. Labels and
 skills tools still work on the person's own catalogue.
+
+## Skills on group tasks
+
+Skills stay personal: nobody manages a group's skills, and `save_skill` writes
+to the person's own catalogue. So the brief of a group task also looks up the
+reader's own skills linked to the task's label names (`readerId` on
+`taskBriefQuery`). `start_task` and `get_task` pass the token's person, and the
+task page and dialog pass the signed-in person, so two members working the
+same `HAL-` task each get their own skills. Skills stored under the group id,
+if any, still come too; on a name clash the reader's own skill wins.

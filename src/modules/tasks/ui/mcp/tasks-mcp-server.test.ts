@@ -934,6 +934,42 @@ describe("the tasks MCP server", () => {
     ]);
   });
 
+  it("brings the person's own skills to a group task they work", async () => {
+    const member = await connect(agent("member"));
+    parse(
+      await member.call("save_skill", {
+        name: "frontend-conventions",
+        description: "Use when building or changing UI.",
+        instructions: "Use colour tokens.",
+        labels: ["ui"],
+      }),
+    );
+    parse(
+      await member.call("save_task", {
+        title: "Shared top bar",
+        labels: ["ui"],
+        space: "HAL",
+      }),
+    );
+
+    const looked = parse<TaskBrief>(
+      await member.call("get_task", { task: "HAL-1" }),
+    );
+    expect(looked.skills.map((skill) => skill.name)).toEqual([
+      "frontend-conventions",
+    ]);
+
+    const started = parse<TaskBrief>(
+      await member.call("start_task", { task: "HAL-1" }),
+    );
+    expect(started.skills).toEqual([
+      expect.objectContaining({
+        name: "frontend-conventions",
+        instructions: "Use colour tokens.",
+      }),
+    ]);
+  });
+
   it("lets an agent find, read, change and restore a skill", async () => {
     const author = await connect(agent("author"));
     parse(
