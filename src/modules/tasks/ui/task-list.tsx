@@ -1,4 +1,5 @@
 import {
+  ChatCircleDots,
   Kanban,
   ListBullets,
   MagnifyingGlass,
@@ -21,6 +22,7 @@ import { PERSONAL_KEY_PREFIX } from "@/modules/tasks/domain";
 
 import { EpicRail } from "./epic-rail";
 import { LabelFilter, type LabelFilterOption } from "./label-filter";
+import { QuestionsChip } from "./questions-chip";
 import { colourOf, LabelDot, type LabelOption } from "./labels";
 import { RepositoryFilter } from "./repository-filter";
 import { SpaceFilter } from "./space-filter";
@@ -53,6 +55,7 @@ export type TaskListFilter = {
   readonly done?: DoneWindow;
   /** Key prefixes of the spaces shown; empty shows every space. */
   readonly spaces?: readonly string[];
+  readonly needsAnswer?: boolean;
 };
 
 export type ListSpace = {
@@ -95,6 +98,7 @@ function hrefFor(filter: TaskListFilter): string {
     params.set("done", filter.done);
   }
   if (filter.spaces?.length) params.set("spaces", filter.spaces.join(","));
+  if (filter.needsAnswer) params.set("needs", "answer");
   if (filter.epic) params.set("epic", filter.epic);
   if (filter.repository) params.set("repository", filter.repository);
   if (filter.labels.length > 0) params.set("labels", filter.labels.join(","));
@@ -151,6 +155,7 @@ export function TaskList({
   epics,
   scopeCounts,
   spaces = [],
+  needingAnswers = 0,
   move,
 }: {
   list?: TaskListResult;
@@ -166,6 +171,7 @@ export function TaskList({
     readonly none: number;
   };
   spaces?: readonly ListSpace[];
+  needingAnswers?: number;
   move?: MoveTask;
 }) {
   const layout = filter.layout ?? "list";
@@ -234,6 +240,13 @@ export function TaskList({
           </p>
         )}
         <div className="flex flex-wrap items-center gap-2 md:mb-2 md:flex-nowrap">
+          {needingAnswers > 0 || filter.needsAnswer ? (
+            <NeedsAnswerFilter
+              on={filter.needsAnswer ?? false}
+              count={needingAnswers}
+              href={hrefFor({ ...filter, needsAnswer: !filter.needsAnswer })}
+            />
+          ) : null}
           {groups.length > 0 ? (
             <SpaceFilter {...spaceFilterProps(filter, groups)} />
           ) : null}
@@ -448,6 +461,7 @@ function hiddenFields(filter: TaskListFilter): [string, string][] {
     fields.push(["view", filter.view]);
   }
   if (filter.spaces?.length) fields.push(["spaces", filter.spaces.join(",")]);
+  if (filter.needsAnswer) fields.push(["needs", "answer"]);
   if (filter.epic) fields.push(["epic", filter.epic]);
   if (filter.repository) fields.push(["repository", filter.repository]);
   if (filter.labels.length > 0)
@@ -529,7 +543,37 @@ function labelOptions(
   });
 }
 
+function NeedsAnswerFilter({
+  on,
+  count,
+  href,
+}: {
+  on: boolean;
+  count: number;
+  href: string;
+}) {
+  return (
+    <Link
+      href={href}
+      scroll={false}
+      aria-pressed={on}
+      className={`focus-visible:outline-pr inline-flex h-[34px] items-center gap-1.5 rounded-lg border px-[11px] text-[12.5px] whitespace-nowrap focus-visible:outline-2 focus-visible:outline-offset-1 ${
+        on
+          ? "border-ink bg-surface text-ink font-medium shadow-[inset_0_0_0_0.5px_var(--color-ink)]"
+          : "border-hairline bg-surface text-ink hover:bg-surface-sunken"
+      }`}
+    >
+      <ChatCircleDots aria-hidden="true" className="size-[14px]" />
+      Needs my answer
+      {count > 0 ? (
+        <span className="text-ink-faint font-mono text-[12px]">{count}</span>
+      ) : null}
+    </Link>
+  );
+}
+
 function emptyMessage(filter: TaskListFilter): string {
+  if (filter.needsAnswer) return "No task is waiting on your answers.";
   if (filter.text) return "No task matches that search.";
   if (filter.labels.length > 0) return "No task matches those labels.";
   return EMPTY[filter.view];
@@ -666,6 +710,7 @@ function Meta({
   if (
     facts.length === 0 &&
     !group &&
+    task.questions === 0 &&
     task.labels.length === 0 &&
     !task.epic &&
     !task.progress
@@ -681,6 +726,7 @@ function Meta({
           {group}
         </span>
       ) : null}
+      <QuestionsChip count={task.questions} />
       {task.progress ? <EpicProgress progress={task.progress} /> : null}
       {task.epic ? <EpicTag title={task.epic.title} /> : null}
       {task.labels.map((name) => (

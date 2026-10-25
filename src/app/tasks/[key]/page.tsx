@@ -20,7 +20,10 @@ export const metadata = {
 
 const JOURNAL_LIMIT = 200;
 
-export default function TaskPage({ params }: PageProps<"/tasks/[key]">) {
+export default function TaskPage({
+  params,
+  searchParams,
+}: PageProps<"/tasks/[key]">) {
   return (
     <DashboardChrome
       current="tasks"
@@ -31,7 +34,7 @@ export default function TaskPage({ params }: PageProps<"/tasks/[key]">) {
       }
     >
       <Suspense fallback={<TaskLoading what="the task" />}>
-        <TaskScreen params={params} />
+        <TaskScreen params={params} searchParams={searchParams} />
       </Suspense>
     </DashboardChrome>
   );
@@ -39,10 +42,14 @@ export default function TaskPage({ params }: PageProps<"/tasks/[key]">) {
 
 async function TaskScreen({
   params,
+  searchParams,
 }: {
   params: PageProps<"/tasks/[key]">["params"];
+  searchParams: PageProps<"/tasks/[key]">["searchParams"];
 }) {
   const key = decodeURIComponent((await params).key);
+  const { round } = await searchParams;
+  const shownRound = Number(Array.isArray(round) ? round[0] : round);
   const now = new Date();
   const { container, spaces, repositoryOptions, parentOptions } =
     await tasksContext(now);
@@ -72,6 +79,7 @@ async function TaskScreen({
       parents={parents}
       picturesEnabled={picturesEnabled()}
       now={now}
+      round={Number.isInteger(shownRound) ? shownRound : null}
     />
   );
 }

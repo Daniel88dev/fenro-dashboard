@@ -45,6 +45,11 @@ import type { RepositoryOption } from "./repository-select";
 import { LiveDot } from "./task-list";
 import { InlineMarkdown, Markdown } from "./markdown";
 import { PictureThumbs, PicturesSection } from "./pictures";
+import {
+  QuestionnaireProvider,
+  QuestionRounds,
+  QuestionsForYou,
+} from "./questionnaires";
 import { TaskSkills } from "./task-skills";
 import { EpicProgress, kindWord, TaskKindIcon } from "./task-kind";
 import { StateChip } from "./state-chip";
@@ -93,14 +98,17 @@ export function TaskChips({
   task,
   labels = [],
   actions,
+  questions,
 }: {
   task: TaskBrief;
   labels?: readonly LabelOption[];
   actions?: TaskActions;
+  questions?: ReactNode;
 }) {
   return (
     <div className="flex flex-wrap items-center gap-1.5">
       <StateChip state={task.state} />
+      {questions}
       {task.priority !== "none" ? (
         <Chip>{`${PRIORITY_WORDS[task.priority]} priority`}</Chip>
       ) : null}
@@ -755,6 +763,7 @@ export function TaskDetail({
   parents = [],
   picturesEnabled = false,
   now = new Date(),
+  round = null,
 }: {
   task: TaskBrief;
   actions: TaskActions;
@@ -763,6 +772,7 @@ export function TaskDetail({
   parents?: readonly ParentOption[];
   picturesEnabled?: boolean;
   now?: Date;
+  round?: number | null;
 }) {
   const { key } = task;
   const open = isOpen(task);
@@ -799,214 +809,239 @@ export function TaskDetail({
   ];
 
   return (
-    <div className="flex flex-col gap-6">
-      <header className="flex flex-col gap-2.5">
-        <TaskTrail task={task} home />
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-          <div className="flex min-w-0 flex-col gap-2.5">
-            <h1 className="text-ink text-[24px] leading-tight font-semibold tracking-tight">
-              <span className="mr-2.5 inline-block align-[-4px]">
-                <TaskKindIcon kind={task.kind} size="lg" />
-              </span>
-              <span className="text-ink-faint mr-2.5 font-mono font-medium">
-                {key}
-              </span>
-              {task.title}
-            </h1>
-            <TaskChips task={task} labels={labels} actions={actions} />
-          </div>
-          <StatusActions task={task} actions={actions} />
-        </div>
-        <HoldNotice task={task} />
-      </header>
-
-      <div className="grid grid-cols-[minmax(0,1fr)] items-start gap-10 lg:grid-cols-[minmax(0,1fr)_320px]">
-        <div className="flex min-w-0 flex-col gap-6">
-          <HandoffCard entry={task.latestHandoff} />
-
-          <div className="flex flex-col gap-6">
-            <Section title="Description">
-              {task.description ? (
-                <Markdown className="text-ink max-w-[72ch] text-[13.5px] leading-relaxed">
-                  {task.description}
-                </Markdown>
-              ) : (
-                <Empty>No description yet.</Empty>
-              )}
-              <EditTaskForm
-                action={actions.update}
+    <QuestionnaireProvider
+      taskKey={key}
+      rounds={task.questionnaires}
+      answerAction={actions.answer}
+      removePictureAction={actions.removePicture}
+      picturesEnabled={picturesEnabled}
+      initialRound={round}
+      now={now.toISOString()}
+    >
+      <div className="flex flex-col gap-6">
+        <header className="flex flex-col gap-2.5">
+          <TaskTrail task={task} home />
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+            <div className="flex min-w-0 flex-col gap-2.5">
+              <h1 className="text-ink text-[24px] leading-tight font-semibold tracking-tight">
+                <span className="mr-2.5 inline-block align-[-4px]">
+                  <TaskKindIcon kind={task.kind} size="lg" />
+                </span>
+                <span className="text-ink-faint mr-2.5 font-mono font-medium">
+                  {key}
+                </span>
+                {task.title}
+              </h1>
+              <TaskChips
                 task={task}
-                repositories={repositories}
-                parents={parents}
+                labels={labels}
+                actions={actions}
+                questions={<QuestionsForYou />}
               />
-            </Section>
+            </div>
+            <StatusActions task={task} actions={actions} />
+          </div>
+          <HoldNotice task={task} />
+        </header>
 
-            <PicturesSection
-              taskKey={key}
-              pictures={task.pictures}
-              removeAction={actions.removePicture}
-              enabled={picturesEnabled}
-            />
+        <div className="grid grid-cols-[minmax(0,1fr)] items-start gap-10 lg:grid-cols-[minmax(0,1fr)_320px]">
+          <div className="flex min-w-0 flex-col gap-6">
+            <HandoffCard entry={task.latestHandoff} />
 
-            <CriteriaList task={task} actions={actions} />
+            <div className="flex flex-col gap-6">
+              <Section title="Description">
+                {task.description ? (
+                  <Markdown className="text-ink max-w-[72ch] text-[13.5px] leading-relaxed">
+                    {task.description}
+                  </Markdown>
+                ) : (
+                  <Empty>No description yet.</Empty>
+                )}
+                <EditTaskForm
+                  action={actions.update}
+                  task={task}
+                  repositories={repositories}
+                  parents={parents}
+                />
+              </Section>
 
-            <Section
-              title={task.kind === "epic" ? "Tasks in this epic" : "Sub-tasks"}
-              aside={
-                open ? (
-                  <Link
-                    href={`/tasks/new?parent=${key}`}
-                    className="text-ink-soft hover:bg-surface-sunken focus-visible:outline-pr flex h-7 items-center gap-1.5 rounded-lg px-2.5 text-[12px] font-medium focus-visible:outline-2"
-                  >
-                    <Plus aria-hidden="true" className="size-[13px]" />
-                    {task.kind === "epic" ? "Add task" : "Add sub-task"}
-                  </Link>
-                ) : null
-              }
-            >
-              {task.subtasks.length === 0 ? (
-                <Empty>
-                  {task.kind === "epic"
-                    ? "No tasks in this epic yet."
-                    : "No sub-tasks."}
-                </Empty>
+              <PicturesSection
+                taskKey={key}
+                pictures={task.pictures}
+                removeAction={actions.removePicture}
+                enabled={picturesEnabled}
+              />
+
+              <CriteriaList task={task} actions={actions} />
+
+              <Section
+                title={
+                  task.kind === "epic" ? "Tasks in this epic" : "Sub-tasks"
+                }
+                aside={
+                  open ? (
+                    <Link
+                      href={`/tasks/new?parent=${key}`}
+                      className="text-ink-soft hover:bg-surface-sunken focus-visible:outline-pr flex h-7 items-center gap-1.5 rounded-lg px-2.5 text-[12px] font-medium focus-visible:outline-2"
+                    >
+                      <Plus aria-hidden="true" className="size-[13px]" />
+                      {task.kind === "epic" ? "Add task" : "Add sub-task"}
+                    </Link>
+                  ) : null
+                }
+              >
+                {task.subtasks.length === 0 ? (
+                  <Empty>
+                    {task.kind === "epic"
+                      ? "No tasks in this epic yet."
+                      : "No sub-tasks."}
+                  </Empty>
+                ) : (
+                  <ul className="m-0 flex list-none flex-col gap-1 p-0">
+                    {task.subtasks.map((subtask) => (
+                      <li key={subtask.key}>
+                        <MentionLink task={subtask} />
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </Section>
+
+              <div className="lg:hidden">
+                <QuestionRounds />
+              </div>
+
+              <JournalSection task={task} actions={actions} />
+            </div>
+          </div>
+
+          <aside className="flex flex-col gap-6 lg:sticky lg:top-20">
+            <div className="hidden lg:block">
+              <QuestionRounds />
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              <h2 className="text-ink text-[13px] font-semibold">Agent</h2>
+              <AgentLine task={task} />
+            </div>
+
+            <div className="border-hairline border-t pt-4">
+              <TaskSkills skills={task.skills} labels={labels} />
+            </div>
+
+            <div className="border-hairline border-t pt-1.5">
+              <TaskProperties task={task} />
+            </div>
+
+            <div className="border-hairline flex flex-col gap-3 border-t pt-4">
+              <h2 className="text-ink text-[13px] font-semibold">Links</h2>
+              {links.length === 0 ? (
+                <Empty>Not linked to other tasks.</Empty>
               ) : (
-                <ul className="m-0 flex list-none flex-col gap-1 p-0">
-                  {task.subtasks.map((subtask) => (
-                    <li key={subtask.key}>
-                      <MentionLink task={subtask} />
+                <ul className="m-0 flex list-none flex-col gap-1.5 p-0">
+                  {links.map(({ kind, mention, removable }) => (
+                    <li
+                      key={`${kind}-${mention.key}`}
+                      className="flex items-center gap-2"
+                    >
+                      <span className="text-ink-muted w-[92px] shrink-0 text-[12px]">
+                        {kind}
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <MentionLink task={mention} />
+                      </div>
+                      {removable ? (
+                        <ButtonForm
+                          action={actions.link}
+                          task={key}
+                          label={`Remove ${kind} ${mention.key}`}
+                          values={{ kind, target: mention.key, remove: "true" }}
+                          tone="link"
+                        >
+                          Remove
+                        </ButtonForm>
+                      ) : null}
                     </li>
                   ))}
                 </ul>
               )}
-            </Section>
+              <InlineForm
+                action={actions.link}
+                task={key}
+                label="Add a blocking task"
+                name="target"
+                placeholder="Blocked by, e.g. T-3"
+                button="Link"
+                hidden={{ kind: "blocked-by" }}
+              />
+            </div>
 
-            <JournalSection task={task} actions={actions} />
-          </div>
-        </div>
-
-        <aside className="flex flex-col gap-6 lg:sticky lg:top-20">
-          <div className="flex flex-col gap-1.5">
-            <h2 className="text-ink text-[13px] font-semibold">Agent</h2>
-            <AgentLine task={task} />
-          </div>
-
-          <div className="border-hairline border-t pt-4">
-            <TaskSkills skills={task.skills} labels={labels} />
-          </div>
-
-          <div className="border-hairline border-t pt-1.5">
-            <TaskProperties task={task} />
-          </div>
-
-          <div className="border-hairline flex flex-col gap-3 border-t pt-4">
-            <h2 className="text-ink text-[13px] font-semibold">Links</h2>
-            {links.length === 0 ? (
-              <Empty>Not linked to other tasks.</Empty>
-            ) : (
-              <ul className="m-0 flex list-none flex-col gap-1.5 p-0">
-                {links.map(({ kind, mention, removable }) => (
-                  <li
-                    key={`${kind}-${mention.key}`}
-                    className="flex items-center gap-2"
-                  >
-                    <span className="text-ink-muted w-[92px] shrink-0 text-[12px]">
-                      {kind}
-                    </span>
-                    <div className="min-w-0 flex-1">
-                      <MentionLink task={mention} />
-                    </div>
-                    {removable ? (
+            <div className="border-hairline flex flex-col gap-3 border-t pt-4">
+              <h2 className="text-ink text-[13px] font-semibold">
+                Source and references
+              </h2>
+              {task.references.length === 0 ? (
+                <Empty>No links to GitHub, Jira or elsewhere.</Empty>
+              ) : (
+                <ul className="m-0 flex list-none flex-col gap-1.5 p-0">
+                  {task.references.map((reference) => (
+                    <li key={reference.url} className="flex items-start gap-2">
+                      <a
+                        href={reference.url}
+                        rel="noreferrer noopener"
+                        target="_blank"
+                        className="hover:bg-surface-sunken -mx-1.5 flex min-w-0 flex-1 flex-col rounded-md px-1.5 py-1"
+                      >
+                        <span className="text-ink truncate text-[12.5px]">
+                          {reference.title ?? reference.key}
+                        </span>
+                        <span className="text-ink-muted text-[11.5px]">
+                          {reference.isSource
+                            ? `${reference.system}, the source`
+                            : reference.system}
+                        </span>
+                      </a>
                       <ButtonForm
-                        action={actions.link}
+                        action={actions.edit}
                         task={key}
-                        label={`Remove ${kind} ${mention.key}`}
-                        values={{ kind, target: mention.key, remove: "true" }}
+                        label={`Remove link ${reference.key}`}
+                        values={{ detach: reference.url }}
                         tone="link"
                       >
                         Remove
                       </ButtonForm>
-                    ) : null}
-                  </li>
-                ))}
-              </ul>
-            )}
-            <InlineForm
-              action={actions.link}
-              task={key}
-              label="Add a blocking task"
-              name="target"
-              placeholder="Blocked by, e.g. T-3"
-              button="Link"
-              hidden={{ kind: "blocked-by" }}
-            />
-          </div>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              <InlineForm
+                action={actions.edit}
+                task={key}
+                label="Attach a link"
+                name="attach"
+                placeholder="https://…"
+                button="Attach"
+                extra={
+                  <label className="text-ink-soft flex h-[30px] items-center gap-1.5 text-[12px]">
+                    <input
+                      type="checkbox"
+                      name="isSource"
+                      className="accent-pr"
+                    />
+                    Source
+                  </label>
+                }
+              />
+            </div>
 
-          <div className="border-hairline flex flex-col gap-3 border-t pt-4">
-            <h2 className="text-ink text-[13px] font-semibold">
-              Source and references
-            </h2>
-            {task.references.length === 0 ? (
-              <Empty>No links to GitHub, Jira or elsewhere.</Empty>
-            ) : (
-              <ul className="m-0 flex list-none flex-col gap-1.5 p-0">
-                {task.references.map((reference) => (
-                  <li key={reference.url} className="flex items-start gap-2">
-                    <a
-                      href={reference.url}
-                      rel="noreferrer noopener"
-                      target="_blank"
-                      className="hover:bg-surface-sunken -mx-1.5 flex min-w-0 flex-1 flex-col rounded-md px-1.5 py-1"
-                    >
-                      <span className="text-ink truncate text-[12.5px]">
-                        {reference.title ?? reference.key}
-                      </span>
-                      <span className="text-ink-muted text-[11.5px]">
-                        {reference.isSource
-                          ? `${reference.system}, the source`
-                          : reference.system}
-                      </span>
-                    </a>
-                    <ButtonForm
-                      action={actions.edit}
-                      task={key}
-                      label={`Remove link ${reference.key}`}
-                      values={{ detach: reference.url }}
-                      tone="link"
-                    >
-                      Remove
-                    </ButtonForm>
-                  </li>
-                ))}
-              </ul>
-            )}
-            <InlineForm
-              action={actions.edit}
-              task={key}
-              label="Attach a link"
-              name="attach"
-              placeholder="https://…"
-              button="Attach"
-              extra={
-                <label className="text-ink-soft flex h-[30px] items-center gap-1.5 text-[12px]">
-                  <input
-                    type="checkbox"
-                    name="isSource"
-                    className="accent-pr"
-                  />
-                  Source
-                </label>
-              }
-            />
-          </div>
-
-          <dl className="border-hairline m-0 flex flex-col gap-1.5 border-t pt-4">
-            <TaskDate term="Created" iso={task.createdAt} now={now} />
-            <TaskDate term="Last updated" iso={task.updatedAt} now={now} />
-          </dl>
-        </aside>
+            <dl className="border-hairline m-0 flex flex-col gap-1.5 border-t pt-4">
+              <TaskDate term="Created" iso={task.createdAt} now={now} />
+              <TaskDate term="Last updated" iso={task.updatedAt} now={now} />
+            </dl>
+          </aside>
+        </div>
       </div>
-    </div>
+    </QuestionnaireProvider>
   );
 }
 

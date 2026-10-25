@@ -190,7 +190,10 @@ import {
   RemovePictureHandler,
   type RemovePictureCommand,
 } from "@/modules/tasks/application/commands/remove-picture";
-import { PostQuestionnaireHandler, type PostQuestionnaireCommand } from "@/modules/tasks/application/commands/post-questionnaire";
+import {
+  PostQuestionnaireHandler,
+  type PostQuestionnaireCommand,
+} from "@/modules/tasks/application/commands/post-questionnaire";
 import {
   AnswerQuestionnaireHandler,
   WithdrawQuestionnaireHandler,
@@ -689,9 +692,7 @@ function registerGroups(
   );
 }
 
-// One per process, not per request: a wait started by one request is woken
-// by the answer another request saves.
-const answerNotifications = new InProcessAnswerNotifications();
+const answerNotifications = InProcessAnswerNotifications.shared();
 
 // Created on first use, so a build or test that never signs in needs neither
 // Better Auth nor Postgres configured.

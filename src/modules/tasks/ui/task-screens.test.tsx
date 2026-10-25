@@ -135,6 +135,7 @@ function actions(overrides: Partial<TaskActions> = {}): TaskActions {
     changeStatus: saved,
     link: saved,
     removePicture: saved,
+    answer: saved,
     kind: saved,
     ...overrides,
   };
@@ -204,6 +205,23 @@ describe("TaskList", () => {
     expect(screen.getByRole("link", { name: /^Blocked/ })).toHaveTextContent(
       "Blocked1",
     );
+  });
+
+  it("marks rows waiting on answers and filters down to them", () => {
+    render(
+      <TaskList
+        list={{ total: 1, tasks: [{ ...item, questions: 3 }] }}
+        filter={{ view: "blocked", repository: "", text: "", labels: [] }}
+        needingAnswers={1}
+      />,
+    );
+
+    expect(
+      screen.getByRole("link", { name: /Fix the lint job/ }),
+    ).toHaveTextContent("3 questions");
+    const filter = screen.getByRole("link", { name: /Needs my answer/ });
+    expect(filter).toHaveAttribute("aria-pressed", "false");
+    expect(filter).toHaveAttribute("href", "/tasks?view=blocked&needs=answer");
   });
 
   it("filters by labels in the URL, keeping the rest of the filter", () => {

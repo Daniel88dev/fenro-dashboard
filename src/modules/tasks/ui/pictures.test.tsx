@@ -182,6 +182,7 @@ describe("pictures in the journal", () => {
     const actions = {
       note: saved,
       removePicture: saved,
+      answer: saved,
       kind: saved,
     } as unknown as TaskActions;
 

@@ -93,3 +93,4 @@ Prototypes are pictures; the built screen has to meet these.
 | 2026-10-18 | Description Markdown editor, 2 layouts     | [page](https://claude.ai/artifact/NTAtgryorFCUrJbcukoryt)   | A (tabs on the box) picked      |
 | 2026-10-18 | Command palette search, 2 directions       | [canvas](https://claude.ai/artifact/1YvP1eDA19Fu2vyfhB5Cxw) | B (drops from the bar) picked   |
 | 2026-10-19 | Groups and the Spaces filter, 2 directions | [canvas](https://claude.ai/artifact/M7icDXjJWaZK9p1VUaUGD1) | B (Spaces filter button) picked |
+| 2026-10-25 | Agent questionnaire drawer, 2 directions   | [canvas](https://claude.ai/artifact/7wCLBKgYHp4axhFogssLn3) | A (one scrolling drawer) picked |

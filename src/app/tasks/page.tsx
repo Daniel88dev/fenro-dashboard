@@ -75,6 +75,7 @@ async function TasksScreen({
     layout: one(params.layout) === "board" ? "board" : "list",
     done: parseDoneParam(one(params.done)),
     spaces: parseSpacesParam(one(params.spaces)),
+    needsAnswer: one(params.needs) === "answer",
   };
 
   const { container, spaces } = await tasksContext();
@@ -96,41 +97,50 @@ async function TasksScreen({
     repository: filter.repository || undefined,
     text: filter.text || undefined,
     labels: filter.labels,
+    needsAnswer: filter.needsAnswer || undefined,
     ...epicScope(filter.epic ?? ""),
   };
   const ask = container.queryBus.ask.bind(container.queryBus);
   const onBoard = filter.layout === "board";
-  const [labels, repositories, epics, content, scopeTotals, ...totals] =
-    await Promise.all([
-      ask(listLabelsQuery(ownerId)),
-      ask(listTaskRepositoriesQuery(ownerId)),
-      ask(listTasksQuery(ownerId, { kinds: ["epic"], limit: EPIC_LIMIT })),
-      onBoard
-        ? ask(taskBoardQuery(ownerId, scope, filter.done))
-        : ask(
+  const [
+    labels,
+    repositories,
+    epics,
+    needing,
+    content,
+    scopeTotals,
+    ...totals
+  ] = await Promise.all([
+    ask(listLabelsQuery(ownerId)),
+    ask(listTaskRepositoriesQuery(ownerId)),
+    ask(listTasksQuery(ownerId, { kinds: ["epic"], limit: EPIC_LIMIT })),
+    ask(listTasksQuery(ownerId, { needsAnswer: true, limit: 1 })),
+    onBoard
+      ? ask(taskBoardQuery(ownerId, scope, filter.done))
+      : ask(
+          listTasksQuery(ownerId, {
+            ...VIEW_FILTERS[filter.view],
+            ...scope,
+            limit: LIST_LIMIT,
+          }),
+        ),
+    Promise.all(
+      (["", "epics", "none"] as const).map((rail) =>
+        ask(listTasksQuery(ownerId, { ...epicScope(rail), limit: 1 })),
+      ),
+    ),
+    ...(onBoard
+      ? []
+      : TASK_VIEWS.map(({ view }) =>
+          ask(
             listTasksQuery(ownerId, {
-              ...VIEW_FILTERS[filter.view],
+              ...VIEW_FILTERS[view],
               ...scope,
-              limit: LIST_LIMIT,
+              limit: 1,
             }),
           ),
-      Promise.all(
-        (["", "epics", "none"] as const).map((rail) =>
-          ask(listTasksQuery(ownerId, { ...epicScope(rail), limit: 1 })),
-        ),
-      ),
-      ...(onBoard
-        ? []
-        : TASK_VIEWS.map(({ view }) =>
-            ask(
-              listTasksQuery(ownerId, {
-                ...VIEW_FILTERS[view],
-                ...scope,
-                limit: 1,
-              }),
-            ),
-          )),
-    ]);
+        )),
+  ]);
   const counts = onBoard
     ? undefined
     : Object.fromEntries(
@@ -148,6 +158,7 @@ async function TasksScreen({
       epics={epics.tasks}
       scopeCounts={{ all: all!, epics: epicsOnly!, none: none! }}
       spaces={spaces.all}
+      needingAnswers={needing.total}
       move={moveTaskAction}
     />
   );

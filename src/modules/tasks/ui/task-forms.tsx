@@ -43,6 +43,7 @@ export type TaskActions = {
   readonly changeStatus: TaskAction;
   readonly link: TaskAction;
   readonly removePicture: TaskAction;
+  readonly answer: TaskAction;
 };
 
 /** Not login fields: these keep password managers off them. */

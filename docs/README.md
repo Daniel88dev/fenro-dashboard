@@ -3,6 +3,9 @@
 - **[Task management for AI agents](./tasks/agent-task-management.md)**: the
   `Task` model, the rules it enforces, the MCP server's tools and how agents
   authenticate.
+- **[Agent questionnaires](./tasks/agent-questionnaires.md)**: rounds of
+  questions an agent posts to a task, how they are stored, the MCP tools and
+  how an agent waits for the answers.
 - **[Groups and shared tasks](./groups/groups.md)**: groups, their task key
   prefixes, how a task's space is resolved, and what agents reach.
 - **[Designing screens](./ui/design-taste.md)**: how every new screen starts as

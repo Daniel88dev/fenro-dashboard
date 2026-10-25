@@ -1,4 +1,4 @@
-import { ArrowsOutSimple } from "@phosphor-icons/react/ssr";
+import { ArrowsOutSimple, ChatCircleDots } from "@phosphor-icons/react/ssr";
 
 import type { TaskBrief } from "@/modules/tasks/application/queries/read-models";
 
@@ -16,6 +16,7 @@ import {
 import type { LabelOption } from "./labels";
 import type { TaskActions } from "./task-forms";
 import { PictureStrip } from "./pictures";
+import { questionsLabel } from "./questions-chip";
 import { CloseDialogButton } from "./route-dialog";
 import { TaskKindIcon } from "./task-kind";
 import { taskHref } from "./task-state";
@@ -50,7 +51,12 @@ export function TaskDialogContent({
             </span>
             {task.title}
           </h2>
-          <TaskChips task={task} labels={labels} actions={actions} />
+          <TaskChips
+            task={task}
+            labels={labels}
+            actions={actions}
+            questions={<QuestionsLink task={task} fullPage={fullPage} />}
+          />
           <AgentLine task={task} />
         </div>
         <div className="flex shrink-0 items-center gap-1">
@@ -99,5 +105,26 @@ export function TaskDialogContent({
         <StatusActions task={task} actions={actions} menuOpensUp />
       </div>
     </>
+  );
+}
+
+function QuestionsLink({
+  task,
+  fullPage,
+}: {
+  task: TaskBrief;
+  fullPage: string;
+}) {
+  const waiting = task.questionnaires.find((round) => round.status === "open");
+  if (!waiting) return null;
+  // A plain link: the drawer lives on the full page, not over this dialog.
+  return (
+    <a
+      href={`${fullPage}?round=${waiting.round}`}
+      className="bg-state-waiting-wash text-state-waiting border-state-waiting-line focus-visible:outline-pr inline-flex h-[22px] items-center gap-1 rounded-md border px-[7px] text-[11.5px] font-medium whitespace-nowrap focus-visible:outline-2"
+    >
+      <ChatCircleDots aria-hidden="true" weight="bold" className="size-3" />
+      {questionsLabel(waiting.questions.length, true)}
+    </a>
   );
 }
