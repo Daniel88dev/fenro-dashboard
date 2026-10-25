@@ -1,10 +1,13 @@
 import type {
+  Answer,
   ExternalSystem,
   JournalKind,
   LabelColour,
   LinkKind,
   PictureType,
   Priority,
+  Question,
+  QuestionnaireStatus,
   SessionOutcome,
   TaskKind,
   TaskStatus,
@@ -23,6 +26,11 @@ export interface TaskReadStore {
   ): Promise<TaskDescriptionRecord[]>;
   labels(ownerId: string): Promise<LabelRecord[]>;
   picture(ownerId: string, id: string): Promise<PictureRecord | undefined>;
+  /** Oldest first. */
+  questionnaires(
+    ownerId: string,
+    taskId: string,
+  ): Promise<QuestionnaireRecord[]>;
   skills(ownerId: string): Promise<SkillRecord[]>;
   skill(
     ownerId: string,
@@ -84,6 +92,24 @@ export type PictureRecord = {
   readonly addedAt: Date;
 };
 
+export type QuestionnaireRecord = {
+  readonly id: string;
+  readonly number: number;
+  readonly title: string;
+  readonly intro: string | null;
+  readonly status: QuestionnaireStatus;
+  readonly questions: readonly Question[];
+  readonly answers: readonly Answer[] | null;
+  readonly postedByKind: "agent" | "human";
+  readonly postedByName: string;
+  readonly sessionNumber: number | null;
+  readonly postedAt: Date;
+  readonly answeredByName: string | null;
+  readonly answeredAt: Date | null;
+  readonly withdrawnAt: Date | null;
+  readonly withdrawnReason: string | null;
+};
+
 export type LabelRecord = {
   readonly name: string;
   readonly colour: LabelColour;
@@ -114,6 +140,11 @@ export type TaskRecord = {
   readonly parentId: string | null;
   readonly blockedBy: readonly string[];
   readonly hold: { readonly reason: string; readonly since: Date } | null;
+  /** A task has at most one open round at a time. */
+  readonly openQuestionnaire: {
+    readonly number: number;
+    readonly questions: number;
+  } | null;
   readonly latestSession: SessionRecord | null;
   readonly criteriaMet: number;
   readonly criteriaTotal: number;
@@ -158,4 +189,6 @@ export type TaskDetailRecord = TaskRecord & {
   }[];
   /** Oldest first. */
   readonly pictures: readonly PictureRecord[];
+  /** Oldest first. */
+  readonly questionnaires: readonly QuestionnaireRecord[];
 };

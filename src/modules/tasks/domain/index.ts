@@ -8,6 +8,8 @@ export * from "./label";
 export * from "./label.repository";
 export * from "./picture";
 export * from "./picture.repository";
+export * from "./questionnaire";
+export * from "./questionnaire.repository";
 export * from "./repository-reference";
 export * from "./session";
 export * from "./skill";

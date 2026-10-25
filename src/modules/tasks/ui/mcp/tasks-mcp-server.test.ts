@@ -44,6 +44,15 @@ import {
   type LinkTasksCommand,
 } from "@/modules/tasks/application/commands/link-tasks";
 import {
+  PostQuestionnaireHandler,
+  type PostQuestionnaireCommand,
+} from "@/modules/tasks/application/commands/post-questionnaire";
+import {
+  AnswerQuestionnaireHandler,
+  WithdrawQuestionnaireHandler,
+  type WithdrawQuestionnaireCommand,
+} from "@/modules/tasks/application/commands/questionnaire-commands";
+import {
   RecolourLabelHandler,
   type RecolourLabelCommand,
 } from "@/modules/tasks/application/commands/recolour-label";
@@ -86,6 +95,14 @@ import {
   type PictureUploadTicketResult,
 } from "@/modules/tasks/application/queries/picture-upload-ticket";
 import {
+  QuestionnaireHandler,
+  WaitForAnswersHandler,
+  type QuestionnaireQuery,
+  type QuestionnaireResult,
+  type WaitForAnswersQuery,
+  type WaitResult,
+} from "@/modules/tasks/application/queries/questionnaire";
+import {
   ListLabelsHandler,
   type ListLabelsQuery,
 } from "@/modules/tasks/application/queries/list-labels";
@@ -116,7 +133,9 @@ import {
 import { HmacUploadTickets } from "@/modules/tasks/infrastructure/hmac-upload-tickets";
 import { InMemoryPictureStorage } from "@/modules/tasks/infrastructure/in-memory-picture.storage";
 import { InMemoryTaskStore } from "@/modules/tasks/infrastructure/in-memory-task.store";
+import { InProcessAnswerNotifications } from "@/modules/tasks/infrastructure/in-process-answer-notifications";
 import { CommandBus, QueryBus } from "@/shared/application";
+import { unwrap } from "@/shared/domain";
 
 import { personalSpace } from "@/modules/tasks/domain";
 
@@ -127,6 +146,7 @@ const OWNER = "user-1";
 let now: Date;
 let store: InMemoryTaskStore;
 let storage: InMemoryPictureStorage;
+let notifications: InProcessAnswerNotifications;
 const tickets = new HmacUploadTickets("test-secret");
 
 function buses() {
@@ -202,7 +222,33 @@ function buses() {
     "tasks.upload-picture",
     new UploadPictureHandler(tickets, addPicture, clock),
   );
+  commandBus.register<PostQuestionnaireCommand>(
+    "tasks.post-questionnaire",
+    new PostQuestionnaireHandler(
+      store,
+      store.questionnaireRepository,
+      store,
+      clock,
+    ),
+  );
+  commandBus.register<WithdrawQuestionnaireCommand>(
+    "tasks.withdraw-questionnaire",
+    new WithdrawQuestionnaireHandler(
+      store,
+      store.questionnaireRepository,
+      notifications,
+      clock,
+    ),
+  );
   const queryBus = new QueryBus();
+  queryBus.register<QuestionnaireQuery, QuestionnaireResult>(
+    "tasks.questionnaire",
+    new QuestionnaireHandler(store, clock),
+  );
+  queryBus.register<WaitForAnswersQuery, WaitResult>(
+    "tasks.wait-for-answers",
+    new WaitForAnswersHandler(store, notifications, clock),
+  );
   queryBus.register<PictureContentQuery, PictureContentResult>(
     "tasks.picture-content",
     new PictureContentHandler(store, storage),
@@ -354,6 +400,7 @@ beforeEach(() => {
   now = new Date("2026-09-23T10:00:00Z");
   store = new InMemoryTaskStore();
   storage = new InMemoryPictureStorage();
+  notifications = new InProcessAnswerNotifications();
 });
 
 describe("the tasks MCP server", () => {
@@ -402,6 +449,156 @@ describe("the tasks MCP server", () => {
     expect(keys(filtered)).toEqual(["T-1"]);
   });
 
+  it("lets an agent ask questions, wait, and read the person's answers", async () => {
+    const asker = await connect(agent("asker"));
+    parse(await asker.call("save_task", { title: "Import Jira issues" }));
+    parse(await asker.call("start_task", { task: "T-1" }));
+
+    const posted = parse<{
+      questionnaire: string;
+      url: string;
+      wait_until: string;
+      questions: { id: string; type: string; options: string[] }[];
+    }>(
+      await asker.call("ask_questions", {
+        task: "T-1",
+        title: "Import scope",
+        questions: [
+          {
+            id: "scope",
+            prompt: "Which issues come in?",
+            options: [
+              { label: "Assigned to me", recommended: true },
+              { label: "The whole project" },
+              { label: "Other" },
+            ],
+          },
+          { prompt: "Anything about your Jira setup?" },
+        ],
+      }),
+    );
+    expect(posted).toMatchObject({
+      questionnaire: "T-1/1",
+      url: "https://fenro.test/tasks/T-1?round=1",
+      wait_until: "2026-09-23T10:15:00.000Z",
+      questions: [
+        { id: "scope", type: "single", options: ["a", "b"] },
+        { id: "q2", type: "text", options: [] },
+      ],
+    });
+    const twice = await asker.call("ask_questions", {
+      task: "T-1",
+      title: "Again",
+      questions: [{ prompt: "Still there?" }],
+    });
+    expect(twice.text).toMatch(/^questionnaire-open:/);
+
+    const open = parse<{ status: string; questions: number }>(
+      await asker.call("get_answers", { questionnaire: "T-1/1" }),
+    );
+    expect(open).toMatchObject({ status: "open", questions: 2 });
+
+    parse(
+      await asker.call("finish_session", {
+        task: "T-1",
+        outcome: "paused",
+        summary: "Asked about the import scope.",
+      }),
+    );
+    expect(
+      parse<TaskBrief>(await asker.call("get_task", { task: "T-1" })).state,
+    ).toBe("blocked");
+
+    const waiting = asker.call("wait_for_answers", {
+      questionnaire: "T-1/1",
+      seconds: 30,
+    });
+    now = new Date("2026-09-23T10:05:00Z");
+    unwrap(
+      await new AnswerQuestionnaireHandler(
+        store,
+        store.questionnaireRepository,
+        store,
+        notifications,
+        () => now,
+      ).handle({
+        type: "tasks.answer-questionnaire",
+        ownerId: OWNER,
+        actor: { kind: "human", id: OWNER, name: "Daniel" },
+        task: "T-1",
+        round: 1,
+        answers: [{ questionId: "scope", choices: ["a"], text: "Only FEN." }],
+      }),
+    );
+    const answered = parse<{
+      status: string;
+      answered_by: string;
+      answers: unknown[];
+      then: string;
+    }>(await waiting);
+    expect(answered).toMatchObject({
+      status: "answered",
+      answered_by: "Daniel",
+      answers: [
+        {
+          id: "scope",
+          question: "Which issues come in?",
+          chose: ["Assigned to me"],
+          wrote: "Only FEN.",
+          pictures: [],
+        },
+        {
+          id: "q2",
+          question: "Anything about your Jira setup?",
+          chose: [],
+          wrote: null,
+          skipped: true,
+        },
+      ],
+      then: "Carry on with the answers.",
+    });
+
+    const next = parse<{
+      state: string;
+      questionnaires: { questionnaire: string; status: string }[];
+      new_answers: { questionnaire: string }[];
+    }>(await asker.call("get_task", { task: "T-1" }));
+    expect(next.state).toBe("paused");
+    expect(next.questionnaires).toMatchObject([
+      { questionnaire: "T-1/1", status: "answered", questions: 2, answered: 1 },
+    ]);
+    expect(next.new_answers.map((round) => round.questionnaire)).toEqual([
+      "T-1/1",
+    ]);
+  });
+
+  it("lets an agent withdraw a round it no longer needs", async () => {
+    const asker = await connect(agent("asker"));
+    parse(await asker.call("save_task", { title: "Import Jira issues" }));
+    parse(
+      await asker.call("ask_questions", {
+        task: "T-1",
+        title: "Sign-in",
+        questions: [{ prompt: "Google or password?" }],
+      }),
+    );
+    const withdrawn = parse<{ state: string }>(
+      await asker.call("withdraw_questions", {
+        task: "T-1",
+        reason: "Found it in the Atlassian docs",
+      }),
+    );
+    expect(withdrawn.state).toBe("ready");
+    expect(
+      parse<{ status: string; reason: string }>(
+        await asker.call("get_answers", { task: "T-1" }),
+      ),
+    ).toMatchObject({
+      status: "withdrawn",
+      reason: "Found it in the Atlassian docs",
+    });
+  });
+
   it("offers only the reading tools to a read-only token", async () => {
     const reader = await connect(agent("reader", false));
 
@@ -412,6 +609,8 @@ describe("the tasks MCP server", () => {
       "list_skills",
       "get_skill",
       "get_picture",
+      "get_answers",
+      "wait_for_answers",
     ]);
   });
 

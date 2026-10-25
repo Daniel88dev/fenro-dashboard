@@ -4,6 +4,8 @@ import type {
   LabelColour,
   PictureType,
   Priority,
+  QuestionnaireStatus,
+  QuestionType,
   TaskKind,
   TaskStatus,
 } from "@/modules/tasks/domain";
@@ -96,6 +98,8 @@ export type TaskListItem = {
   readonly subtasks: { readonly open: number; readonly total: number };
   readonly criteria: { readonly met: number; readonly total: number };
   readonly journalEntries: number;
+  /** The open round's question count, 0 when nothing waits on the person. */
+  readonly questions: number;
   readonly updatedAt: string;
 };
 
@@ -165,6 +169,50 @@ export type PictureItem = {
   readonly addedAt: string;
 };
 
+export type SuggestionItem = {
+  readonly id: string;
+  readonly label: string;
+  readonly description: string | null;
+  readonly recommended: boolean;
+  readonly picture: PictureItem | null;
+};
+
+export type QuestionItem = {
+  readonly id: string;
+  readonly type: QuestionType;
+  readonly prompt: string;
+  readonly details: string | null;
+  readonly pictures: readonly PictureItem[];
+  readonly suggestions: readonly SuggestionItem[];
+};
+
+export type AnswerItem = {
+  readonly questionId: string;
+  readonly choices: readonly string[];
+  readonly text: string | null;
+  readonly pictures: readonly PictureItem[];
+  readonly skipped: boolean;
+};
+
+export type QuestionnaireItem = {
+  readonly id: string;
+  readonly round: number;
+  readonly title: string;
+  readonly intro: string | null;
+  readonly status: QuestionnaireStatus;
+  readonly questions: readonly QuestionItem[];
+  readonly answers: readonly AnswerItem[] | null;
+  readonly answered: number;
+  readonly postedBy: string;
+  readonly postedByKind: "agent" | "human";
+  readonly session: number | null;
+  readonly postedAt: string;
+  readonly answeredBy: string | null;
+  readonly answeredAt: string | null;
+  readonly withdrawnAt: string | null;
+  readonly withdrawnReason: string | null;
+};
+
 export type TaskBrief = {
   readonly key: string;
   readonly id: string;
@@ -211,7 +259,10 @@ export type TaskBrief = {
   readonly decisions: readonly JournalItem[];
   readonly recentJournal: readonly JournalItem[];
   readonly journalEntries: number;
+  /** Only the task's own: pictures shown in a round of questions stay there. */
   readonly pictures: readonly PictureItem[];
+  /** Oldest first. */
+  readonly questionnaires: readonly QuestionnaireItem[];
   readonly skills: readonly BriefSkill[];
   readonly createdAt: string;
   readonly updatedAt: string;

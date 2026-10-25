@@ -9,6 +9,7 @@ import {
   Label,
   Picture,
   PictureFile,
+  Questionnaire,
   RepositoryReference,
   Task,
   type Actor,
@@ -21,9 +22,15 @@ import type { Database } from "@/shared/infrastructure/database/client";
 
 import { DrizzleLabelRepository } from "./drizzle-label.repository";
 import { DrizzlePictureRepository } from "./drizzle-picture.repository";
+import { DrizzleQuestionnaireRepository } from "./drizzle-questionnaire.repository";
 import { DrizzleTaskReadStore } from "./drizzle-task.read-store";
 import { DrizzleTaskRepository } from "./drizzle-task.repository";
-import { task, taskJournalEntry, taskLabel } from "./persistence/schema";
+import {
+  task,
+  taskJournalEntry,
+  taskLabel,
+  taskPicture,
+} from "./persistence/schema";
 
 const url = getEnv().TEST_DATABASE_URL;
 
@@ -610,6 +617,175 @@ describe.skipIf(!url)("Postgres tasks adapters", () => {
       expect(
         (await store.detail("user-1", task.id.value))?.pictures,
       ).toHaveLength(1);
+    });
+  });
+  describe("DrizzleQuestionnaireRepository", () => {
+    const png = new Uint8Array([
+      0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a,
+    ]);
+
+    async function withPictures(task: Task, ...ids: string[]) {
+      const pictures = new DrizzlePictureRepository(db);
+      for (const id of ids) {
+        await pictures.add(
+          Picture.add({
+            id,
+            ownerId: "user-1",
+            taskId: task.id.value,
+            file: unwrap(PictureFile.read(`${id}.png`, png)),
+            storageKey: `key-${id}`,
+            addedBy: claude,
+            sessionId: null,
+            now: later(5),
+          }),
+        );
+      }
+    }
+
+    function aRound(task: Task, id: string, number: number) {
+      return unwrap(
+        Questionnaire.post({
+          id,
+          ownerId: "user-1",
+          taskId: task.id.value,
+          number,
+          title: "Board layout",
+          intro: "Two directions.",
+          questions: [
+            {
+              id: "layout",
+              prompt: "Which layout?",
+              pictures: ["pic-q"],
+              suggestions: [
+                { label: "Columns", recommended: true, picture: "pic-a" },
+                { label: "Lanes" },
+              ],
+            },
+            { id: "empty", prompt: "What shows when empty?" },
+          ],
+          postedBy: claude,
+          sessionId: task.liveSession(later(2))?.id ?? null,
+          taskPictures: new Set(["pic-q", "pic-a", "pic-mine"]),
+          now: later(10),
+        }),
+      );
+    }
+
+    it("round-trips a round with its pictures, then its answers", async () => {
+      const task = aTask({ number: 1 });
+      unwrap(task.startSession(claude, clear, later(1)));
+      await saved(task);
+      await withPictures(task, "pic-q", "pic-a", "pic-mine");
+      const repository = new DrizzleQuestionnaireRepository(db);
+      expect(await repository.nextNumber(task.id.value)).toBe(1);
+      unwrap(await repository.save(aRound(task, "round-1", 1)));
+      expect(await repository.nextNumber(task.id.value)).toBe(2);
+
+      const open = await repository.openRound("user-1", task.id.value);
+      expect(open?.state.questions[0]).toEqual({
+        id: "layout",
+        type: "single",
+        prompt: "Which layout?",
+        details: null,
+        pictures: ["pic-q"],
+        suggestions: [
+          {
+            id: "a",
+            label: "Columns",
+            description: null,
+            recommended: true,
+            picture: "pic-a",
+          },
+          {
+            id: "b",
+            label: "Lanes",
+            description: null,
+            recommended: false,
+            picture: null,
+          },
+        ],
+      });
+      expect(
+        await repository.openRound("user-2", task.id.value),
+      ).toBeUndefined();
+
+      const store = new DrizzleTaskReadStore(db);
+      const [record] = await store.records("user-1");
+      expect(record?.openQuestionnaire).toEqual({ number: 1, questions: 2 });
+
+      unwrap(
+        open!.answer(
+          [{ questionId: "layout", choices: ["a"], pictures: ["pic-mine"] }],
+          daniel,
+          new Set(["pic-q", "pic-a", "pic-mine"]),
+          later(20),
+        ),
+      );
+      unwrap(await repository.save(open!));
+
+      const [answered] = await store.questionnaires("user-1", task.id.value);
+      expect(answered).toMatchObject({
+        number: 1,
+        status: "answered",
+        answeredByName: "Daniel",
+        sessionNumber: 1,
+        answers: [
+          {
+            questionId: "layout",
+            choices: ["a"],
+            text: null,
+            pictures: ["pic-mine"],
+            skipped: false,
+          },
+          {
+            questionId: "empty",
+            choices: [],
+            text: null,
+            pictures: [],
+            skipped: true,
+          },
+        ],
+      });
+      expect((await store.records("user-1"))[0]?.openQuestionnaire).toBeNull();
+      expect(
+        (await store.detail("user-1", task.id.value))?.questionnaires,
+      ).toHaveLength(1);
+    });
+
+    it("refuses a second open round, a taken number and a stale copy", async () => {
+      const task = aTask({ number: 1 });
+      await saved(task);
+      await withPictures(task, "pic-q", "pic-a");
+      const repository = new DrizzleQuestionnaireRepository(db);
+      unwrap(await repository.save(aRound(task, "round-1", 1)));
+
+      const second = await repository.save(aRound(task, "round-2", 2));
+      expect(isErr(second) && second.error.code).toBe(
+        "concurrent-modification",
+      );
+      const taken = await repository.save(aRound(task, "round-3", 1));
+      expect(isErr(taken) && taken.error.code).toBe("concurrent-modification");
+
+      const a = (await repository.round("user-1", task.id.value, 1))!;
+      const b = (await repository.round("user-1", task.id.value, 1))!;
+      unwrap(a.withdraw("Found it myself", later(11)));
+      unwrap(await repository.save(a));
+      unwrap(b.withdraw(null, later(12)));
+      const stale = await repository.save(b);
+      expect(isErr(stale) && stale.error.code).toBe("concurrent-modification");
+    });
+
+    it("drops a picture from the round when it is removed from the task", async () => {
+      const task = aTask({ number: 1 });
+      await saved(task);
+      await withPictures(task, "pic-q", "pic-a");
+      const repository = new DrizzleQuestionnaireRepository(db);
+      unwrap(await repository.save(aRound(task, "round-1", 1)));
+
+      await db.delete(taskPicture).where(eq(taskPicture.id, "pic-q"));
+      const round = await repository.round("user-1", task.id.value, 1);
+      expect(round?.state.questions[0]?.pictures).toEqual([]);
+      expect(round?.state.questions[0]?.suggestions[0]?.picture).toBe("pic-a");
     });
   });
 });

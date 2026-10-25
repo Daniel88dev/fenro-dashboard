@@ -37,6 +37,7 @@ const item: TaskListItem = {
   subtasks: { open: 0, total: 0 },
   criteria: { met: 1, total: 2 },
   journalEntries: 3,
+  questions: 0,
   updatedAt: "2026-09-24T10:00:00.000Z",
 };
 
@@ -116,6 +117,7 @@ const brief: TaskBrief = {
   ],
   journalEntries: 2,
   pictures: [],
+  questionnaires: [],
   skills: [],
   createdAt: "2026-09-24T07:00:00.000Z",
   updatedAt: "2026-09-24T09:00:00.000Z",

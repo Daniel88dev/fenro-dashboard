@@ -25,7 +25,11 @@ export type TaskErrorCode =
   | "invalid-picture"
   | "picture-not-found"
   | "pictures-unavailable"
-  | "invalid-upload-link";
+  | "invalid-upload-link"
+  | "invalid-questionnaire"
+  | "questionnaire-not-found"
+  | "questionnaire-open"
+  | "questionnaire-closed";
 
 export type TaskError = {
   readonly code: TaskErrorCode;

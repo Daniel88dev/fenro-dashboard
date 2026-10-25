@@ -27,6 +27,7 @@ const card: TaskListItem = {
   subtasks: { open: 0, total: 0 },
   criteria: { met: 0, total: 0 },
   journalEntries: 0,
+  questions: 0,
   updatedAt: "2026-10-16T10:00:00.000Z",
 };
 

@@ -176,6 +176,90 @@ export const taskPicture = fenro.table(
   (table) => [index("task_picture_task_idx").on(table.taskId, table.addedAt)],
 );
 
+export type StoredQuestion = {
+  readonly id: string;
+  readonly type: "single" | "multiple" | "text";
+  readonly prompt: string;
+  readonly details: string | null;
+  readonly options: readonly {
+    readonly id: string;
+    readonly label: string;
+    readonly description: string | null;
+    readonly recommended: boolean;
+  }[];
+};
+
+export type StoredAnswer = {
+  readonly questionId: string;
+  readonly choices: readonly string[];
+  readonly text: string | null;
+  readonly skipped: boolean;
+};
+
+/**
+ * A round is posted whole, answered whole and read whole, so its questions
+ * and answers are documents; status and counts are columns so lists never
+ * look inside them.
+ */
+export const taskQuestionnaire = fenro.table(
+  "task_questionnaire",
+  {
+    id: text("id").primaryKey(),
+    ownerId: text("owner_id").notNull(),
+    taskId: taskId(),
+    number: integer("number").notNull(),
+    title: text("title").notNull(),
+    intro: text("intro"),
+    status: text("status").notNull(),
+    questions: jsonb("questions").$type<StoredQuestion[]>().notNull(),
+    answers: jsonb("answers").$type<StoredAnswer[]>(),
+    questionCount: integer("question_count").notNull(),
+    answeredCount: integer("answered_count").notNull().default(0),
+    postedByKind: text("posted_by_kind").notNull(),
+    postedById: text("posted_by_id").notNull(),
+    postedByName: text("posted_by_name").notNull(),
+    sessionId: text("session_id"),
+    postedAt: instant("posted_at").notNull(),
+    answeredByKind: text("answered_by_kind"),
+    answeredById: text("answered_by_id"),
+    answeredByName: text("answered_by_name"),
+    answeredAt: instant("answered_at"),
+    withdrawnAt: instant("withdrawn_at"),
+    withdrawnReason: text("withdrawn_reason"),
+    version: integer("version").notNull(),
+  },
+  (table) => [
+    uniqueIndex("task_questionnaire_number_idx").on(table.taskId, table.number),
+    uniqueIndex("task_questionnaire_open_idx")
+      .on(table.taskId)
+      .where(sql`${table.status} = 'open'`),
+    index("task_questionnaire_owner_open_idx")
+      .on(table.ownerId)
+      .where(sql`${table.status} = 'open'`),
+  ],
+);
+
+/** `option_id` null is the question's own picture rather than a suggestion's. */
+export const taskQuestionnairePicture = fenro.table(
+  "task_questionnaire_picture",
+  {
+    questionnaireId: text("questionnaire_id")
+      .notNull()
+      .references(() => taskQuestionnaire.id, { onDelete: "cascade" }),
+    pictureId: text("picture_id")
+      .notNull()
+      .references(() => taskPicture.id, { onDelete: "cascade" }),
+    questionId: text("question_id").notNull(),
+    optionId: text("option_id"),
+    role: text("role").notNull(),
+    position: integer("position").notNull(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.questionnaireId, table.pictureId] }),
+    index("task_questionnaire_picture_picture_idx").on(table.pictureId),
+  ],
+);
+
 /**
  * `revision` counts changes to the text; `version` is bumped on every save,
  * links included.

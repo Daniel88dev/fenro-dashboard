@@ -1,6 +1,7 @@
 import type {
   LabelRecord,
   PictureRecord,
+  QuestionnaireRecord,
   SessionRecord,
   SkillDetailRecord,
   SkillRecord,
@@ -13,6 +14,7 @@ import type {
 import {
   Label,
   labelExists,
+  Questionnaire,
   LabelRenamed,
   Skill,
   skillExists,
@@ -23,6 +25,8 @@ import {
   type LabelRepository,
   type Picture,
   type PictureRepository,
+  type QuestionnaireRepository,
+  type QuestionnaireState,
   type LabelColour,
   type Session,
   type SkillRepository,
@@ -50,6 +54,15 @@ type StoredSkill = {
   readonly revisions: readonly SkillRevision[];
 };
 
+type StoredQuestionnaire = {
+  readonly id: string;
+  readonly ownerId: string;
+  readonly taskId: string;
+  readonly number: number;
+  readonly state: QuestionnaireState;
+  readonly version: number;
+};
+
 type Stored = {
   readonly id: string;
   readonly ownerId: string;
@@ -69,6 +82,8 @@ export class InMemoryTaskStore
   readonly #loadedSkillVersions = new WeakMap<Skill, number>();
   readonly #pictures: Picture[] = [];
   readonly #journal: (JournalEntry & { taskId: string })[] = [];
+  readonly #questionnaires = new Map<string, StoredQuestionnaire>();
+  readonly #loadedQuestionnaireVersions = new WeakMap<Questionnaire, number>();
   readonly #loadedVersions = new WeakMap<Task, number>();
 
   async findById(ownerId: string, id: string): Promise<Task | undefined> {
@@ -308,6 +323,148 @@ export class InMemoryTaskStore
     return skill;
   }
 
+  readonly questionnaireRepository: QuestionnaireRepository = {
+    round: async (ownerId, taskId, number) =>
+      this.#restoreQuestionnaire(
+        [...this.#questionnaires.values()].find(
+          (round) =>
+            round.ownerId === ownerId &&
+            round.taskId === taskId &&
+            round.number === number,
+        ),
+      ),
+    openRound: async (ownerId, taskId) =>
+      this.#restoreQuestionnaire(
+        [...this.#questionnaires.values()].find(
+          (round) =>
+            round.ownerId === ownerId &&
+            round.taskId === taskId &&
+            round.state.status === "open",
+        ),
+      ),
+    nextNumber: async (taskId) =>
+      this.#roundsOf(taskId).reduce(
+        (last, round) => Math.max(last, round.number),
+        0,
+      ) + 1,
+    save: async (questionnaire) => this.#saveQuestionnaire(questionnaire),
+  };
+
+  #saveQuestionnaire(questionnaire: Questionnaire): Result<void, TaskError> {
+    const loaded = this.#loadedQuestionnaireVersions.get(questionnaire);
+    const id = questionnaire.id.value;
+    const current = this.#questionnaires.get(id);
+    const others = this.#roundsOf(questionnaire.taskId).filter(
+      (round) => round.id !== id,
+    );
+    const clashes =
+      others.some((round) => round.number === questionnaire.number) ||
+      (questionnaire.status === "open" &&
+        others.some((round) => round.state.status === "open"));
+    if (
+      clashes ||
+      (loaded === undefined && current) ||
+      (loaded !== undefined && current?.version !== loaded)
+    ) {
+      return err(
+        taskError(
+          "concurrent-modification",
+          `Round ${questionnaire.number} changed while this was being saved. Read it again and retry.`,
+        ),
+      );
+    }
+    const version = (loaded ?? 0) + 1;
+    this.#questionnaires.set(id, {
+      id,
+      ownerId: questionnaire.ownerId,
+      taskId: questionnaire.taskId,
+      number: questionnaire.number,
+      state: questionnaire.state,
+      version,
+    });
+    this.#loadedQuestionnaireVersions.set(questionnaire, version);
+    return ok(undefined);
+  }
+
+  #roundsOf(taskId: string): StoredQuestionnaire[] {
+    return [...this.#questionnaires.values()]
+      .filter((round) => round.taskId === taskId)
+      .sort((a, b) => a.number - b.number);
+  }
+
+  #restoreQuestionnaire(
+    stored: StoredQuestionnaire | undefined,
+  ): Questionnaire | undefined {
+    if (!stored) return undefined;
+    const questionnaire = Questionnaire.restore(
+      UniqueId.create(stored.id),
+      {
+        ownerId: stored.ownerId,
+        taskId: stored.taskId,
+        number: stored.number,
+      },
+      stored.state,
+    );
+    this.#loadedQuestionnaireVersions.set(questionnaire, stored.version);
+    return questionnaire;
+  }
+
+  async questionnaires(
+    ownerId: string,
+    taskId: string,
+  ): Promise<QuestionnaireRecord[]> {
+    const sessions = this.#tasks.get(taskId)?.state.sessions ?? [];
+    const onTask = new Set(
+      this.#pictures
+        .filter((picture) => picture.taskId === taskId)
+        .map((picture) => picture.id.value),
+    );
+    const kept = (ids: readonly string[]) => ids.filter((id) => onTask.has(id));
+    return this.#roundsOf(taskId)
+      .filter((round) => round.ownerId === ownerId)
+      .map(({ id, number, state }) => ({
+        id,
+        number,
+        title: state.title,
+        intro: state.intro,
+        status: state.status,
+        questions: state.questions.map((question) => ({
+          ...question,
+          pictures: kept(question.pictures),
+          suggestions: question.suggestions.map((suggestion) => ({
+            ...suggestion,
+            picture:
+              suggestion.picture && onTask.has(suggestion.picture)
+                ? suggestion.picture
+                : null,
+          })),
+        })),
+        answers:
+          state.answers?.map((answer) => ({
+            ...answer,
+            pictures: kept(answer.pictures),
+          })) ?? null,
+        postedByKind: state.postedBy.kind,
+        postedByName: state.postedBy.name,
+        sessionNumber:
+          sessions.find((session) => session.id === state.sessionId)?.number ??
+          null,
+        postedAt: state.postedAt,
+        answeredByName: state.answeredBy?.name ?? null,
+        answeredAt: state.answeredAt,
+        withdrawnAt: state.withdrawnAt,
+        withdrawnReason: state.withdrawnReason,
+      }));
+  }
+
+  async idsOnTask(ownerId: string, taskId: string): Promise<string[]> {
+    return this.#pictures
+      .filter(
+        (picture) => picture.ownerId === ownerId && picture.taskId === taskId,
+      )
+      .map((picture) => picture.id.value);
+  }
+
   async pictureById(ownerId: string, id: string): Promise<Picture | undefined> {
     return this.#pictures.find(
       (picture) => picture.ownerId === ownerId && picture.id.value === id,
@@ -457,6 +614,7 @@ export class InMemoryTaskStore
         .filter((picture) => picture.taskId === id)
         .sort((a, b) => a.addedAt.getTime() - b.addedAt.getTime())
         .map((picture) => this.#pictureRecord(picture)),
+      questionnaires: await this.questionnaires(ownerId, id),
     };
   }
 
@@ -476,6 +634,15 @@ export class InMemoryTaskStore
         null,
       addedAt: picture.addedAt,
     };
+  }
+
+  #openQuestionnaireOf(taskId: string): TaskRecord["openQuestionnaire"] {
+    const open = this.#roundsOf(taskId).find(
+      (round) => round.state.status === "open",
+    );
+    return open
+      ? { number: open.number, questions: open.state.questions.length }
+      : null;
   }
 
   #owned(ownerId: string): Stored[] {
@@ -520,6 +687,7 @@ export class InMemoryTaskStore
       parentId: state.parentId,
       blockedBy: blockedBy(state),
       hold: state.hold,
+      openQuestionnaire: this.#openQuestionnaireOf(stored.id),
       latestSession: latest ? toSessionRecord(latest) : null,
       criteriaMet: state.criteria.filter((criterion) => criterion.metAt).length,
       criteriaTotal: state.criteria.length,

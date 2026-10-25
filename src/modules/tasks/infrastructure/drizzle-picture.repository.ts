@@ -36,6 +36,16 @@ export class DrizzlePictureRepository implements PictureRepository {
     });
   }
 
+  async idsOnTask(ownerId: string, taskId: string): Promise<string[]> {
+    const rows = await this.db
+      .select({ id: taskPicture.id })
+      .from(taskPicture)
+      .where(
+        and(eq(taskPicture.ownerId, ownerId), eq(taskPicture.taskId, taskId)),
+      );
+    return rows.map((row) => row.id);
+  }
+
   async add(picture: Picture): Promise<void> {
     await this.db.insert(taskPicture).values({
       id: picture.id.value,
