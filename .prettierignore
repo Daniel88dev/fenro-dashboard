@@ -8,3 +8,4 @@ pnpm-workspace.yaml
 drizzle/meta
 # Vendored verbatim from upstream; update by copying, not by reformatting.
 .claude/skills/design-taste-frontend
+.claude/skills/writing-for-agents
