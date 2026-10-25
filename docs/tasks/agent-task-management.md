@@ -362,6 +362,11 @@ side:
   wrong gets an `add_note`, and is changed only when the agent is asked to.
 - Read-only tokens get `list_skills` and `get_skill`; `save_skill` and
   `save_label` need a token that can write.
+- **Installable skills** in `skills/` (see the README) build on these tools
+  without restating the server instructions: `fenro-setup` stores a person's
+  installed skills as pointers linked to labels, and `fenro-task` invokes the
+  installed skill a pointer names when `start_task` brings it. Group tasks
+  bring skills only from the group's catalogue, which no tool writes yet.
 
 ## 5. Agent access (auth)
 

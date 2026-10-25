@@ -191,6 +191,35 @@ name, and untick **Can change tasks** for one that should only read. Only a
 hash of the secret is stored. The model and the tools are described in
 [docs/tasks/agent-task-management.md](./docs/tasks/agent-task-management.md).
 
+### Installable skills
+
+`skills/` holds two agent skills for anyone working from Fenro, installed with
+the [`skills` CLI](https://github.com/vercel-labs/skills) into Claude Code,
+Codex, Cursor and most other agents:
+
+```bash
+npx skills add https://github.com/Daniel88dev/fenro-dashboard/tree/main/skills
+```
+
+- **`fenro-setup`** (run `/fenro-setup` once per repository): connects the
+  MCP server, offers Matt Pocock's skills with Fenro as their issue tracker,
+  asks whether grilling happens in the session or as question rounds on the
+  task, stores the installed skills in Fenro behind labels, and writes
+  `docs/agents/fenro.md`.
+- **`fenro-task`**: picks a task (a key, a link, or a choice from the ready
+  queue), loads the skills its labels bring, including installed skills a
+  Fenro skill points to, and works it.
+
+Point at the `skills/` folder rather than the repository: the CLI also reads
+`.claude/skills/`, and would offer the skills vendored there. Nothing needs
+registering; skills.sh lists a skill once it has been installed. A skill
+stored in Fenro is one Markdown body, so `fenro-setup` stores installed
+skills as short pointers to the installed copy, and copies only a person's
+own single-file skills. Write or change these skills with the
+`writing-for-agents` skill in `.claude/skills/`; `skills/skills.test.ts`
+checks their frontmatter, because the CLI skips a broken one with only a
+warning.
+
 People work the same tasks on the **Tasks** screen: the list by view (ready, in
 progress, blocked, closed) or as a board, scoped by epic, each task's brief
 and journal, and forms for everything an agent can change. **New task here**
