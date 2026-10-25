@@ -8,6 +8,8 @@ import type { CheckCriterionCommand } from "@/modules/tasks/application/commands
 import type { CreateSkillCommand } from "@/modules/tasks/application/commands/create-skill";
 import type { CreateTaskCommand } from "@/modules/tasks/application/commands/create-task";
 import type { FinishSessionCommand } from "@/modules/tasks/application/commands/finish-session";
+import type { PostQuestionnaireCommand } from "@/modules/tasks/application/commands/post-questionnaire";
+import type { WithdrawQuestionnaireCommand } from "@/modules/tasks/application/commands/questionnaire-commands";
 import type { LinkSkillCommand } from "@/modules/tasks/application/commands/link-skill";
 import type { LinkTasksCommand } from "@/modules/tasks/application/commands/link-tasks";
 import type { RecolourLabelCommand } from "@/modules/tasks/application/commands/recolour-label";
@@ -23,9 +25,17 @@ import { listSkillsQuery } from "@/modules/tasks/application/queries/list-skills
 import { listTasksQuery } from "@/modules/tasks/application/queries/list-tasks";
 import { pictureContentQuery } from "@/modules/tasks/application/queries/picture";
 import type { PictureUploadTicketQuery } from "@/modules/tasks/application/queries/picture-upload-ticket";
+import {
+  MAX_WAIT_SECONDS,
+  questionnaireQuery,
+  waitForAnswersQuery,
+  WAIT_BUDGET_MS,
+  type QuestionnaireView,
+} from "@/modules/tasks/application/queries/questionnaire";
 import type {
   BriefSkill,
   LabelItem,
+  QuestionnaireItem,
   SkillDetail,
   SkillItem,
   TaskBrief,
@@ -34,9 +44,13 @@ import { skillQuery } from "@/modules/tasks/application/queries/skill";
 import { taskBriefQuery } from "@/modules/tasks/application/queries/task-brief";
 import {
   LABEL_COLOURS,
+  MAX_QUESTIONS,
+  MAX_SUGGESTIONS,
+  MIN_SUGGESTIONS,
   normaliseLabelName,
   NOTE_KINDS,
   PRIORITIES,
+  QUESTION_TYPES,
   SESSION_OUTCOMES,
   TASK_KINDS,
   TASK_STATUSES,
@@ -67,6 +81,10 @@ export const PICTURES = `Pictures: a task can carry PNG, JPEG, WebP or GIF pictu
 
 export const SKILLS = `Skills: a skill is a set of instructions a person linked to labels, such as how frontend work is done here. start_task returns every skill linked to the task's own labels in full: follow them while you work the task. When they conflict, the person's own words in this session win, then the task's description and acceptance criteria, then the skills. A skill whose instructions come back null did not fit in the brief: read it with get_skill. get_task lists the skills by name only; get_skill reads one, and list_skills lists them all. If a skill is wrong or out of date, say so with add_note, and change it with save_skill only when asked to; every change is kept and can be restored.`;
 
+const WAIT_MINUTES = WAIT_BUDGET_MS / 60_000;
+
+export const QUESTIONS = `Questions: when only the person can settle something (a design direction, a scope call, a preference), ask_questions posts a round of up to ${MAX_QUESTIONS} questions to the task; they answer on the task page, often from a phone. Ask only what blocks you, not what you can find out. Give each choice question ${MIN_SUGGESTIONS} to ${MAX_SUGGESTIONS} suggestions and mark the one you would pick as recommended. The person can always answer in their own words, so never add an "Other" suggestion. To show a design or a screenshot, attach_picture first and put its id on the question or a suggestion. A task has one open round at a time, and it shows as blocked until answered. If the person is at hand, wait_for_answers waits for them, up to ${WAIT_MINUTES} minutes from posting; otherwise, or when that runs out, finish_session with outcome paused, and the next session's brief carries the answers. get_answers reads a round; withdraw_questions takes back a round you no longer need.`;
+
 export const INSTRUCTIONS = `Fenro is the task list you work from. Tasks carry context between sessions, so record what you learn as you go.
 
 The loop:
@@ -88,7 +106,9 @@ ${SKILLS}
 
 ${FORMATTING}
 
-${PICTURES}`;
+${PICTURES}
+
+${QUESTIONS}`;
 
 /**
  * Output is compact JSON; only `get_task` and `start_task` return a full
@@ -220,6 +240,7 @@ export function createTasksMcpServer(
       return found.ok
         ? json({
             ...found.value,
+            ...roundsOf(found.value),
             skills: found.value.skills.map(skillSummaryOf),
             ...url(found.value.key),
           })
@@ -352,6 +373,84 @@ export function createTasksMcpServer(
           },
         ],
       };
+    },
+  );
+
+  const round = (reference: { questionnaire?: string; task?: string }) => {
+    const parsed = reference.questionnaire
+      ? readRoundReference(reference.questionnaire)
+      : reference.task
+        ? { task: reference.task, round: undefined }
+        : undefined;
+    return parsed ? { ...parsed, owner: ownerOf(parsed.task) } : undefined;
+  };
+  const roundUrl = (view: QuestionnaireView) =>
+    `${links.task(view.task)}?round=${view.questionnaire.round}`;
+  const ROUND_INPUT = {
+    questionnaire: z
+      .string()
+      .optional()
+      .describe("The round, as ask_questions named it, e.g. T-42/2"),
+    task: z.string().optional().describe("A task key, for its latest round"),
+  };
+
+  server.registerTool(
+    "get_answers",
+    {
+      title: "Read a round of questions",
+      description:
+        "One round of questions on a task and, once the person submitted, their answers: each suggestion they chose by its label, what they wrote, and the ids of pictures they added (look with get_picture). A skipped question is a real answer: decide yourself or ask again.",
+      inputSchema: z.object(ROUND_INPUT),
+      annotations: { readOnlyHint: true, openWorldHint: false },
+    },
+    async (input) => {
+      const target = round(input);
+      if (!target) return noRound();
+      const found = await queryBus.ask(
+        questionnaireQuery(target.owner, target.task, target.round),
+      );
+      return found.ok
+        ? json({ ...answersOf(found.value), url: roundUrl(found.value) })
+        : refused(found.error);
+    },
+  );
+
+  server.registerTool(
+    "wait_for_answers",
+    {
+      title: "Wait for the person's answers",
+      description: `Waits up to seconds (default 45, at most ${MAX_WAIT_SECONDS}) for a round to be answered and returns as soon as it is, with the answers. Still open, call it again while the person may be at hand, until wait_until (${WAIT_MINUTES} minutes after posting); then finish_session with outcome paused.`,
+      inputSchema: z.object({
+        ...ROUND_INPUT,
+        seconds: z.number().int().min(1).max(MAX_WAIT_SECONDS).optional(),
+      }),
+      annotations: { readOnlyHint: true, openWorldHint: false },
+    },
+    async (input) => {
+      const target = round(input);
+      if (!target) return noRound();
+      const waited = await queryBus.ask(
+        waitForAnswersQuery(
+          target.owner,
+          target.task,
+          target.round,
+          input.seconds ?? 45,
+        ),
+      );
+      if (!waited.ok) return refused(waited.error);
+      const view = waited.value;
+      const open = view.questionnaire.status === "open";
+      return json({
+        ...answersOf(view),
+        waited_seconds: view.waitedSeconds,
+        wait_until: view.waitUntil,
+        url: roundUrl(view),
+        then: !open
+          ? "Carry on with the answers."
+          : view.budgetSpent
+            ? "Stop waiting: finish_session with outcome paused and a summary. The task stays blocked until the person answers, and the next session's brief carries the answers."
+            : "Not answered yet. Call wait_for_answers again, or finish_session with outcome paused if the person is not at hand.",
+      });
     },
   );
 
@@ -830,7 +929,11 @@ export function createTasksMcpServer(
         if (started.ok) {
           const found = await brief(candidate, undefined, true);
           return found.ok
-            ? json({ ...found.value, ...url(found.value.key) })
+            ? json({
+                ...found.value,
+                ...roundsOf(found.value),
+                ...url(found.value.key),
+              })
             : refused(found.error);
         }
         last = started.error;
@@ -928,6 +1031,135 @@ export function createTasksMcpServer(
         ? found.value.pictures.find((picture) => picture.id === pictureId)
         : undefined;
       return json(item ?? { picture: pictureId });
+    },
+  );
+
+  server.registerTool(
+    "ask_questions",
+    {
+      title: "Ask the person questions",
+      description: `Posts a round of 1 to ${MAX_QUESTIONS} questions to a task, answered by the person on the task page. A question with options is single choice unless type is multiple; without options it is a text question. Every question also takes the person's own words, so never add an "Other" option. Mark the option you would pick as recommended. Pictures (ids from attach_picture, uploaded first) can go on a question or an option. One open round per task; the task is blocked until it is answered.`,
+      inputSchema: z.object({
+        task: z.string(),
+        title: z.string().describe("A few words, e.g. Board layout for epics"),
+        intro: z
+          .string()
+          .optional()
+          .describe("Why you ask, in a sentence or two; Markdown"),
+        questions: z
+          .array(
+            z.object({
+              id: z
+                .string()
+                .optional()
+                .describe("Short and readable, e.g. layout; default q1, q2…"),
+              prompt: z.string().describe("One line; inline Markdown"),
+              details: z
+                .string()
+                .optional()
+                .describe("Context that helps answer; Markdown"),
+              type: z.enum(QUESTION_TYPES).optional(),
+              pictures: z
+                .array(z.string())
+                .optional()
+                .describe("Picture ids from attach_picture"),
+              options: z
+                .array(
+                  z.object({
+                    id: z.string().optional().describe("Default a, b, c…"),
+                    label: z.string().describe("A few words"),
+                    description: z
+                      .string()
+                      .optional()
+                      .describe("A sentence on what it means"),
+                    recommended: z.boolean().optional(),
+                    picture: z.string().optional(),
+                  }),
+                )
+                .optional()
+                .describe(
+                  `${MIN_SUGGESTIONS} to ${MAX_SUGGESTIONS} suggested answers`,
+                ),
+            }),
+          )
+          .min(1)
+          .max(MAX_QUESTIONS),
+      }),
+      annotations: { readOnlyHint: false, destructiveHint: false },
+    },
+    async (input) => {
+      const owner = ownerOf(input.task);
+      const command: PostQuestionnaireCommand = {
+        type: "tasks.post-questionnaire",
+        ownerId: owner,
+        actor,
+        questionnaireId: crypto.randomUUID(),
+        task: input.task,
+        title: input.title,
+        intro: input.intro,
+        questions: input.questions.map((question) => ({
+          id: question.id,
+          type: question.type,
+          prompt: question.prompt,
+          details: question.details,
+          pictures: question.pictures,
+          suggestions: question.options,
+        })),
+      };
+      const posted = await commandBus.dispatch(command);
+      if (!posted.ok) return refused(posted.error);
+      const found = await queryBus.ask(questionnaireQuery(owner, input.task));
+      if (!found.ok) return refused(found.error);
+      const view = found.value;
+      return json({
+        questionnaire: `${view.task}/${view.questionnaire.round}`,
+        round: view.questionnaire.round,
+        questions: view.questionnaire.questions.map((question) => ({
+          id: question.id,
+          type: question.type,
+          options: question.suggestions.map((suggestion) => suggestion.id),
+        })),
+        url: roundUrl(view),
+        wait_until: new Date(
+          Date.parse(view.questionnaire.postedAt) + WAIT_BUDGET_MS,
+        ).toISOString(),
+        then: `Tell the person the questions are on the task (give the url). If they are at hand, wait_for_answers until wait_until; otherwise finish_session with outcome paused.`,
+      });
+    },
+  );
+
+  server.registerTool(
+    "withdraw_questions",
+    {
+      title: "Withdraw a round of questions",
+      description:
+        "Takes back an open round you no longer need answered, e.g. you found the answer yourself. The person sees it as withdrawn with your reason, and the task is no longer blocked on it.",
+      inputSchema: z.object({
+        ...ROUND_INPUT,
+        reason: z.string().optional().describe("Why, in a sentence"),
+      }),
+      annotations: { readOnlyHint: false, destructiveHint: false },
+    },
+    async (input) => {
+      const target = round(input);
+      if (!target) return noRound();
+      let number = target.round;
+      if (number === undefined) {
+        const latest = await queryBus.ask(
+          questionnaireQuery(target.owner, target.task),
+        );
+        if (!latest.ok) return refused(latest.error);
+        number = latest.value.questionnaire.round;
+      }
+      const command: WithdrawQuestionnaireCommand = {
+        type: "tasks.withdraw-questionnaire",
+        ownerId: target.owner,
+        actor,
+        task: target.task,
+        round: number,
+        reason: input.reason,
+      };
+      return standing(target.task, await commandBus.dispatch(command));
     },
   );
 
@@ -1080,6 +1312,86 @@ function workOnNextTask(repository: string | undefined): string {
  */
 const INLINE_PICTURE_BYTES = 3 * 1024 * 1024;
 const INLINE_LIMIT_BASE64 = Math.ceil(INLINE_PICTURE_BYTES / 3) * 4;
+
+const ROUND_REFERENCE = /^(.+)\/(\d+)$/;
+
+function readRoundReference(reference: string) {
+  const trimmed = reference.trim().replace(/\?round=(\d+)$/, "/$1");
+  const match = ROUND_REFERENCE.exec(trimmed);
+  return match
+    ? { task: match[1]!, round: Number(match[2]) }
+    : { task: trimmed, round: undefined };
+}
+
+function noRound(): CallToolResult {
+  return text(
+    "Give questionnaire (e.g. T-42/2, as ask_questions named it) or task for its latest round.",
+    true,
+  );
+}
+
+function answersOf({ task, questionnaire: round }: QuestionnaireView) {
+  const labels = (questionId: string, choices: readonly string[]) => {
+    const question = round.questions.find((q) => q.id === questionId);
+    return choices.map(
+      (choice) =>
+        question?.suggestions.find((s) => s.id === choice)?.label ?? choice,
+    );
+  };
+  return {
+    questionnaire: `${task}/${round.round}`,
+    title: round.title,
+    status: round.status,
+    posted_at: round.postedAt,
+    ...(round.status === "answered"
+      ? {
+          answered_by: round.answeredBy,
+          answered_at: round.answeredAt,
+          answers: round.questions.map((question) => {
+            const answer = round.answers?.find(
+              (candidate) => candidate.questionId === question.id,
+            );
+            return {
+              id: question.id,
+              question: question.prompt,
+              chose: labels(question.id, answer?.choices ?? []),
+              wrote: answer?.text ?? null,
+              pictures: answer?.pictures.map((picture) => picture.id) ?? [],
+              ...(answer?.skipped !== false ? { skipped: true } : {}),
+            };
+          }),
+        }
+      : round.status === "withdrawn"
+        ? { withdrawn_at: round.withdrawnAt, reason: round.withdrawnReason }
+        : {
+            questions: round.questions.length,
+            unanswered: "The person has not submitted this round yet.",
+          }),
+  };
+}
+
+/**
+ * Rounds come as a summary; only answers the latest handoff has not seen
+ * come in full, so a fresh session picks them up without another call.
+ */
+function roundsOf(task: TaskBrief) {
+  const since = task.latestHandoff?.recordedAt;
+  const fresh = (round: QuestionnaireItem) =>
+    round.status === "answered" && (!since || round.answeredAt! > since);
+  return {
+    questionnaires: task.questionnaires.map((round) => ({
+      questionnaire: `${task.key}/${round.round}`,
+      title: round.title,
+      status: round.status,
+      questions: round.questions.length,
+      answered: round.answered,
+      posted_at: round.postedAt,
+    })),
+    new_answers: task.questionnaires
+      .filter(fresh)
+      .map((round) => answersOf({ task: task.key, questionnaire: round })),
+  };
+}
 
 function unknownSpace(space: string): CallToolResult {
   return text(

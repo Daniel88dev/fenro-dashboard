@@ -187,3 +187,42 @@ export class SkillDeleted extends BaseDomainEvent {
     super(aggregateId, occurredAt);
   }
 }
+
+export class QuestionnairePosted extends BaseDomainEvent {
+  readonly name = "tasks.questionnaire-posted";
+
+  constructor(
+    aggregateId: string,
+    readonly taskId: string,
+    readonly round: number,
+    occurredAt?: Date,
+  ) {
+    super(aggregateId, occurredAt);
+  }
+}
+
+export class QuestionnaireAnswered extends BaseDomainEvent {
+  readonly name = "tasks.questionnaire-answered";
+
+  constructor(
+    aggregateId: string,
+    readonly taskId: string,
+    readonly round: number,
+    occurredAt?: Date,
+  ) {
+    super(aggregateId, occurredAt);
+  }
+}
+
+export class QuestionnaireWithdrawn extends BaseDomainEvent {
+  readonly name = "tasks.questionnaire-withdrawn";
+
+  constructor(
+    aggregateId: string,
+    readonly taskId: string,
+    readonly round: number,
+    occurredAt?: Date,
+  ) {
+    super(aggregateId, occurredAt);
+  }
+}

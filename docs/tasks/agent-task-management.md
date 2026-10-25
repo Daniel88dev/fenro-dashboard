@@ -266,6 +266,10 @@ revisions are deleted with their skill.
 | `finish_session`  | End the session with a handoff summary and an outcome: `done`, `paused`, `blocked` (with a reason), `in_review`                                                      |
 | `set_status`      | Move to backlog, todo or done, cancel, reopen, set or clear a hold                                                                                                   |
 
+Questions for the person (`ask_questions`, `get_answers`, `wait_for_answers`,
+`withdraw_questions`) are described in
+[agent-questionnaires.md](./agent-questionnaires.md).
+
 Plus one prompt, `work_on_next_task`, that tells an agent the loop:
 `list_tasks ready` → `start_task` → notes → `finish_session`. It takes an
 optional `repository` (`owner/name`) that narrows the ready queue to that

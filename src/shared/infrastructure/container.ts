@@ -191,6 +191,16 @@ import {
   type RemovePictureCommand,
 } from "@/modules/tasks/application/commands/remove-picture";
 import {
+  PostQuestionnaireHandler,
+  type PostQuestionnaireCommand,
+} from "@/modules/tasks/application/commands/post-questionnaire";
+import {
+  AnswerQuestionnaireHandler,
+  WithdrawQuestionnaireHandler,
+  type AnswerQuestionnaireCommand,
+  type WithdrawQuestionnaireCommand,
+} from "@/modules/tasks/application/commands/questionnaire-commands";
+import {
   RenameLabelHandler,
   type RenameLabelCommand,
 } from "@/modules/tasks/application/commands/rename-label";
@@ -214,6 +224,7 @@ import {
   UpdateTaskHandler,
   type UpdateTaskCommand,
 } from "@/modules/tasks/application/commands/update-task";
+import type { AnswerNotifications } from "@/modules/tasks/application/ports/answer-notifications";
 import type { PictureStorage } from "@/modules/tasks/application/ports/picture-storage";
 import type { TaskReadStore } from "@/modules/tasks/application/ports/task-read-store";
 import type { UploadTickets } from "@/modules/tasks/application/ports/upload-tickets";
@@ -247,6 +258,14 @@ import {
   type PictureUploadTicketQuery,
   type PictureUploadTicketResult,
 } from "@/modules/tasks/application/queries/picture-upload-ticket";
+import {
+  QuestionnaireHandler,
+  WaitForAnswersHandler,
+  type QuestionnaireQuery,
+  type QuestionnaireResult,
+  type WaitForAnswersQuery,
+  type WaitResult,
+} from "@/modules/tasks/application/queries/questionnaire";
 import type {
   LabelItem,
   RepositoryTasks,
@@ -286,15 +305,18 @@ import {
 import type {
   LabelRepository,
   PictureRepository,
+  QuestionnaireRepository,
   SkillRepository,
   TaskRepository,
 } from "@/modules/tasks/domain";
 import { DrizzleLabelRepository } from "@/modules/tasks/infrastructure/drizzle-label.repository";
 import { DrizzlePictureRepository } from "@/modules/tasks/infrastructure/drizzle-picture.repository";
+import { DrizzleQuestionnaireRepository } from "@/modules/tasks/infrastructure/drizzle-questionnaire.repository";
 import { DrizzleSkillRepository } from "@/modules/tasks/infrastructure/drizzle-skill.repository";
 import { DrizzleTaskReadStore } from "@/modules/tasks/infrastructure/drizzle-task.read-store";
 import { DrizzleTaskRepository } from "@/modules/tasks/infrastructure/drizzle-task.repository";
 import { HmacUploadTickets } from "@/modules/tasks/infrastructure/hmac-upload-tickets";
+import { InProcessAnswerNotifications } from "@/modules/tasks/infrastructure/in-process-answer-notifications";
 import { S3PictureStorage } from "@/modules/tasks/infrastructure/s3-picture.storage";
 import { UnconfiguredPictureStorage } from "@/modules/tasks/infrastructure/unconfigured-picture.storage";
 import { CommandBus, QueryBus, type MessageTracer } from "@/shared/application";
@@ -317,6 +339,8 @@ export type ContainerParts = {
   readonly labels: LabelRepository;
   readonly skills: SkillRepository;
   readonly pictures: PictureRepository;
+  readonly questionnaires: QuestionnaireRepository;
+  readonly answerNotifications: AnswerNotifications;
   readonly pictureStorage: PictureStorage;
   readonly uploadTickets: UploadTickets;
   readonly taskReads: TaskReadStore;
@@ -411,6 +435,8 @@ function registerTasks(
     labels,
     skills,
     pictures,
+    questionnaires,
+    answerNotifications,
     pictureStorage,
     uploadTickets,
     taskReads,
@@ -500,6 +526,29 @@ function registerTasks(
     "tasks.remove-picture",
     new RemovePictureHandler(pictures, pictureStorage, clock),
   );
+  commandBus.register<PostQuestionnaireCommand>(
+    "tasks.post-questionnaire",
+    new PostQuestionnaireHandler(tasks, questionnaires, pictures, clock),
+  );
+  commandBus.register<AnswerQuestionnaireCommand>(
+    "tasks.answer-questionnaire",
+    new AnswerQuestionnaireHandler(
+      tasks,
+      questionnaires,
+      pictures,
+      answerNotifications,
+      clock,
+    ),
+  );
+  commandBus.register<WithdrawQuestionnaireCommand>(
+    "tasks.withdraw-questionnaire",
+    new WithdrawQuestionnaireHandler(
+      tasks,
+      questionnaires,
+      answerNotifications,
+      clock,
+    ),
+  );
 
   queryBus.register<ListTasksQuery, TaskList>(
     "tasks.list-tasks",
@@ -549,6 +598,14 @@ function registerTasks(
       uploadTickets,
       clock,
     ),
+  );
+  queryBus.register<QuestionnaireQuery, QuestionnaireResult>(
+    "tasks.questionnaire",
+    new QuestionnaireHandler(taskReads, clock),
+  );
+  queryBus.register<WaitForAnswersQuery, WaitResult>(
+    "tasks.wait-for-answers",
+    new WaitForAnswersHandler(taskReads, answerNotifications, clock),
   );
   queryBus.register<TaskCountsByRepositoryQuery, TaskCountsByRepository>(
     "tasks.task-counts-by-repository",
@@ -635,6 +692,8 @@ function registerGroups(
   );
 }
 
+const answerNotifications = InProcessAnswerNotifications.shared();
+
 // Created on first use, so a build or test that never signs in needs neither
 // Better Auth nor Postgres configured.
 const auth = () => getAuth(getDatabase);
@@ -679,6 +738,8 @@ function containerFor(
     labels: new DrizzleLabelRepository(db),
     skills: new DrizzleSkillRepository(db),
     pictures: new DrizzlePictureRepository(db),
+    questionnaires: new DrizzleQuestionnaireRepository(db),
+    answerNotifications,
     pictureStorage: pictureStorage(),
     uploadTickets: uploadTickets(),
     taskReads: new DrizzleTaskReadStore(db),

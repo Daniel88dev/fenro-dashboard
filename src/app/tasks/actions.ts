@@ -8,6 +8,7 @@ import type { CheckCriterionCommand } from "@/modules/tasks/application/commands
 import type { CreateTaskCommand } from "@/modules/tasks/application/commands/create-task";
 import type { LinkTasksCommand } from "@/modules/tasks/application/commands/link-tasks";
 import type { RecordNoteCommand } from "@/modules/tasks/application/commands/record-note";
+import type { AnswerQuestionnaireCommand } from "@/modules/tasks/application/commands/questionnaire-commands";
 import type { RemovePictureCommand } from "@/modules/tasks/application/commands/remove-picture";
 import type { UpdateTaskCommand } from "@/modules/tasks/application/commands/update-task";
 import { taskBriefQuery } from "@/modules/tasks/application/queries/task-brief";
@@ -19,6 +20,7 @@ import {
   PERSONAL_KEY_PREFIX,
   spaceWithPrefix,
   type Actor,
+  type AnswerDraft,
   type LinkKind,
   type NoteKind,
   type Priority,
@@ -395,4 +397,55 @@ export async function removePictureAction(
     picture: text(formData, "picture"),
   };
   return answer(state, await container.commandBus.dispatch(command), task);
+}
+
+export async function answerQuestionnaireAction(
+  state: TaskFormState,
+  formData: FormData,
+): Promise<TaskFormState> {
+  const session = await signedIn();
+  if (!session) return { error: SIGNED_OUT, saved: state.saved };
+  const { spaces, actor, container } = session;
+
+  const task = text(formData, "task");
+  const command: AnswerQuestionnaireCommand = {
+    type: "tasks.answer-questionnaire",
+    ownerId: spaces.ownerOf(task),
+    actor,
+    task,
+    round: Number(text(formData, "round")),
+    answers: answersOf(text(formData, "answers")),
+  };
+  const outcome = await container.commandBus.dispatch(command);
+  if (outcome.ok) revalidatePath("/tasks");
+  return answer(state, outcome, task);
+}
+
+function answersOf(json: string): AnswerDraft[] {
+  try {
+    const parsed: unknown = JSON.parse(json);
+    if (!Array.isArray(parsed)) return [];
+    return parsed.flatMap((item: unknown) => {
+      if (typeof item !== "object" || item === null) return [];
+      const { questionId, choices, text, pictures } = item as Record<
+        string,
+        unknown
+      >;
+      if (typeof questionId !== "string") return [];
+      const strings = (value: unknown) =>
+        Array.isArray(value)
+          ? value.filter((entry): entry is string => typeof entry === "string")
+          : [];
+      return [
+        {
+          questionId,
+          choices: strings(choices),
+          text: typeof text === "string" ? text : null,
+          pictures: strings(pictures),
+        },
+      ];
+    });
+  } catch {
+    return [];
+  }
 }

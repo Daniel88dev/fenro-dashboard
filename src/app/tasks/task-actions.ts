@@ -1,6 +1,7 @@
 import type { TaskActions } from "@/modules/tasks/ui/task-forms";
 
 import {
+  answerQuestionnaireAction,
   changeKindAction,
   changeStatusAction,
   checkCriterionAction,
@@ -24,4 +25,5 @@ export const TASK_ACTIONS: TaskActions = {
   changeStatus: changeStatusAction,
   link: linkTasksAction,
   removePicture: removePictureAction,
+  answer: answerQuestionnaireAction,
 };

@@ -37,6 +37,7 @@ const item: TaskListItem = {
   subtasks: { open: 0, total: 0 },
   criteria: { met: 1, total: 2 },
   journalEntries: 3,
+  questions: 0,
   updatedAt: "2026-09-24T10:00:00.000Z",
 };
 
@@ -116,6 +117,7 @@ const brief: TaskBrief = {
   ],
   journalEntries: 2,
   pictures: [],
+  questionnaires: [],
   skills: [],
   createdAt: "2026-09-24T07:00:00.000Z",
   updatedAt: "2026-09-24T09:00:00.000Z",
@@ -133,6 +135,7 @@ function actions(overrides: Partial<TaskActions> = {}): TaskActions {
     changeStatus: saved,
     link: saved,
     removePicture: saved,
+    answer: saved,
     kind: saved,
     ...overrides,
   };
@@ -202,6 +205,23 @@ describe("TaskList", () => {
     expect(screen.getByRole("link", { name: /^Blocked/ })).toHaveTextContent(
       "Blocked1",
     );
+  });
+
+  it("marks rows waiting on answers and filters down to them", () => {
+    render(
+      <TaskList
+        list={{ total: 1, tasks: [{ ...item, questions: 3 }] }}
+        filter={{ view: "blocked", repository: "", text: "", labels: [] }}
+        needingAnswers={1}
+      />,
+    );
+
+    expect(
+      screen.getByRole("link", { name: /Fix the lint job/ }),
+    ).toHaveTextContent("3 questions");
+    const filter = screen.getByRole("link", { name: /Needs my answer/ });
+    expect(filter).toHaveAttribute("aria-pressed", "false");
+    expect(filter).toHaveAttribute("href", "/tasks?view=blocked&needs=answer");
   });
 
   it("filters by labels in the URL, keeping the rest of the filter", () => {

@@ -27,6 +27,7 @@ import {
 import type { TaskStatus } from "@/modules/tasks/domain";
 
 import { colourOf, LabelDot, type LabelOption } from "./labels";
+import { QuestionsChip } from "./questions-chip";
 import { EpicProgress, EpicTag, TaskKindIcon } from "./task-kind";
 import { StateChip } from "./state-chip";
 import { taskHref } from "./task-state";
@@ -305,12 +306,14 @@ function CardFacts({
     !task.epic &&
     task.labels.length === 0 &&
     !task.workedOnBy &&
+    task.questions === 0 &&
     !chip
   ) {
     return null;
   }
   return (
     <div className="text-ink-muted flex flex-wrap items-center gap-x-2.5 gap-y-1.5 text-[12px]">
+      <QuestionsChip count={task.questions} forYou />
       {task.progress ? <EpicProgress progress={task.progress} /> : null}
       {task.epic ? <EpicTag title={task.epic.title} /> : null}
       {task.labels.map((name) => (

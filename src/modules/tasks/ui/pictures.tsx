@@ -4,6 +4,7 @@ import {
   ArrowSquareOut,
   CaretLeft,
   CaretRight,
+  Check,
   ImageSquare,
   Trash,
   UploadSimple,
@@ -637,6 +638,8 @@ function PictureStage({ picture }: { picture: PictureItem }) {
   );
 }
 
+const keepPicture: TaskAction = async (state) => state;
+
 /** Dark in both schemes, as a picture reads best on a dark surround. */
 export function PictureViewer({
   pictures,
@@ -644,18 +647,25 @@ export function PictureViewer({
   onIndex,
   taskKey,
   removeAction,
+  choose,
+  caption,
 }: {
   pictures: readonly PictureItem[];
   index: number | null;
   onIndex: (index: number | null) => void;
   taskKey: string;
-  removeAction: TaskAction;
+  removeAction?: TaskAction;
+  choose?: {
+    readonly label: (index: number) => string;
+    readonly onChoose: (index: number) => void;
+  };
+  caption?: (index: number) => string;
 }) {
   const dialog = useRef<HTMLDialogElement>(null);
   const titleId = useId();
   const [confirming, setConfirming] = useState(false);
   const [state, formAction, pending] = useActionState(
-    removeAction,
+    removeAction ?? keepPicture,
     EMPTY_FORM_STATE,
   );
   const picture = index === null ? undefined : pictures[index];
@@ -713,7 +723,9 @@ export function PictureViewer({
                 {picture.name}
               </h2>
               <p className="text-bar-ink-muted text-[12px]">
-                {`Added by ${addedByLine(picture)}, ${formatBytes(picture.bytes)}`}
+                {caption && index !== null
+                  ? caption(index)
+                  : `Added by ${addedByLine(picture)}, ${formatBytes(picture.bytes)}`}
               </p>
             </div>
             <div className="flex flex-wrap items-center gap-2">
@@ -726,7 +738,20 @@ export function PictureViewer({
                 <ArrowSquareOut aria-hidden="true" className="size-3.5" />
                 Open original
               </a>
-              {confirming ? (
+              {choose && index !== null ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    choose.onChoose(index);
+                    onIndex(null);
+                  }}
+                  className={VIEWER_BUTTON}
+                >
+                  <Check aria-hidden="true" className="size-3.5" />
+                  {choose.label(index)}
+                </button>
+              ) : null}
+              {!removeAction ? null : confirming ? (
                 <form action={formAction} className="flex items-center gap-2">
                   <input type="hidden" name="task" value={taskKey} />
                   <input type="hidden" name="picture" value={picture.id} />

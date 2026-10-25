@@ -56,6 +56,7 @@
   --color-state-ready-wash: #e4ecfa;
   --color-state-waiting: #6b5a3c;
   --color-state-waiting-wash: #efe9dd;
+  --color-state-waiting-line: #ddd2bf;
   --color-state-blocked: #b3261e;
   --color-state-blocked-wash: #fbe6e3;
   --color-state-running: #7d5400;
@@ -129,6 +130,7 @@
     --color-state-ready-wash: #1d2a42;
     --color-state-waiting: #cdb98f;
     --color-state-waiting-wash: #332d22;
+    --color-state-waiting-line: #4a4232;
     --color-state-blocked: #f2847a;
     --color-state-blocked-wash: #3d1f1c;
     --color-state-running: #e6bb5a;
@@ -190,6 +192,7 @@
   --color-state-ready-wash: #1d2a42;
   --color-state-waiting: #cdb98f;
   --color-state-waiting-wash: #332d22;
+  --color-state-waiting-line: #4a4232;
   --color-state-blocked: #f2847a;
   --color-state-blocked-wash: #3d1f1c;
   --color-state-running: #e6bb5a;

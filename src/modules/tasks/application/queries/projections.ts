@@ -13,6 +13,7 @@ import {
 
 import type {
   PictureRecord,
+  QuestionnaireRecord,
   SessionRecord,
   SkillRecord,
   SkillRevisionRecord,
@@ -25,6 +26,7 @@ import type {
   EpicMention,
   JournalItem,
   PictureItem,
+  QuestionnaireItem,
   RepositoryTasks,
   SkillItem,
   SkillRevisionItem,
@@ -50,6 +52,7 @@ export type TaskFilter = {
   readonly kinds?: readonly TaskKind[];
   readonly epicId?: string;
   readonly outsideEpics?: boolean;
+  readonly needsAnswer?: boolean;
   readonly text?: string;
   readonly limit?: number;
 };
@@ -117,7 +120,15 @@ export class TaskIndex {
         return "backlog";
     }
     if (this.liveSession(record)) return "running";
-    if (record.hold || this.openBlockers(record).length > 0) return "blocked";
+    // An open round waits on the person the same way a hold does, and the
+    // ready queue skips it until they answer.
+    if (
+      record.hold ||
+      record.openQuestionnaire ||
+      this.openBlockers(record).length > 0
+    ) {
+      return "blocked";
+    }
     if (record.status === "in_review") return "in-review";
     if (record.status === "in_progress") return "paused";
     // An epic is never picked up: with nothing open under it, it is just
@@ -180,6 +191,7 @@ export class TaskIndex {
       },
       criteria: { met: record.criteriaMet, total: record.criteriaTotal },
       journalEntries: record.journalEntries,
+      questions: record.openQuestionnaire?.questions ?? 0,
       updatedAt: record.updatedAt.toISOString(),
     };
   }
@@ -291,6 +303,7 @@ function matchesScope(
     return false;
   }
   if (filter.parentId && record.parentId !== filter.parentId) return false;
+  if (filter.needsAnswer && !record.openQuestionnaire) return false;
   if (words.length > 0) {
     const haystack = `${taskKey(record)} ${record.title}`.toLowerCase();
     if (!words.every((word) => haystack.includes(word))) return false;
@@ -384,6 +397,10 @@ export function brief(
     recordedAt: entry.recordedAt.toISOString(),
   }));
   const latest = detail.latestSession;
+  const pictures = new Map(
+    detail.pictures.map((picture) => [picture.id, pictureItem(picture)]),
+  );
+  const inRounds = new Set(detail.questionnaires.flatMap(picturesOfRound));
 
   return {
     key: taskKey(detail),
@@ -432,7 +449,12 @@ export function brief(
     decisions: journal.filter((entry) => entry.kind === "decision"),
     recentJournal: journal.slice(-journalLimit),
     journalEntries: journal.length,
-    pictures: detail.pictures.map(pictureItem),
+    pictures: detail.pictures
+      .filter((picture) => !inRounds.has(picture.id))
+      .map(pictureItem),
+    questionnaires: detail.questionnaires.map((round) =>
+      questionnaireItem(round, pictures),
+    ),
     skills,
     createdAt: detail.createdAt.toISOString(),
     updatedAt: lastChange(detail).toISOString(),
@@ -440,14 +462,80 @@ export function brief(
 }
 
 /**
- * Pictures are their own aggregate, so adding one leaves the task row
- * alone; to a reader it is still a change to the task.
+ * Pictures and rounds of questions are their own aggregates, so adding one
+ * leaves the task row alone; to a reader it is still a change to the task.
  */
 function lastChange(detail: TaskDetailRecord): Date {
-  return detail.pictures.reduce(
-    (latest, picture) => (picture.addedAt > latest ? picture.addedAt : latest),
-    detail.updatedAt,
-  );
+  return [
+    ...detail.pictures.map((picture) => picture.addedAt),
+    ...detail.questionnaires.flatMap((round) => [
+      round.postedAt,
+      round.answeredAt ?? round.postedAt,
+      round.withdrawnAt ?? round.postedAt,
+    ]),
+  ].reduce((latest, at) => (at > latest ? at : latest), detail.updatedAt);
+}
+
+function picturesOfRound(round: QuestionnaireRecord): string[] {
+  return [
+    ...round.questions.flatMap((question) => [
+      ...question.pictures,
+      ...question.suggestions.flatMap((suggestion) =>
+        suggestion.picture ? [suggestion.picture] : [],
+      ),
+    ]),
+    ...(round.answers ?? []).flatMap((answer) => answer.pictures),
+  ];
+}
+
+export function questionnaireItem(
+  round: QuestionnaireRecord,
+  pictures: ReadonlyMap<string, PictureItem>,
+): QuestionnaireItem {
+  const shown = (ids: readonly string[]) =>
+    ids
+      .map((id) => pictures.get(id))
+      .filter((picture): picture is PictureItem => picture !== undefined);
+  return {
+    id: round.id,
+    round: round.number,
+    title: round.title,
+    intro: round.intro,
+    status: round.status,
+    questions: round.questions.map((question) => ({
+      id: question.id,
+      type: question.type,
+      prompt: question.prompt,
+      details: question.details,
+      pictures: shown(question.pictures),
+      suggestions: question.suggestions.map((suggestion) => ({
+        id: suggestion.id,
+        label: suggestion.label,
+        description: suggestion.description,
+        recommended: suggestion.recommended,
+        picture: suggestion.picture
+          ? (pictures.get(suggestion.picture) ?? null)
+          : null,
+      })),
+    })),
+    answers:
+      round.answers?.map((answer) => ({
+        questionId: answer.questionId,
+        choices: answer.choices,
+        text: answer.text,
+        pictures: shown(answer.pictures),
+        skipped: answer.skipped,
+      })) ?? null,
+    answered: (round.answers ?? []).filter((answer) => !answer.skipped).length,
+    postedBy: round.postedByName,
+    postedByKind: round.postedByKind,
+    session: round.sessionNumber,
+    postedAt: round.postedAt.toISOString(),
+    answeredBy: round.answeredByName,
+    answeredAt: round.answeredAt?.toISOString() ?? null,
+    withdrawnAt: round.withdrawnAt?.toISOString() ?? null,
+    withdrawnReason: round.withdrawnReason,
+  };
 }
 
 export function pictureItem(record: PictureRecord): PictureItem {
@@ -633,6 +721,9 @@ function lastActivity(
         ? `Paused after session ${session.number}, ${duration(session.lastSeenAt, now)} ago`
         : "In progress, no session yet";
     case "blocked":
+      if (record.openQuestionnaire) {
+        return `Waiting on your answers, round ${record.openQuestionnaire.number}`;
+      }
       if (record.hold) {
         return `On hold since ${day(record.hold.since)}: ${record.hold.reason}`;
       }

@@ -13,6 +13,7 @@ import {
 import type {
   LabelRecord,
   PictureRecord,
+  QuestionnaireRecord,
   SessionRecord,
   SkillDetailRecord,
   SkillRecord,
@@ -35,6 +36,7 @@ import {
 } from "@/modules/tasks/domain";
 import type { Database } from "@/shared/infrastructure/database/client";
 
+import { answersOf, questionsOf } from "./questionnaire-rows";
 import {
   task as taskTable,
   taskExternalReference,
@@ -42,6 +44,8 @@ import {
   taskLabel,
   taskLink,
   taskPicture,
+  taskQuestionnaire,
+  taskQuestionnairePicture,
   taskSession,
   taskSkill,
   taskSkillLabel,
@@ -129,45 +133,54 @@ export class DrizzleTaskReadStore implements TaskReadStore {
       .where(and(eq(taskTable.ownerId, ownerId), eq(taskTable.id, id)));
     if (!row) return undefined;
 
-    const [[record], links, incoming, references, sessions, journal, pictures] =
-      await Promise.all([
-        this.#records([
-          {
-            ...row,
-            criteriaTotal: row.criteria.length,
-            criteriaMet: row.criteria.filter((criterion) => criterion.metAt)
-              .length,
-          },
-        ]),
-        this.db
-          .select({ kind: taskLink.kind, taskId: taskLink.targetId })
-          .from(taskLink)
-          .where(eq(taskLink.taskId, id)),
-        this.db
-          .select({ kind: taskLink.kind, taskId: taskLink.taskId })
-          .from(taskLink)
-          .where(eq(taskLink.targetId, id)),
-        this.db
-          .select()
-          .from(taskExternalReference)
-          .where(eq(taskExternalReference.taskId, id))
-          .orderBy(asc(taskExternalReference.position)),
-        this.db
-          .select()
-          .from(taskSession)
-          .where(eq(taskSession.taskId, id))
-          .orderBy(asc(taskSession.number)),
-        this.db
-          .select()
-          .from(taskJournalEntry)
-          .where(eq(taskJournalEntry.taskId, id))
-          .orderBy(asc(taskJournalEntry.recordedAt)),
-        this.db
-          .select()
-          .from(taskPicture)
-          .where(eq(taskPicture.taskId, id))
-          .orderBy(asc(taskPicture.addedAt)),
-      ]);
+    const [
+      [record],
+      links,
+      incoming,
+      references,
+      sessions,
+      journal,
+      pictures,
+      questionnaires,
+    ] = await Promise.all([
+      this.#records([
+        {
+          ...row,
+          criteriaTotal: row.criteria.length,
+          criteriaMet: row.criteria.filter((criterion) => criterion.metAt)
+            .length,
+        },
+      ]),
+      this.db
+        .select({ kind: taskLink.kind, taskId: taskLink.targetId })
+        .from(taskLink)
+        .where(eq(taskLink.taskId, id)),
+      this.db
+        .select({ kind: taskLink.kind, taskId: taskLink.taskId })
+        .from(taskLink)
+        .where(eq(taskLink.targetId, id)),
+      this.db
+        .select()
+        .from(taskExternalReference)
+        .where(eq(taskExternalReference.taskId, id))
+        .orderBy(asc(taskExternalReference.position)),
+      this.db
+        .select()
+        .from(taskSession)
+        .where(eq(taskSession.taskId, id))
+        .orderBy(asc(taskSession.number)),
+      this.db
+        .select()
+        .from(taskJournalEntry)
+        .where(eq(taskJournalEntry.taskId, id))
+        .orderBy(asc(taskJournalEntry.recordedAt)),
+      this.db
+        .select()
+        .from(taskPicture)
+        .where(eq(taskPicture.taskId, id))
+        .orderBy(asc(taskPicture.addedAt)),
+      this.questionnaires(ownerId, id),
+    ]);
 
     const sessionRecords = sessions.map(toSessionRecord);
     const sessionNumbers = new Map(
@@ -217,7 +230,55 @@ export class DrizzleTaskReadStore implements TaskReadStore {
             : null,
         ),
       ),
+      questionnaires,
     };
+  }
+
+  async questionnaires(
+    ownerId: string,
+    taskId: string,
+  ): Promise<QuestionnaireRecord[]> {
+    const rows = await this.db
+      .select({ round: taskQuestionnaire, sessionNumber: taskSession.number })
+      .from(taskQuestionnaire)
+      .leftJoin(taskSession, eq(taskSession.id, taskQuestionnaire.sessionId))
+      .where(
+        and(
+          eq(taskQuestionnaire.ownerId, ownerId),
+          eq(taskQuestionnaire.taskId, taskId),
+        ),
+      )
+      .orderBy(asc(taskQuestionnaire.number));
+    if (rows.length === 0) return [];
+    const links = await this.db
+      .select()
+      .from(taskQuestionnairePicture)
+      .where(
+        inArray(
+          taskQuestionnairePicture.questionnaireId,
+          rows.map((row) => row.round.id),
+        ),
+      );
+    return rows.map(({ round, sessionNumber }) => {
+      const own = links.filter((link) => link.questionnaireId === round.id);
+      return {
+        id: round.id,
+        number: round.number,
+        title: round.title,
+        intro: round.intro,
+        status: round.status as QuestionnaireRecord["status"],
+        questions: questionsOf(round.questions, own),
+        answers: answersOf(round.answers, own),
+        postedByKind: round.postedByKind === "agent" ? "agent" : "human",
+        postedByName: round.postedByName,
+        sessionNumber,
+        postedAt: round.postedAt,
+        answeredByName: round.answeredByName,
+        answeredAt: round.answeredAt,
+        withdrawnAt: round.withdrawnAt,
+        withdrawnReason: round.withdrawnReason,
+      };
+    });
   }
 
   async picture(
@@ -356,7 +417,7 @@ export class DrizzleTaskReadStore implements TaskReadStore {
 
   async #records(rows: readonly ListedTaskRow[]): Promise<TaskRecord[]> {
     const ids = rows.map((row) => row.id);
-    const [links, sessions, journalCounts] = await Promise.all([
+    const [links, sessions, journalCounts, openRounds] = await Promise.all([
       this.db
         .select({ taskId: taskLink.taskId, targetId: taskLink.targetId })
         .from(taskLink)
@@ -375,6 +436,19 @@ export class DrizzleTaskReadStore implements TaskReadStore {
         .from(taskJournalEntry)
         .where(inArray(taskJournalEntry.taskId, ids))
         .groupBy(taskJournalEntry.taskId),
+      this.db
+        .select({
+          taskId: taskQuestionnaire.taskId,
+          number: taskQuestionnaire.number,
+          questions: taskQuestionnaire.questionCount,
+        })
+        .from(taskQuestionnaire)
+        .where(
+          and(
+            inArray(taskQuestionnaire.taskId, ids),
+            eq(taskQuestionnaire.status, "open"),
+          ),
+        ),
     ]);
 
     const blockedBy = new Map<string, string[]>();
@@ -389,6 +463,12 @@ export class DrizzleTaskReadStore implements TaskReadStore {
     );
     const entries = new Map(
       journalCounts.map((row) => [row.taskId, Number(row.entries)]),
+    );
+    const open = new Map(
+      openRounds.map((row) => [
+        row.taskId,
+        { number: row.number, questions: row.questions },
+      ]),
     );
 
     return rows.map((row) => ({
@@ -411,6 +491,7 @@ export class DrizzleTaskReadStore implements TaskReadStore {
         row.holdReason && row.holdSince
           ? { reason: row.holdReason, since: row.holdSince }
           : null,
+      openQuestionnaire: open.get(row.id) ?? null,
       latestSession: latestSession.get(row.id) ?? null,
       criteriaMet: row.criteriaMet,
       criteriaTotal: row.criteriaTotal,

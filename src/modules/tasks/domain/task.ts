@@ -620,6 +620,10 @@ export class Task extends AggregateRoot<Props> {
     return this.#state.sessions;
   }
 
+  checkClaim(actor: Actor, now: Date): Result<void, TaskError> {
+    return this.#guardClaim(actor, now);
+  }
+
   liveSession(now: Date): Session | undefined {
     return this.#state.sessions.find((session) => session.isLive(now));
   }
