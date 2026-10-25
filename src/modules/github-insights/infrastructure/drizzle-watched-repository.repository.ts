@@ -19,6 +19,9 @@ type Row = typeof watchedRepository.$inferSelect;
 
 export class DrizzleWatchedRepositoryRepository implements WatchedRepositoryRepository {
   readonly #loadedVersions = new WeakMap<WatchedRepository, number>();
+  // Each container builds its own adapter for one viewer and one render or
+  // action, so lookups served from a list it loaded never cross users.
+  readonly #listedByWatcher = new Map<string, Row[]>();
 
   constructor(private readonly db: Database) {}
 
@@ -34,6 +37,12 @@ export class DrizzleWatchedRepositoryRepository implements WatchedRepositoryRepo
     watcherId: string,
     coordinates: RepositoryCoordinates,
   ): Promise<WatchedRepository | undefined> {
+    const listed = this.#listedByWatcher.get(watcherId);
+    if (listed) {
+      const row = listed.find((one) => sameCoordinates(one, coordinates));
+      return row ? this.#restore(row) : undefined;
+    }
+
     const [row] = await this.db
       .select()
       .from(watchedRepository)
@@ -59,6 +68,7 @@ export class DrizzleWatchedRepositoryRepository implements WatchedRepositoryRepo
       .from(watchedRepository)
       .where(eq(watchedRepository.watcherId, watcherId))
       .orderBy(asc(watchedRepository.watchedAt));
+    this.#listedByWatcher.set(watcherId, rows);
     return rows.map((row) => this.#restore(row));
   }
 
@@ -74,7 +84,7 @@ export class DrizzleWatchedRepositoryRepository implements WatchedRepositoryRepo
             .insert(watchedRepository)
             .values({ ...values, version: 1 })
             .onConflictDoNothing()
-            .returning({ version: watchedRepository.version })
+            .returning()
         : await this.db
             .update(watchedRepository)
             .set({ ...values, version: loaded + 1 })
@@ -84,10 +94,12 @@ export class DrizzleWatchedRepositoryRepository implements WatchedRepositoryRepo
                 eq(watchedRepository.version, loaded),
               ),
             )
-            .returning({ version: watchedRepository.version });
+            .returning();
 
     const [row] = saved;
     if (!row) {
+      // Otherwise every later lookup would hand back the version just refused.
+      this.#listedByWatcher.delete(repository.watcherId);
       return err(
         concurrentModification(
           `${repository.coordinates.fullName} changed since it was loaded.`,
@@ -95,6 +107,7 @@ export class DrizzleWatchedRepositoryRepository implements WatchedRepositoryRepo
       );
     }
     this.#loadedVersions.set(repository, row.version);
+    this.#replaceListed(row);
     // Drained rather than published: nothing subscribes yet, and leaving them
     // on the aggregate would leak them into the next save.
     repository.pullDomainEvents();
@@ -105,6 +118,19 @@ export class DrizzleWatchedRepositoryRepository implements WatchedRepositoryRepo
     await this.db
       .delete(watchedRepository)
       .where(eq(watchedRepository.id, id.value));
+    for (const [watcherId, listed] of this.#listedByWatcher) {
+      this.#listedByWatcher.set(
+        watcherId,
+        listed.filter((row) => row.id !== id.value),
+      );
+    }
+  }
+
+  #replaceListed(saved: Row): void {
+    const listed = this.#listedByWatcher.get(saved.watcherId);
+    if (!listed) return;
+    const others = listed.filter((row) => row.id !== saved.id);
+    this.#listedByWatcher.set(saved.watcherId, [...others, saved]);
   }
 
   #restore(row: Row): WatchedRepository {
@@ -147,6 +173,13 @@ function toValues(repository: WatchedRepository) {
     lastSyncFailureKind: sync.lastFailureKind,
     syncStartedAt: sync.startedAt,
   };
+}
+
+function sameCoordinates(row: Row, coordinates: RepositoryCoordinates) {
+  return (
+    row.owner.toLowerCase() === coordinates.owner.toLowerCase() &&
+    row.name.toLowerCase() === coordinates.name.toLowerCase()
+  );
 }
 
 function failureKind(value: string | null): SyncFailureKind | null {

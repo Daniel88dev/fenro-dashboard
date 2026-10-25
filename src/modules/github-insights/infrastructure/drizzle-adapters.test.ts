@@ -164,6 +164,132 @@ describe.skipIf(!url)("Postgres adapters", () => {
       expect(isOk(await tabA.save(a!))).toBe(true);
       expect(isErr(await tabB.save(b!))).toBe(true);
     });
+
+    it("answers a lookup from the list it already loaded for that person", async () => {
+      unwrap(
+        await new DrizzleWatchedRepositoryRepository(db).save(
+          WatchedRepository.watch(
+            "user-1",
+            coordinates("Nordwind/Billing-Core"),
+            t0,
+          ),
+        ),
+      );
+      const queries: string[] = [];
+      const repositories = new DrizzleWatchedRepositoryRepository(
+        drizzle({
+          client: pool,
+          logger: { logQuery: (query) => queries.push(query) },
+        }),
+      );
+      await repositories.findAllFor("user-1");
+
+      const found = await repositories.findByCoordinates(
+        "user-1",
+        coordinates("nordwind/billing-core"),
+      );
+      const missing = await repositories.findByCoordinates(
+        "user-1",
+        coordinates("nordwind/ledger"),
+      );
+
+      expect(found?.coordinates.fullName).toBe("Nordwind/Billing-Core");
+      expect(missing).toBeUndefined();
+      expect(queries).toHaveLength(1);
+    });
+
+    it("looks up what it saved after loading the list, not what it loaded", async () => {
+      const repositories = new DrizzleWatchedRepositoryRepository(db);
+      unwrap(
+        await repositories.save(
+          WatchedRepository.watch(
+            "user-1",
+            coordinates("nordwind/billing-core"),
+            t0,
+          ),
+        ),
+      );
+      await repositories.findAllFor("user-1");
+      const syncing = await repositories.findByCoordinates(
+        "user-1",
+        coordinates("nordwind/billing-core"),
+      );
+      unwrap(syncing!.startSync("manual", t0));
+      unwrap(await repositories.save(syncing!));
+
+      const reloaded = await repositories.findByCoordinates(
+        "user-1",
+        coordinates("nordwind/billing-core"),
+      );
+      expect(reloaded?.sync.startedAt).toEqual(t0);
+      reloaded!.completeSync(t0);
+      expect(isOk(await repositories.save(reloaded!))).toBe(true);
+      expect(isErr(await repositories.save(syncing!))).toBe(true);
+    });
+
+    it("looks up watches added and removed after loading the list", async () => {
+      const repositories = new DrizzleWatchedRepositoryRepository(db);
+      const billing = WatchedRepository.watch(
+        "user-1",
+        coordinates("nordwind/billing-core"),
+        t0,
+      );
+      unwrap(await repositories.save(billing));
+      await repositories.findAllFor("user-1");
+
+      await repositories.remove(billing.id);
+      unwrap(
+        await repositories.save(
+          WatchedRepository.watch("user-1", coordinates("nordwind/ledger"), t0),
+        ),
+      );
+
+      expect(
+        await repositories.findByCoordinates(
+          "user-1",
+          coordinates("nordwind/billing-core"),
+        ),
+      ).toBeUndefined();
+      expect(
+        await repositories.findByCoordinates(
+          "user-1",
+          coordinates("nordwind/ledger"),
+        ),
+      ).toBeDefined();
+    });
+
+    it("reads afresh once a save shows the loaded list is out of date", async () => {
+      const setup = new DrizzleWatchedRepositoryRepository(db);
+      unwrap(
+        await setup.save(
+          WatchedRepository.watch(
+            "user-1",
+            coordinates("nordwind/billing-core"),
+            t0,
+          ),
+        ),
+      );
+      const tabA = new DrizzleWatchedRepositoryRepository(db);
+      await tabA.findAllFor("user-1");
+      const [pinnedElsewhere] = await setup.findAllFor("user-1");
+      pinnedElsewhere!.pin(t0);
+      unwrap(await setup.save(pinnedElsewhere!));
+
+      const stale = await tabA.findByCoordinates(
+        "user-1",
+        coordinates("nordwind/billing-core"),
+      );
+      unwrap(stale!.startSync("manual", t0));
+      expect(isErr(await tabA.save(stale!))).toBe(true);
+
+      const fresh = await tabA.findByCoordinates(
+        "user-1",
+        coordinates("nordwind/billing-core"),
+      );
+      expect(fresh?.pinnedAt).toEqual(t0);
+      unwrap(fresh!.startSync("manual", t0));
+      expect(isOk(await tabA.save(fresh!))).toBe(true);
+    });
   });
 
   describe("DrizzleRepositorySnapshotStore", () => {
