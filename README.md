@@ -201,6 +201,9 @@ Codex, Cursor and most other agents:
 npx skills add https://github.com/Daniel88dev/fenro-dashboard/tree/main/skills
 ```
 
+**Settings → Agent skills** shows the same command and the three steps (install,
+`/fenro-setup`, `/fenro-task`) to everyone signed in to Fenro.
+
 - **`fenro-setup`** (run `/fenro-setup` once per repository): connects the
   MCP server, offers Matt Pocock's skills with Fenro as their issue tracker,
   asks whether grilling happens in the session or as question rounds on the

@@ -7,6 +7,7 @@ import { accessTokensQuery } from "@/modules/identity/application/queries/access
 import { signedInUserQuery } from "@/modules/identity/application/queries/signed-in-user";
 import { AccountSection } from "@/modules/identity/ui/account-section";
 import { AgentAccess } from "@/modules/identity/ui/agent-access";
+import { AgentSkills } from "@/modules/identity/ui/agent-skills";
 import { SignInPanel } from "@/modules/identity/ui/sign-in-panel";
 import { getEnv } from "@/shared/config/env";
 import { getContainer } from "@/shared/infrastructure/container";
@@ -18,7 +19,8 @@ import { issueAccessTokenAction, revokeAccessTokenAction } from "./actions";
 
 export const metadata = {
   title: "Settings · Fenro Dashboard",
-  description: "Your groups, and tokens that let AI agents work on your tasks.",
+  description:
+    "Your groups, the Fenro agent skills, and tokens that let AI agents work on your tasks.",
 };
 
 export default function SettingsPage() {
@@ -59,6 +61,7 @@ async function SettingsSections() {
     queryBus.ask(accessTokensQuery(user.id)),
     queryBus.ask(myGroupsQuery({ id: user.id, login: user.githubLogin })),
   ]);
+  const appUrl = getEnv().APP_URL;
   return (
     <>
       <AccountSection user={user} signOutAction={signOutAction} />
@@ -68,8 +71,9 @@ async function SettingsSections() {
         createAction={createGroupAction}
         answerAction={answerInvitationAction}
       />
+      <AgentSkills appUrl={new URL(appUrl).origin} />
       <AgentAccess
-        serverUrl={new URL("/api/mcp", getEnv().APP_URL).toString()}
+        serverUrl={new URL("/api/mcp", appUrl).toString()}
         tokens={tokens}
         issueAction={issueAccessTokenAction}
         revokeAction={revokeAccessTokenAction}
