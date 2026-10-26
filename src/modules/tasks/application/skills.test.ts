@@ -286,6 +286,79 @@ describe("the brief's skills", () => {
   });
 });
 
+describe("a group task's skills", () => {
+  const GROUP = "group-1";
+  const MEMBER = "user-2";
+
+  const createGroupTask = (labels: string[]) =>
+    new CreateTaskHandler(store, store, clock).handle({
+      ...base,
+      ownerId: GROUP,
+      keyPrefix: "HAL",
+      type: "tasks.create-task",
+      taskId: nextId(),
+      title: "Shared",
+      labels,
+    });
+
+  const groupBrief = (readerId: string) =>
+    new TaskBriefHandler(store, clock).handle(
+      taskBriefQuery(GROUP, "HAL-1", 0, {
+        skillInstructions: true,
+        readerId,
+      }),
+    );
+
+  it("brings the reader's own skills for the task's labels, not another member's", async () => {
+    await createGroupTask(["frontend"]);
+    await createSkill({ name: "daniel-ui", labels: ["frontend"] });
+    await createSkill({ name: "member-ui", labels: ["frontend"] }, MEMBER);
+
+    const mine = await groupBrief(OWNER);
+    expect(
+      mine.ok &&
+        mine.value.skills.map(({ name, via, instructions }) => ({
+          name,
+          via,
+          instructions,
+        })),
+    ).toEqual([
+      {
+        name: "daniel-ui",
+        via: ["frontend"],
+        instructions: "Follow daniel-ui.",
+      },
+    ]);
+
+    const theirs = await groupBrief(MEMBER);
+    expect(theirs.ok && theirs.value.skills.map(({ name }) => name)).toEqual([
+      "member-ui",
+    ]);
+  });
+
+  it("prefers the reader's skill over the space's own of the same name", async () => {
+    await createGroupTask(["frontend"]);
+    await createSkill(
+      { name: "ui", labels: ["frontend"], instructions: "Group way." },
+      GROUP,
+    );
+    await createSkill({ name: "ui", labels: ["frontend"] });
+    await createSkill({ name: "group-only", labels: ["frontend"] }, GROUP);
+
+    const found = await groupBrief(OWNER);
+    expect(
+      found.ok &&
+        found.value.skills.map(({ name, instructions }) => [
+          name,
+          instructions,
+        ]),
+    ).toEqual([
+      ["group-only", "Follow group-only."],
+      ["ui", "Follow ui."],
+    ]);
+  });
+});
+
 describe("managing labels", () => {
   const rename = (label: string, name: string) =>
     new RenameLabelHandler(store, clock).handle({

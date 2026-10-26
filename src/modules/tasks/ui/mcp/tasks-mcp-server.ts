@@ -79,7 +79,7 @@ const MARKDOWN = "GitHub-flavoured Markdown, rendered for people";
 
 export const PICTURES = `Pictures: a task can carry PNG, JPEG, WebP or GIF pictures up to 4 MB, such as a design from a prototype or a screenshot of a bug. attach_picture adds one: it returns an upload link, and you send the file with the curl command it gives. get_task lists a task's pictures, and get_picture shows you one.`;
 
-export const SKILLS = `Skills: a skill is a set of instructions a person linked to labels, such as how frontend work is done here. start_task returns every skill linked to the task's own labels in full: follow them while you work the task. When they conflict, the person's own words in this session win, then the task's description and acceptance criteria, then the skills. A skill whose instructions come back null did not fit in the brief: read it with get_skill. get_task lists the skills by name only; get_skill reads one, and list_skills lists them all. If a skill is wrong or out of date, say so with add_note, and change it with save_skill only when asked to; every change is kept and can be restored.`;
+export const SKILLS = `Skills: a skill is a set of instructions a person linked to labels, such as how frontend work is done here. start_task returns every skill linked to the task's own labels in full: follow them while you work the task. Skills belong to the person, so a group's task brings their own skills for its labels. When they conflict, the person's own words in this session win, then the task's description and acceptance criteria, then the skills. A skill whose instructions come back null did not fit in the brief: read it with get_skill. get_task lists the skills by name only; get_skill reads one, and list_skills lists them all. If a skill is wrong or out of date, say so with add_note, and change it with save_skill only when asked to; every change is kept and can be restored.`;
 
 const WAIT_MINUTES = WAIT_BUDGET_MS / 60_000;
 
@@ -139,7 +139,10 @@ export function createTasksMcpServer(
     owner = ownerOf(task),
   ) =>
     queryBus.ask(
-      taskBriefQuery(owner, task, journalLimit, { skillInstructions }),
+      taskBriefQuery(owner, task, journalLimit, {
+        skillInstructions,
+        readerId: ownerId,
+      }),
     );
   const url = (key: string) => ({ url: links.task(key) });
 

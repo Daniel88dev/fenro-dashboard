@@ -64,7 +64,11 @@ async function TaskScreen({
 
   const ownerId = spaces.ownerOf(key);
   const [task, labels, repositories, parents] = await Promise.all([
-    container.queryBus.ask(taskBriefQuery(ownerId, key, JOURNAL_LIMIT)),
+    container.queryBus.ask(
+      taskBriefQuery(ownerId, key, JOURNAL_LIMIT, {
+        readerId: spaces.personal.ownerId,
+      }),
+    ),
     container.queryBus.ask(listLabelsQuery(ownerId)),
     repositoryOptions(),
     parentOptions(ownerId),

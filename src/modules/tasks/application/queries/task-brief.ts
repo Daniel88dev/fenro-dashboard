@@ -6,7 +6,7 @@ import {
 import type { Query, QueryHandler } from "@/shared/application";
 import { err, ok, type Result } from "@/shared/domain";
 
-import type { TaskReadStore } from "../ports/task-read-store";
+import type { SkillTextRecord, TaskReadStore } from "../ports/task-read-store";
 import { brief, briefSkills, matchesKey, TaskIndex } from "./projections";
 import type { TaskBrief } from "./read-models";
 
@@ -17,13 +17,17 @@ export type TaskBriefQuery = Query<"tasks.task-brief", TaskBriefResult> & {
   readonly task: string;
   readonly journalLimit?: number;
   readonly skillInstructions?: boolean;
+  readonly readerId?: string;
 };
 
 export function taskBriefQuery(
   ownerId: string,
   task: string,
   journalLimit?: number,
-  options: { readonly skillInstructions?: boolean } = {},
+  options: {
+    readonly skillInstructions?: boolean;
+    readonly readerId?: string;
+  } = {},
 ): TaskBriefQuery {
   return {
     type: "tasks.task-brief",
@@ -31,6 +35,7 @@ export function taskBriefQuery(
     task,
     journalLimit,
     skillInstructions: options.skillInstructions,
+    readerId: options.readerId,
   };
 }
 
@@ -60,7 +65,7 @@ export class TaskBriefHandler implements QueryHandler<
     if (!detail) return err(taskNotFound(reference));
     const skills =
       detail.labels.length > 0
-        ? await this.tasks.skillsLinkedTo(query.ownerId, detail.labels)
+        ? await this.skillsFor(query, detail.labels)
         : [];
     return ok(
       brief(
@@ -71,5 +76,19 @@ export class TaskBriefHandler implements QueryHandler<
         briefSkills(detail.labels, skills, query.skillInstructions ?? false),
       ),
     );
+  }
+
+  // Skills stay personal, so a group task brings the reader's own skills for
+  // its labels; on a name clash the reader's copy wins over the space's.
+  private async skillsFor(
+    query: TaskBriefQuery,
+    labels: readonly string[],
+  ): Promise<SkillTextRecord[]> {
+    const { ownerId, readerId } = query;
+    const own = await this.tasks.skillsLinkedTo(ownerId, labels);
+    if (!readerId || readerId === ownerId) return own;
+    const reader = await this.tasks.skillsLinkedTo(readerId, labels);
+    const names = new Set(reader.map((skill) => skill.name));
+    return [...reader, ...own.filter((skill) => !names.has(skill.name))];
   }
 }
