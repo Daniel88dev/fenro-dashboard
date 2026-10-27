@@ -1,9 +1,11 @@
 "use client";
 
-import { Check, Copy, Key, WarningCircle } from "@phosphor-icons/react/ssr";
+import { Check, Key, WarningCircle } from "@phosphor-icons/react/ssr";
 import { useActionState, useId, useState } from "react";
 
 import { Chip } from "@/modules/github-insights/ui/chip";
+
+import { CopyLine } from "./copy-line";
 
 import type { AccessTokenSummary } from "@/modules/identity/application/queries/access-tokens";
 
@@ -31,7 +33,6 @@ const FIELD =
 const BUTTON =
   "focus-visible:outline-pr inline-flex h-[34px] cursor-pointer items-center gap-1.5 rounded-lg border px-[13px] text-[12.5px] font-medium whitespace-nowrap focus-visible:outline-2 focus-visible:outline-offset-1 disabled:cursor-wait disabled:opacity-70";
 const PRIMARY = `${BUTTON} border-ink bg-ink text-ground hover:bg-ink-soft`;
-const SECONDARY = `${BUTTON} border-hairline bg-surface text-ink hover:bg-surface-sunken`;
 
 const DATE = new Intl.DateTimeFormat("en", {
   day: "numeric",
@@ -345,52 +346,6 @@ function ConnectAgent({
           coding agent, can: pick Codex above.
         </p>
       )}
-    </div>
-  );
-}
-
-function CopyLine({
-  label,
-  value,
-  button,
-}: {
-  label: string;
-  value: string;
-  button: string;
-}) {
-  const [copied, setCopied] = useState(false);
-  const copy = async () => {
-    try {
-      await navigator.clipboard.writeText(value);
-      setCopied(true);
-    } catch {
-      // Clipboard access can be refused; the text stays selectable.
-    }
-  };
-  // The value box hugs a short value from `sm` up but may still shrink, so a
-  // long one (the connect command) wraps inside the card instead of pushing
-  // the button past its edge.
-  return (
-    <div className="flex min-w-0 flex-col gap-1">
-      <span className="text-ink-soft text-[12px]">{label}</span>
-      <div className="flex items-start gap-2">
-        <code className="border-hairline bg-surface text-ink min-h-[34px] min-w-0 flex-1 rounded-lg border px-3 py-[7px] font-mono text-[12px] leading-[18px] break-all whitespace-pre-wrap select-all sm:flex-initial">
-          {value}
-        </code>
-        <button
-          type="button"
-          onClick={copy}
-          aria-label={button}
-          className={`${SECONDARY} shrink-0`}
-        >
-          {copied ? (
-            <Check aria-hidden="true" className="size-[15px]" />
-          ) : (
-            <Copy aria-hidden="true" className="size-[15px]" />
-          )}
-          <span className="hidden sm:inline">{copied ? "Copied" : button}</span>
-        </button>
-      </div>
     </div>
   );
 }
