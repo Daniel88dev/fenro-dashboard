@@ -240,7 +240,7 @@ export function TaskList({
 
   const content = (
     <div className="flex min-w-0 flex-1 flex-col gap-5">
-      <div className="border-hairline flex flex-col-reverse gap-3 border-b md:flex-row md:items-end md:justify-between">
+      <div className="border-hairline flex flex-col-reverse gap-3 border-b">
         {layout === "list" ? (
           <nav
             aria-label="Views"
@@ -276,7 +276,7 @@ export function TaskList({
             stay in the list under Closed.
           </p>
         )}
-        <div className="flex flex-wrap items-center gap-2 md:mb-2 md:flex-nowrap">
+        <div className="flex flex-wrap items-center gap-2 lg:flex-nowrap">
           {needingAnswers > 0 || filter.needsAnswer ? (
             <NeedsAnswerFilter
               on={filter.needsAnswer ?? false}
