@@ -21,6 +21,7 @@ const card: TaskListItem = {
   parent: "T-1",
   epic: { key: "T-1", title: "Ship tasks v2" },
   progress: null,
+  assignee: null,
   blockedBy: [],
   hold: null,
   workedOnBy: null,
@@ -70,6 +71,36 @@ describe("TaskBoard", () => {
       within(column("To do")).getByRole("link", { name: /Fix the lint job/ }),
     ).toBeInTheDocument();
     expect(within(column("To do")).getByText("Ship tasks v2")).toBeVisible();
+  });
+
+  it("shows who each card is assigned to", () => {
+    const shared = { ...card, key: "HAL-4", title: "Shared" };
+    render(
+      <TaskBoard
+        columns={columns.map((entry) =>
+          entry.status === "todo"
+            ? {
+                ...entry,
+                total: 2,
+                tasks: [
+                  { ...card, assignee: { id: "user-1", login: null } },
+                  { ...shared, assignee: null },
+                ],
+              }
+            : entry,
+        )}
+        labels={[]}
+        move={vi.fn()}
+        you={{ id: "user-1", login: "Daniel88dev" }}
+      />,
+    );
+
+    expect(
+      within(column("To do")).getByRole("img", { name: "Assigned to you" }),
+    ).toBeInTheDocument();
+    expect(
+      within(column("To do")).getByRole("img", { name: "Unassigned" }),
+    ).toBeInTheDocument();
   });
 
   it("moves a card with its menu", async () => {

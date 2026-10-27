@@ -20,6 +20,8 @@ import {
 } from "@/modules/tasks/application/queries/read-models";
 import { PERSONAL_KEY_PREFIX } from "@/modules/tasks/domain";
 
+import { AssigneeFilter, type AssigneeFilterOption } from "./assignee-filter";
+import { Avatar, assigneeLogin, assigneeWords, type Reader } from "./assignee";
 import { EpicRail } from "./epic-rail";
 import { LabelFilter, type LabelFilterOption } from "./label-filter";
 import { QuestionsChip } from "./questions-chip";
@@ -56,6 +58,34 @@ export type TaskListFilter = {
   /** Key prefixes of the spaces shown; empty shows every space. */
   readonly spaces?: readonly string[];
   readonly needsAnswer?: boolean;
+  /** Lower-case logins, or `ASSIGNED_TO_ME` and `UNASSIGNED`. */
+  readonly assignees?: readonly string[];
+};
+
+// A tilde cannot appear in a GitHub login, so these never shadow a person.
+export const ASSIGNED_TO_ME = "~me";
+export const UNASSIGNED = "~none";
+
+export function parseAssigneesParam(value: string): string[] {
+  return [
+    ...new Set(
+      value
+        .split(",")
+        .map((token) => token.trim().toLowerCase())
+        .filter(
+          (token) =>
+            token === ASSIGNED_TO_ME ||
+            token === UNASSIGNED ||
+            /^[a-z\d](?:[a-z\d-]{0,38})$/.test(token),
+        ),
+    ),
+  ];
+}
+
+export type AssigneePerson = {
+  readonly login: string;
+  /** Prefixes of the groups shared with them, as in "HAL MOR". */
+  readonly groups: string;
 };
 
 export type ListSpace = {
@@ -99,6 +129,9 @@ function hrefFor(filter: TaskListFilter): string {
   }
   if (filter.spaces?.length) params.set("spaces", filter.spaces.join(","));
   if (filter.needsAnswer) params.set("needs", "answer");
+  if (filter.assignees?.length) {
+    params.set("assignee", filter.assignees.join(","));
+  }
   if (filter.epic) params.set("epic", filter.epic);
   if (filter.repository) params.set("repository", filter.repository);
   if (filter.labels.length > 0) params.set("labels", filter.labels.join(","));
@@ -156,6 +189,8 @@ export function TaskList({
   scopeCounts,
   spaces = [],
   needingAnswers = 0,
+  you,
+  people = [],
   move,
 }: {
   list?: TaskListResult;
@@ -172,6 +207,8 @@ export function TaskList({
   };
   spaces?: readonly ListSpace[];
   needingAnswers?: number;
+  you?: Reader;
+  people?: readonly AssigneePerson[];
   move?: MoveTask;
 }) {
   const layout = filter.layout ?? "list";
@@ -250,6 +287,9 @@ export function TaskList({
           {groups.length > 0 ? (
             <SpaceFilter {...spaceFilterProps(filter, groups)} />
           ) : null}
+          {you ? (
+            <AssigneeFilter {...assigneeFilterProps(filter, you, people)} />
+          ) : null}
           <LabelFilter
             options={labelOptions(filter, labels)}
             clearHref={hrefFor({ ...filter, labels: [] })}
@@ -296,6 +336,7 @@ export function TaskList({
         <TaskBoard
           columns={board.columns}
           labels={labels}
+          you={you}
           move={move}
           done={{
             current: board.done,
@@ -332,6 +373,7 @@ export function TaskList({
                     task={task}
                     labels={labels}
                     groupNames={groupNames}
+                    you={you}
                   />
                 </li>
               ))}
@@ -462,6 +504,9 @@ function hiddenFields(filter: TaskListFilter): [string, string][] {
   }
   if (filter.spaces?.length) fields.push(["spaces", filter.spaces.join(",")]);
   if (filter.needsAnswer) fields.push(["needs", "answer"]);
+  if (filter.assignees?.length) {
+    fields.push(["assignee", filter.assignees.join(",")]);
+  }
   if (filter.epic) fields.push(["epic", filter.epic]);
   if (filter.repository) fields.push(["repository", filter.repository]);
   if (filter.labels.length > 0)
@@ -513,6 +558,55 @@ function spaceFilterProps(
         ),
       };
     }),
+  };
+}
+
+function assigneeFilterProps(
+  filter: TaskListFilter,
+  you: Reader,
+  people: readonly AssigneePerson[],
+): {
+  me: AssigneeFilterOption;
+  unassigned: AssigneeFilterOption;
+  people: AssigneeFilterOption[];
+  clearHref: string;
+} {
+  const chosen = filter.assignees ?? [];
+  const option = (
+    token: string,
+    login: string | null,
+    label: string,
+    groups?: string,
+  ): AssigneeFilterOption => {
+    const picked = chosen.includes(token);
+    return {
+      login,
+      label,
+      groups,
+      picked,
+      href: hrefFor({
+        ...filter,
+        assignees: picked
+          ? chosen.filter((other) => other !== token)
+          : [...chosen, token],
+      }),
+    };
+  };
+  const mine = you.login.toLowerCase();
+  return {
+    me: option(ASSIGNED_TO_ME, you.login, "Assigned to me"),
+    unassigned: option(UNASSIGNED, null, "Unassigned"),
+    people: people
+      .filter((person) => person.login.toLowerCase() !== mine)
+      .map((person) =>
+        option(
+          person.login.toLowerCase(),
+          person.login,
+          person.login,
+          person.groups,
+        ),
+      ),
+    clearHref: hrefFor({ ...filter, assignees: [] }),
   };
 }
 
@@ -574,6 +668,7 @@ function NeedsAnswerFilter({
 
 function emptyMessage(filter: TaskListFilter): string {
   if (filter.needsAnswer) return "No task is waiting on your answers.";
+  if (filter.assignees?.length) return "No task has that assignee here.";
   if (filter.text) return "No task matches that search.";
   if (filter.labels.length > 0) return "No task matches those labels.";
   return EMPTY[filter.view];
@@ -617,10 +712,12 @@ function TaskRow({
   task,
   labels,
   groupNames,
+  you,
 }: {
   task: TaskListItem;
   labels: readonly LabelOption[];
   groupNames?: ReadonlyMap<string, string>;
+  you?: Reader;
 }) {
   const priority = PRIORITY_WORDS[task.priority];
   return (
@@ -647,15 +744,11 @@ function TaskRow({
           task={task}
           labels={labels}
           group={groupNames?.get(task.key.slice(0, task.key.lastIndexOf("-")))}
+          you={you}
         />
       </span>
-      <span className="text-ink-soft hidden items-center gap-[7px] text-[12px] md:flex">
-        {task.workedOnBy ? (
-          <>
-            <LiveDot />
-            <span className="truncate font-mono">{task.workedOnBy}</span>
-          </>
-        ) : null}
+      <span className="hidden min-w-0 items-center gap-2 text-[12.5px] md:flex">
+        {task.kind === "epic" ? null : <AssigneeCell task={task} you={you} />}
       </span>
       <span className="text-ink-muted hidden text-[12px] md:block">
         {priority}
@@ -667,20 +760,41 @@ function TaskRow({
   );
 }
 
+function AssigneeCell({ task, you }: { task: TaskListItem; you?: Reader }) {
+  const words = assigneeWords(task.assignee, you);
+  return (
+    <>
+      <Avatar login={assigneeLogin(task.assignee, you)} />
+      <span
+        className={`truncate ${
+          !task.assignee
+            ? "text-ink-faint"
+            : words === "You"
+              ? "text-ink"
+              : "text-ink-soft font-mono text-[12px]"
+        }`}
+      >
+        {words}
+      </span>
+    </>
+  );
+}
+
 function Meta({
   task,
   labels,
   group,
+  you,
 }: {
   task: TaskListItem;
   labels: readonly LabelOption[];
   group?: string;
+  you?: Reader;
 }) {
   const facts: {
     text: string;
     mono?: boolean;
     attention?: boolean;
-    narrowOnly?: boolean;
   }[] = [];
   if (task.repository) facts.push({ text: task.repository, mono: true });
   // Under an epic directly, the epic tag already says where it sits.
@@ -704,12 +818,10 @@ function Meta({
       text: `${task.criteria.met} of ${task.criteria.total} criteria met`,
     });
   }
-  if (task.workedOnBy) {
-    facts.push({ text: `${task.workedOnBy} is on it`, narrowOnly: true });
-  }
   if (
     facts.length === 0 &&
     !group &&
+    !task.workedOnBy &&
     task.questions === 0 &&
     task.labels.length === 0 &&
     !task.epic &&
@@ -726,6 +838,12 @@ function Meta({
           {group}
         </span>
       ) : null}
+      {task.kind === "epic" ? null : (
+        <span className="inline-flex items-center gap-1.5 md:hidden">
+          <Avatar login={assigneeLogin(task.assignee, you)} size="sm" />
+          {assigneeWords(task.assignee, you)}
+        </span>
+      )}
       <QuestionsChip count={task.questions} />
       {task.progress ? <EpicProgress progress={task.progress} /> : null}
       {task.epic ? <EpicTag title={task.epic.title} /> : null}
@@ -738,10 +856,16 @@ function Meta({
           {name}
         </span>
       ))}
+      {task.workedOnBy ? (
+        <span className="text-ink-soft inline-flex items-center gap-1.5">
+          <LiveDot />
+          <span className="font-mono">{task.workedOnBy}</span> is on it
+        </span>
+      ) : null}
       {facts.map((fact) => (
         <span
           key={fact.text}
-          className={`${fact.mono ? "font-mono" : ""} ${fact.attention ? "text-issue-strong" : ""} ${fact.narrowOnly ? "md:hidden" : ""}`}
+          className={`${fact.mono ? "font-mono" : ""} ${fact.attention ? "text-issue-strong" : ""}`}
         >
           {fact.text}
         </span>

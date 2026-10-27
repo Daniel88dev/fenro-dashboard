@@ -26,6 +26,7 @@ import type {
 import {
   isLabelColour,
   isPictureType,
+  PERSONAL_KEY_PREFIX,
   type ExternalSystem,
   type JournalKind,
   type LinkKind,
@@ -485,6 +486,12 @@ export class DrizzleTaskReadStore implements TaskReadStore {
         row.repositoryOwner && row.repositoryName
           ? { owner: row.repositoryOwner, name: row.repositoryName }
           : null,
+      assignee:
+        row.keyPrefix === PERSONAL_KEY_PREFIX
+          ? { id: row.ownerId, login: null }
+          : row.assigneeId
+            ? { id: row.assigneeId, login: row.assigneeLogin }
+            : null,
       parentId: row.parentId,
       blockedBy: blockedBy.get(row.id) ?? [],
       hold:

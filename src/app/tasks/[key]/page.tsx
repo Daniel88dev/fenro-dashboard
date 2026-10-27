@@ -51,7 +51,7 @@ async function TaskScreen({
   const { round } = await searchParams;
   const shownRound = Number(Array.isArray(round) ? round[0] : round);
   const now = new Date();
-  const { container, spaces, repositoryOptions, parentOptions } =
+  const { container, spaces, you, spaceOf, repositoryOptions, parentOptions } =
     await tasksContext(now);
   if (!spaces) {
     return (
@@ -63,7 +63,7 @@ async function TaskScreen({
   }
 
   const ownerId = spaces.ownerOf(key);
-  const [task, labels, repositories, parents] = await Promise.all([
+  const [task, labels, repositories, parents, space] = await Promise.all([
     container.queryBus.ask(
       taskBriefQuery(ownerId, key, JOURNAL_LIMIT, {
         readerId: spaces.personal.ownerId,
@@ -72,6 +72,7 @@ async function TaskScreen({
     container.queryBus.ask(listLabelsQuery(ownerId)),
     repositoryOptions(),
     parentOptions(ownerId),
+    spaceOf(key),
   ]);
   if (!task.ok) notFound();
   return (
@@ -84,6 +85,8 @@ async function TaskScreen({
       picturesEnabled={picturesEnabled()}
       now={now}
       round={Number.isInteger(shownRound) ? shownRound : null}
+      you={you?.login}
+      space={space}
     />
   );
 }

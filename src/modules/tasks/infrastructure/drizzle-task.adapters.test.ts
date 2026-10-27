@@ -303,6 +303,59 @@ describe.skipIf(!url)("Postgres tasks adapters", () => {
     });
   });
 
+  describe("assignees", () => {
+    const hal = [{ userId: "user-2", login: "mira" }];
+
+    it("keeps a group task's assignee and finds the tasks assigned to someone", async () => {
+      const assigned = aTask({
+        number: 1,
+        ownerId: "group-hal",
+        keyPrefix: "HAL",
+      });
+      const open = aTask({ number: 2, ownerId: "group-hal", keyPrefix: "HAL" });
+      unwrap(assigned.assign("mira", hal, daniel, later(1)));
+      await saved(assigned, open);
+      const repository = new DrizzleTaskRepository(db);
+
+      const found = await repository.findById("group-hal", assigned.id.value);
+      const theirs = await repository.assignedTo("group-hal", "user-2");
+
+      expect(found?.state.assignee).toEqual({
+        userId: "user-2",
+        login: "mira",
+      });
+      expect(theirs.map((task) => task.key)).toEqual(["HAL-1"]);
+    });
+
+    it("reads a personal task as its owner's and a group task by its login", async () => {
+      const mine = aTask({ number: 1 });
+      const theirs = aTask({
+        number: 1,
+        ownerId: "group-hal",
+        keyPrefix: "HAL",
+      });
+      unwrap(theirs.assign("mira", hal, daniel, later(1)));
+      await saved(mine, theirs);
+
+      const records = await new DrizzleTaskReadStore(db).records([
+        "user-1",
+        "group-hal",
+      ]);
+
+      expect(
+        Object.fromEntries(
+          records.map((record) => [
+            `${record.keyPrefix}-${record.number}`,
+            record.assignee,
+          ]),
+        ),
+      ).toEqual({
+        "T-1": { id: "user-1", login: null },
+        "HAL-1": { id: "user-2", login: "mira" },
+      });
+    });
+  });
+
   describe("DrizzleTaskReadStore", () => {
     async function aWorkedTask() {
       const blocker = aTask({ number: 1, title: "Agree the payout model" });

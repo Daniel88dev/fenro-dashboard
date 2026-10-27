@@ -58,6 +58,16 @@ export class DrizzleTaskRepository implements TaskRepository {
     return row ? this.#restore(row) : undefined;
   }
 
+  async assignedTo(ownerId: string, userId: string): Promise<Task[]> {
+    const rows = await this.db
+      .select()
+      .from(taskTable)
+      .where(
+        and(eq(taskTable.ownerId, ownerId), eq(taskTable.assigneeId, userId)),
+      );
+    return Promise.all(rows.map((row) => this.#restore(row)));
+  }
+
   async nextNumber(ownerId: string): Promise<number> {
     const [row] = await this.db
       .select({ last: max(taskTable.number) })
@@ -256,6 +266,10 @@ export function restoreTask(
               ),
             )
           : null,
+      assignee:
+        row.assigneeId && row.assigneeLogin
+          ? { userId: row.assigneeId, login: row.assigneeLogin }
+          : null,
       parentId: row.parentId,
       links: links.map((link) => ({
         kind: link.kind as LinkKind,
@@ -318,6 +332,8 @@ function toRow(task: Task) {
     labels: [...state.labels],
     repositoryOwner: state.repository?.owner ?? null,
     repositoryName: state.repository?.name ?? null,
+    assigneeId: state.assignee?.userId ?? null,
+    assigneeLogin: state.assignee?.login ?? null,
     parentId: state.parentId,
     criteria: state.criteria.map((criterion): StoredCriterion => ({
       number: criterion.number,

@@ -12,6 +12,7 @@ import {
 import type { CommandHandler } from "@/shared/application";
 import { err, ok, type Result } from "@/shared/domain";
 
+import { NO_MEMBERS, type SpaceMembers } from "../ports/space-members";
 import { ensureLabels } from "./create-label";
 import { parseReferences, type ReferenceInput } from "./create-task";
 import {
@@ -31,6 +32,8 @@ export type UpdateTaskCommand = TaskCommand<"tasks.update-task"> & {
   readonly addLabels?: readonly string[];
   readonly removeLabels?: readonly string[];
   readonly repository?: string | null;
+  /** A member's GitHub login, or null to unassign; only on a group task. */
+  readonly assignee?: string | null;
   readonly parent?: TaskReference | null;
   readonly addCriteria?: readonly string[];
   readonly removeCriteria?: readonly number[];
@@ -43,6 +46,7 @@ export class UpdateTaskHandler implements CommandHandler<UpdateTaskCommand> {
     private readonly tasks: TaskRepository,
     private readonly labels: LabelRepository,
     private readonly clock: () => Date,
+    private readonly members: SpaceMembers = NO_MEMBERS,
   ) {}
 
   async handle(command: UpdateTaskCommand): Promise<Result<void, TaskError>> {
@@ -92,6 +96,14 @@ export class UpdateTaskHandler implements CommandHandler<UpdateTaskCommand> {
             now,
           );
           if (!labelled.ok) return labelled;
+        }
+
+        if (command.assignee !== undefined) {
+          const members = command.assignee
+            ? await this.members.of(ownerId, task.keyPrefix)
+            : [];
+          const assigned = task.assign(command.assignee, members, actor, now);
+          if (!assigned.ok) return assigned;
         }
 
         // An epic that becomes a task may then go under a parent; a task that

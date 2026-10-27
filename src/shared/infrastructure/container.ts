@@ -224,6 +224,10 @@ import {
   UpdateTaskHandler,
   type UpdateTaskCommand,
 } from "@/modules/tasks/application/commands/update-task";
+import {
+  ReleaseAssigneeHandler,
+  type ReleaseAssigneeCommand,
+} from "@/modules/tasks/application/commands/release-assignee";
 import type { AnswerNotifications } from "@/modules/tasks/application/ports/answer-notifications";
 import type { PictureStorage } from "@/modules/tasks/application/ports/picture-storage";
 import type { TaskReadStore } from "@/modules/tasks/application/ports/task-read-store";
@@ -248,6 +252,10 @@ import {
   NextTaskKeyHandler,
   type NextTaskKeyQuery,
 } from "@/modules/tasks/application/queries/next-task-key";
+import {
+  SpaceMembersHandler,
+  type SpaceMembersQuery,
+} from "@/modules/tasks/application/queries/space-members";
 import {
   PictureContentHandler,
   type PictureContentQuery,
@@ -307,6 +315,7 @@ import type {
   PictureRepository,
   QuestionnaireRepository,
   SkillRepository,
+  SpaceMember,
   TaskRepository,
 } from "@/modules/tasks/domain";
 import { DrizzleLabelRepository } from "@/modules/tasks/infrastructure/drizzle-label.repository";
@@ -314,6 +323,7 @@ import { DrizzlePictureRepository } from "@/modules/tasks/infrastructure/drizzle
 import { DrizzleQuestionnaireRepository } from "@/modules/tasks/infrastructure/drizzle-questionnaire.repository";
 import { DrizzleSkillRepository } from "@/modules/tasks/infrastructure/drizzle-skill.repository";
 import { DrizzleTaskReadStore } from "@/modules/tasks/infrastructure/drizzle-task.read-store";
+import { GroupReadStoreSpaceMembers } from "@/modules/tasks/infrastructure/group-read-store.space-members";
 import { DrizzleTaskRepository } from "@/modules/tasks/infrastructure/drizzle-task.repository";
 import { HmacUploadTickets } from "@/modules/tasks/infrastructure/hmac-upload-tickets";
 import { InProcessAnswerNotifications } from "@/modules/tasks/infrastructure/in-process-answer-notifications";
@@ -440,16 +450,22 @@ function registerTasks(
     pictureStorage,
     uploadTickets,
     taskReads,
+    groupReads,
     clock,
   }: ContainerParts,
 ): void {
+  const members = new GroupReadStoreSpaceMembers(groupReads);
   commandBus.register<CreateTaskCommand>(
     "tasks.create-task",
-    new CreateTaskHandler(tasks, labels, clock),
+    new CreateTaskHandler(tasks, labels, clock, members),
   );
   commandBus.register<UpdateTaskCommand>(
     "tasks.update-task",
-    new UpdateTaskHandler(tasks, labels, clock),
+    new UpdateTaskHandler(tasks, labels, clock, members),
+  );
+  commandBus.register<ReleaseAssigneeCommand>(
+    "tasks.release-assignee",
+    new ReleaseAssigneeHandler(tasks, clock),
   );
   commandBus.register<CreateLabelCommand>(
     "tasks.create-label",
@@ -582,6 +598,10 @@ function registerTasks(
     "tasks.next-task-key",
     new NextTaskKeyHandler(taskReads),
   );
+  queryBus.register<SpaceMembersQuery, readonly SpaceMember[]>(
+    "tasks.space-members",
+    new SpaceMembersHandler(members),
+  );
   queryBus.register<TaskBriefQuery, TaskBriefResult>(
     "tasks.task-brief",
     new TaskBriefHandler(taskReads, clock),
@@ -649,7 +669,7 @@ function registerGroups(
   queryBus: QueryBus,
   { groups, groupReads, taskReads, clock }: ContainerParts,
 ): void {
-  const groupTasks = new TaskReadStoreGroupTasks(taskReads);
+  const groupTasks = new TaskReadStoreGroupTasks(taskReads, commandBus);
   commandBus.register<CreateGroupCommand>(
     "groups.create-group",
     new CreateGroupHandler(groups, clock),
@@ -676,7 +696,7 @@ function registerGroups(
   );
   commandBus.register<RemoveMemberCommand>(
     "groups.remove-member",
-    new RemoveMemberHandler(groups, clock),
+    new RemoveMemberHandler(groups, groupTasks, clock),
   );
   commandBus.register<DeleteGroupCommand>(
     "groups.delete-group",

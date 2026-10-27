@@ -3,6 +3,8 @@
 import { CaretDown, Check } from "@phosphor-icons/react/ssr";
 import { useEffect, useId, useRef, useState } from "react";
 
+import type { SpaceMember } from "@/modules/tasks/domain";
+
 import { FLOATING_PANEL, useFloatingPanel } from "./floating-panel";
 import type { LabelOption } from "./labels";
 
@@ -15,6 +17,7 @@ export type SpaceOption = {
   /** The key the next task here gets, as in HAL-134. */
   readonly next: string;
   readonly labels: readonly LabelOption[];
+  readonly members: readonly SpaceMember[];
 };
 
 export function SpacePrefix({ prefix }: { prefix: string }) {

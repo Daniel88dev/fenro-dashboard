@@ -80,6 +80,15 @@ export type TaskRepositoryItem = {
 
 export type EpicMention = { readonly key: string; readonly title: string };
 
+/**
+ * A personal task's assignee is its owner, the reader, whose login is not
+ * kept on the task: `login` is null there.
+ */
+export type AssigneeItem = {
+  readonly id: string;
+  readonly login: string | null;
+};
+
 export type TaskListItem = {
   readonly key: string;
   readonly kind: TaskKind;
@@ -89,6 +98,7 @@ export type TaskListItem = {
   readonly priority: Priority;
   readonly labels: readonly string[];
   readonly repository: string | null;
+  readonly assignee: AssigneeItem | null;
   readonly parent: string | null;
   readonly epic: EpicMention | null;
   readonly progress: { readonly done: number; readonly total: number } | null;
@@ -223,6 +233,7 @@ export type TaskBrief = {
   readonly priority: Priority;
   readonly labels: readonly string[];
   readonly repository: string | null;
+  readonly assignee: AssigneeItem | null;
   readonly description: string;
   readonly acceptanceCriteria: readonly {
     readonly number: number;

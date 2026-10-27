@@ -36,6 +36,21 @@ group's prefix (`HAL-1`, `HAL-2`…).
 - A picture id names no space, so `/api/pictures/<id>` and `get_picture` ask
   each of the person's spaces in turn.
 
+## Assignees
+
+- Every task has an assignee. A personal task is always its owner's, so the
+  row stores none and the read models derive it from `owner_id`. A group task
+  starts unassigned and can go to one member, stored as `assignee_id` plus an
+  `assignee_login` snapshot so lists need no join into the groups context.
+- `Task.assign` refuses a personal task and anyone outside the group; the
+  members come from the `SpaceMembers` port, which the groups read store
+  implements.
+- When a member leaves or is removed, `RemoveMemberHandler` asks the tasks
+  context (`tasks.release-assignee`) to unassign every task they held there.
+- Tasks has an Assignee filter beside Spaces: Assigned to me (personal tasks
+  plus group tasks assigned to you), Unassigned, and people from your groups,
+  kept in `?assignee=~me,~none,mira`. A tilde cannot start a GitHub login.
+
 ## Screens
 
 - **Tasks**: a Spaces filter beside Labels and Repository, shown once the
@@ -43,8 +58,11 @@ group's prefix (`HAL-1`, `HAL-2`…).
   with a tick per group, kept in `?spaces=T,HAL` (absent means every space).
   On phones it opens as a bottom sheet. A group task names its group in the
   row while more than one space is shown.
-- **New task**: "In [space]" with the key the task will get. Parents and
-  labels follow the chosen space; `?space=HAL` or a group parent picks it.
+- **New task**: "In [space]" with the key the task will get. Parents,
+  labels and the Assignee field follow the chosen space; `?space=HAL` or a
+  group parent picks it. A personal task shows its owner, locked.
+- **Task page**: the Assignee block heads the side column, a searchable
+  member picker with "Assign to me" on a group task.
 - **Settings > Groups**: the person's groups, invitations to join or decline,
   and the New group dialog with a live key preview.
 - **`/groups/HAL`**: members, invite by GitHub username, roles, cancel an
@@ -56,7 +74,10 @@ An agent token acts as its person, so it reaches their personal tasks and
 every group they belong to. `list_tasks` and `start_task` cover every space
 (`list_tasks` takes `space` to narrow it); `save_task` files new work in the
 parent's or `discovered_from`'s space, or the `space` it is given. Labels and
-skills tools still work on the person's own catalogue.
+skills tools still work on the person's own catalogue. `save_task` takes an
+`assignee` (a member's login, `me`, or null) on group tasks only, and
+`list_tasks` filters by `assignee` (`me`, `unassigned` or a login). Which task
+an agent picks up next does not depend on the assignee.
 
 ## Skills on group tasks
 

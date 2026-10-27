@@ -27,7 +27,9 @@ import type {
   TaskBrief,
   TaskMention,
 } from "@/modules/tasks/application/queries/read-models";
+import type { SpaceMember } from "@/modules/tasks/domain";
 
+import { LockedAssignee } from "./assignee-select";
 import {
   ButtonForm,
   CriterionForm,
@@ -35,6 +37,7 @@ import {
   InlineForm,
   KindChangeForm,
   NoteForm,
+  TaskAssigneeForm,
   TaskLabelsForm,
   type TaskActions,
 } from "./task-forms";
@@ -764,9 +767,17 @@ export function TaskDetail({
   picturesEnabled = false,
   now = new Date(),
   round = null,
+  you,
+  space,
 }: {
   task: TaskBrief;
   actions: TaskActions;
+  you?: string;
+  space?: {
+    readonly kind: "personal" | "group";
+    readonly name: string;
+    readonly members: readonly SpaceMember[];
+  };
   labels?: readonly LabelOption[];
   repositories?: readonly RepositoryOption[];
   parents?: readonly ParentOption[];
@@ -919,6 +930,24 @@ export function TaskDetail({
             <div className="hidden lg:block">
               <QuestionRounds />
             </div>
+
+            {you && space ? (
+              <div className="flex flex-col gap-1.5">
+                <h2 className="text-ink text-[13px] font-semibold">Assignee</h2>
+                {space.kind === "group" ? (
+                  <TaskAssigneeForm
+                    action={actions.assign}
+                    task={key}
+                    assignee={task.assignee?.login ?? null}
+                    members={space.members}
+                    you={you}
+                    groupName={space.name}
+                  />
+                ) : (
+                  <LockedAssignee login={you} />
+                )}
+              </div>
+            ) : null}
 
             <div className="flex flex-col gap-1.5">
               <h2 className="text-ink text-[13px] font-semibold">Agent</h2>

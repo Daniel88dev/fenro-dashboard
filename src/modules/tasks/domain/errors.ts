@@ -4,6 +4,7 @@
  */
 export type TaskErrorCode =
   | "invalid-task"
+  | "invalid-assignee"
   | "task-not-found"
   | "task-claimed"
   | "task-blocked"

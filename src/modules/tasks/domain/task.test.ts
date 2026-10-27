@@ -592,3 +592,67 @@ describe("Task moved into progress by hand", () => {
     expect(task.status).toBe("todo");
   });
 });
+
+describe("Task assignee", () => {
+  const members = [
+    { userId: "user-1", login: "Daniel88dev" },
+    { userId: "user-2", login: "mira" },
+  ];
+  const groupTask = () =>
+    aTask({ ownerId: "group-hal", keyPrefix: "HAL", number: 3 });
+
+  it("leaves a new group task unassigned", () => {
+    expect(groupTask().state.assignee).toBeNull();
+  });
+
+  it("assigns a group task to a member by login, ignoring case and @", () => {
+    const task = groupTask();
+    task.pullDomainEvents();
+
+    unwrap(task.assign("@MIRA", members, daniel, later(1)));
+
+    expect(task.state.assignee).toEqual({ userId: "user-2", login: "mira" });
+    expect(task.assigneeId).toBe("user-2");
+    expect(task.pullDomainEvents()).toMatchObject([
+      { name: "tasks.task-assignee-changed", from: null, to: "user-2" },
+    ]);
+  });
+
+  it("unassigns a group task and records it", () => {
+    const task = groupTask();
+    unwrap(task.assign("mira", members, daniel, t0));
+    task.pullDomainEvents();
+
+    unwrap(task.assign(null, members, daniel, later(1)));
+
+    expect(task.state.assignee).toBeNull();
+    expect(task.pullDomainEvents()).toMatchObject([
+      { from: "user-2", to: null },
+    ]);
+  });
+
+  it("records nothing when the assignee stays the same", () => {
+    const task = groupTask();
+    unwrap(task.assign("mira", members, daniel, t0));
+    task.pullDomainEvents();
+
+    unwrap(task.assign("Mira", members, daniel, later(1)));
+
+    expect(task.pullDomainEvents()).toEqual([]);
+  });
+
+  it("refuses someone outside the group", () => {
+    const result = groupTask().assign("stranger", members, daniel, t0);
+
+    expect(isErr(result) && result.error.code).toBe("invalid-assignee");
+  });
+
+  it("keeps a personal task with its owner", () => {
+    const task = aTask();
+
+    const result = task.assign("mira", members, daniel, t0);
+
+    expect(isErr(result) && result.error.code).toBe("invalid-assignee");
+    expect(task.assigneeId).toBe("user-1");
+  });
+});

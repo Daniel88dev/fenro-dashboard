@@ -80,17 +80,18 @@ Prototypes are pictures; the built screen has to meet these.
 
 ## Prototype log
 
-| Date       | What                                       | Link                                                        | Outcome                         |
-| ---------- | ------------------------------------------ | ----------------------------------------------------------- | ------------------------------- |
-| 2026-09-20 | Repository table                           | [canvas](https://claude.ai/artifact/CHoCsPDAWY2tvnoL7gHW9t) | Built (PR #3)                   |
-| 2026-09-24 | Whole-app redesign, 2 directions           | [canvas](https://claude.ai/artifact/Uj2hLnvUy6X9dYrzzAdDgr) | A picked                        |
-| 2026-09-26 | Pictures on tasks, 2 directions            | [canvas](https://claude.ai/artifact/35XeAhrc4aQRGTHxQWp1YA) | A picked, plus a large viewer   |
-| 2026-09-28 | App logo, 2 marks                          | [page](https://claude.ai/artifact/N6VV6A8ZvUkGGSp5KfSpHK)   | B (Task rows) picked, PR #31    |
-| 2026-10-04 | Skills & labels, 2 directions              | [canvas](https://claude.ai/artifact/SBLLj8uitB3xpX8WhbeR79) | A (side by side) picked         |
-| 2026-10-16 | Epics, task menu and board, 2 directions   | [canvas](https://claude.ai/artifact/NPUL4ziEJ5ZyiPMDqjdzXB) | B (epic rail) picked            |
-| 2026-10-17 | Task state colours, 2 directions           | [canvas](https://claude.ai/artifact/9iA2z2nEw3WumeLMrQUJXM) | A (colour only) picked          |
-| 2026-10-18 | Board Done column window, 2 controls       | [canvas](https://claude.ai/artifact/7REudfsa4nEBPMpePaeWcf) | B (menu by the count) picked    |
-| 2026-10-18 | Description Markdown editor, 2 layouts     | [page](https://claude.ai/artifact/NTAtgryorFCUrJbcukoryt)   | A (tabs on the box) picked      |
-| 2026-10-18 | Command palette search, 2 directions       | [canvas](https://claude.ai/artifact/1YvP1eDA19Fu2vyfhB5Cxw) | B (drops from the bar) picked   |
-| 2026-10-19 | Groups and the Spaces filter, 2 directions | [canvas](https://claude.ai/artifact/M7icDXjJWaZK9p1VUaUGD1) | B (Spaces filter button) picked |
-| 2026-10-25 | Agent questionnaire drawer, 2 directions   | [canvas](https://claude.ai/artifact/7wCLBKgYHp4axhFogssLn3) | A (one scrolling drawer) picked |
+| Date       | What                                       | Link                                                        | Outcome                           |
+| ---------- | ------------------------------------------ | ----------------------------------------------------------- | --------------------------------- |
+| 2026-09-20 | Repository table                           | [canvas](https://claude.ai/artifact/CHoCsPDAWY2tvnoL7gHW9t) | Built (PR #3)                     |
+| 2026-09-24 | Whole-app redesign, 2 directions           | [canvas](https://claude.ai/artifact/Uj2hLnvUy6X9dYrzzAdDgr) | A picked                          |
+| 2026-09-26 | Pictures on tasks, 2 directions            | [canvas](https://claude.ai/artifact/35XeAhrc4aQRGTHxQWp1YA) | A picked, plus a large viewer     |
+| 2026-09-28 | App logo, 2 marks                          | [page](https://claude.ai/artifact/N6VV6A8ZvUkGGSp5KfSpHK)   | B (Task rows) picked, PR #31      |
+| 2026-10-04 | Skills & labels, 2 directions              | [canvas](https://claude.ai/artifact/SBLLj8uitB3xpX8WhbeR79) | A (side by side) picked           |
+| 2026-10-16 | Epics, task menu and board, 2 directions   | [canvas](https://claude.ai/artifact/NPUL4ziEJ5ZyiPMDqjdzXB) | B (epic rail) picked              |
+| 2026-10-17 | Task state colours, 2 directions           | [canvas](https://claude.ai/artifact/9iA2z2nEw3WumeLMrQUJXM) | A (colour only) picked            |
+| 2026-10-18 | Board Done column window, 2 controls       | [canvas](https://claude.ai/artifact/7REudfsa4nEBPMpePaeWcf) | B (menu by the count) picked      |
+| 2026-10-18 | Description Markdown editor, 2 layouts     | [page](https://claude.ai/artifact/NTAtgryorFCUrJbcukoryt)   | A (tabs on the box) picked        |
+| 2026-10-18 | Command palette search, 2 directions       | [canvas](https://claude.ai/artifact/1YvP1eDA19Fu2vyfhB5Cxw) | B (drops from the bar) picked     |
+| 2026-10-19 | Groups and the Spaces filter, 2 directions | [canvas](https://claude.ai/artifact/M7icDXjJWaZK9p1VUaUGD1) | B (Spaces filter button) picked   |
+| 2026-10-25 | Agent questionnaire drawer, 2 directions   | [canvas](https://claude.ai/artifact/7wCLBKgYHp4axhFogssLn3) | A (one scrolling drawer) picked   |
+| 2026-10-27 | Task assignees, 2 directions               | [canvas](https://claude.ai/artifact/MhQc2dZuq3PcZQuSnmuiKv) | A (Assignee filter button) picked |

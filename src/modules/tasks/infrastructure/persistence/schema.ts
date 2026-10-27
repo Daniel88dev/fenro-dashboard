@@ -42,6 +42,10 @@ export const task = fenro.table(
     /** Compared case-insensitively. */
     repositoryOwner: text("repository_owner"),
     repositoryName: text("repository_name"),
+    /** A group member's user id; null on personal tasks, which are the owner's. */
+    assigneeId: text("assignee_id"),
+    /** The member's login when assigned, kept so lists need no join. */
+    assigneeLogin: text("assignee_login"),
     parentId: text("parent_id").references((): AnyPgColumn => task.id, {
       onDelete: "set null",
     }),
@@ -62,6 +66,7 @@ export const task = fenro.table(
       sql`lower(${table.repositoryName})`,
     ),
     index("task_parent_idx").on(table.parentId),
+    index("task_owner_assignee_idx").on(table.ownerId, table.assigneeId),
   ],
 );
 

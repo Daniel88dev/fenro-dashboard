@@ -2,6 +2,7 @@ import { ArrowsOutSimple, ChatCircleDots } from "@phosphor-icons/react/ssr";
 
 import type { TaskBrief } from "@/modules/tasks/application/queries/read-models";
 
+import { Avatar, assigneeLogin, assigneeWords, type Reader } from "./assignee";
 import {
   AgentLine,
   CriteriaList,
@@ -27,11 +28,13 @@ export function TaskDialogContent({
   actions,
   labels = [],
   picturesEnabled = false,
+  you,
 }: {
   task: TaskBrief;
   actions: TaskActions;
   labels?: readonly LabelOption[];
   picturesEnabled?: boolean;
+  you?: Reader;
 }) {
   const fullPage = taskHref(task.key);
   return (
@@ -92,6 +95,13 @@ export function TaskDialogContent({
           />
         </div>
         <div className="flex min-w-0 flex-col gap-3">
+          <div className="flex flex-col gap-1.5">
+            <h3 className="text-ink-muted text-[12px] font-medium">Assignee</h3>
+            <span className="text-ink flex items-center gap-2 text-[13px]">
+              <Avatar login={assigneeLogin(task.assignee, you)} size="sm" />
+              {assigneeWords(task.assignee, you)}
+            </span>
+          </div>
           <TaskProperties task={task} />
           <TaskSkillsLine skills={task.skills} />
         </div>

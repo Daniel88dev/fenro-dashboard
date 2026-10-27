@@ -13,6 +13,7 @@ import {
 import type { CommandHandler } from "@/shared/application";
 import { err, ok, type Result } from "@/shared/domain";
 
+import { NO_MEMBERS, type SpaceMembers } from "../ports/space-members";
 import { ensureLabels } from "./create-label";
 import {
   findTask,
@@ -37,6 +38,8 @@ export type CreateTaskCommand = TaskCommand<"tasks.create-task"> & {
   readonly priority?: Priority;
   readonly labels?: readonly string[];
   readonly repository?: string | null;
+  /** A member's GitHub login; only a group task takes one. */
+  readonly assignee?: string | null;
   readonly parent?: TaskReference | null;
   readonly criteria?: readonly string[];
   readonly references?: readonly ReferenceInput[];
@@ -52,6 +55,7 @@ export class CreateTaskHandler implements CommandHandler<CreateTaskCommand> {
     private readonly tasks: TaskRepository,
     private readonly labels: LabelRepository,
     private readonly clock: () => Date,
+    private readonly members: SpaceMembers = NO_MEMBERS,
   ) {}
 
   async handle(command: CreateTaskCommand): Promise<Result<void, TaskError>> {
@@ -76,6 +80,11 @@ export class CreateTaskHandler implements CommandHandler<CreateTaskCommand> {
     const links = await this.#resolveLinks(command);
     if (!links.ok) return links;
 
+    const members =
+      command.assignee && command.keyPrefix
+        ? await this.members.of(ownerId, command.keyPrefix)
+        : [];
+
     let last: TaskError | undefined;
     for (let attempt = 0; attempt < ATTEMPTS; attempt += 1) {
       const now = this.clock();
@@ -99,6 +108,15 @@ export class CreateTaskHandler implements CommandHandler<CreateTaskCommand> {
       });
       if (!created.ok) return created;
       const task = created.value;
+      if (command.assignee) {
+        const assigned = task.assign(
+          command.assignee,
+          members,
+          command.actor,
+          now,
+        );
+        if (!assigned.ok) return assigned;
+      }
 
       const graph = (await this.tasks.graph(ownerId)).with({
         id: task.id.value,

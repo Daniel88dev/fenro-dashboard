@@ -9,13 +9,17 @@ import { listTaskRepositoriesQuery } from "@/modules/tasks/application/queries/l
 import { listTasksQuery } from "@/modules/tasks/application/queries/list-tasks";
 import { taskBoardQuery } from "@/modules/tasks/application/queries/task-board";
 import {
+  ASSIGNED_TO_ME,
   isTaskView,
   parseDoneParam,
   parseEpicParam,
+  parseAssigneesParam,
   parseLabelsParam,
   parseSpacesParam,
   TASK_VIEWS,
   TaskList,
+  UNASSIGNED,
+  type AssigneePerson,
   type TaskListFilter,
   type TaskView,
 } from "@/modules/tasks/ui/task-list";
@@ -76,10 +80,11 @@ async function TasksScreen({
     done: parseDoneParam(one(params.done)),
     spaces: parseSpacesParam(one(params.spaces)),
     needsAnswer: one(params.needs) === "answer",
+    assignees: parseAssigneesParam(one(params.assignee)),
   };
 
-  const { container, spaces } = await tasksContext();
-  if (!spaces) {
+  const { container, spaces, you, groupMembers } = await tasksContext();
+  if (!spaces || !you) {
     return (
       <SignInPanel
         heading="Sign in to see your tasks"
@@ -93,11 +98,28 @@ async function TasksScreen({
     : spaces.all;
   const ownerId = shown.map((space) => space.ownerId);
 
+  const members = await groupMembers();
+  const people = peopleIn(members, spaces.groups);
+  const userIdOf = new Map(
+    [...members.values()]
+      .flat()
+      .map((member) => [member.login.toLowerCase(), member.userId]),
+  );
+
   const scope: ListTasksQuery["filter"] = {
     repository: filter.repository || undefined,
     text: filter.text || undefined,
     labels: filter.labels,
     needsAnswer: filter.needsAnswer || undefined,
+    assignees: filter.assignees?.length
+      ? filter.assignees.map((token) =>
+          token === ASSIGNED_TO_ME
+            ? you.id
+            : token === UNASSIGNED
+              ? null
+              : (userIdOf.get(token) ?? ""),
+        )
+      : undefined,
     ...epicScope(filter.epic ?? ""),
   };
   const ask = container.queryBus.ask.bind(container.queryBus);
@@ -159,6 +181,8 @@ async function TasksScreen({
       scopeCounts={{ all: all!, epics: epicsOnly!, none: none! }}
       spaces={spaces.all}
       needingAnswers={needing.total}
+      you={you}
+      people={people}
       move={moveTaskAction}
     />
   );
@@ -169,4 +193,24 @@ function epicScope(scope: string): ListTasksQuery["filter"] {
   if (scope === "epics") return { kinds: ["epic"] };
   if (scope === "none") return { outsideEpics: true };
   return { epic: scope };
+}
+
+function peopleIn(
+  members: ReadonlyMap<string, readonly { userId: string; login: string }[]>,
+  groups: readonly { id: string; prefix: string }[],
+): AssigneePerson[] {
+  const shared = new Map<string, { login: string; groups: string[] }>();
+  for (const group of groups) {
+    for (const member of members.get(group.id) ?? []) {
+      const person = shared.get(member.userId) ?? {
+        login: member.login,
+        groups: [],
+      };
+      person.groups.push(group.prefix);
+      shared.set(member.userId, person);
+    }
+  }
+  return [...shared.values()]
+    .map(({ login, groups }) => ({ login, groups: groups.join(" ") }))
+    .sort((a, b) => a.login.localeCompare(b.login));
 }

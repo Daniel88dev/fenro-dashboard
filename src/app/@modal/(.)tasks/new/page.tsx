@@ -18,6 +18,7 @@ export default async function NewTaskDialogPage({
   const {
     container,
     ownerId,
+    you,
     spaces,
     repositoryOptions,
     parentOptions,
@@ -80,6 +81,7 @@ export default async function NewTaskDialogPage({
         <NewTaskForm
           action={TASK_ACTIONS.create}
           defaults={defaults}
+          you={you?.login}
           labels={labels}
           repositories={repositories}
           parents={parents}

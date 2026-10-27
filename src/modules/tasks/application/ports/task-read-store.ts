@@ -137,6 +137,11 @@ export type TaskRecord = {
   readonly priority: Priority;
   readonly labels: readonly string[];
   readonly repository: { readonly owner: string; readonly name: string } | null;
+  /** A personal task's is its owner, whose login the store does not hold. */
+  readonly assignee: {
+    readonly id: string;
+    readonly login: string | null;
+  } | null;
   readonly parentId: string | null;
   readonly blockedBy: readonly string[];
   readonly hold: { readonly reason: string; readonly since: Date } | null;

@@ -31,6 +31,7 @@ const item: TaskListItem = {
   parent: "T-1",
   epic: null,
   progress: null,
+  assignee: null,
   blockedBy: ["T-4"],
   hold: null,
   workedOnBy: null,
@@ -44,6 +45,7 @@ const item: TaskListItem = {
 const brief: TaskBrief = {
   key: "T-2",
   id: "00000000-0000-4000-8000-000000000002",
+  assignee: null,
   kind: "task",
   title: "Fix the lint job",
   status: "todo",
@@ -129,6 +131,7 @@ function actions(overrides: Partial<TaskActions> = {}): TaskActions {
     create: saved,
     update: saved,
     labels: saved,
+    assign: saved,
     edit: saved,
     note: saved,
     checkCriterion: saved,
@@ -589,6 +592,155 @@ describe("labels on a task", () => {
   });
 });
 
+describe("assignees", () => {
+  const you = { id: "user-1", login: "Daniel88dev" };
+  const hal = {
+    kind: "group" as const,
+    name: "Halcyon Labs",
+    members: [
+      { userId: "user-1", login: "Daniel88dev" },
+      { userId: "user-2", login: "mira" },
+    ],
+  };
+
+  it("filters the list by assignee in the URL, and shows each row's", () => {
+    render(
+      <TaskList
+        list={{
+          total: 2,
+          tasks: [
+            { ...item, key: "T-2", assignee: { id: you.id, login: null } },
+            {
+              ...item,
+              key: "HAL-7",
+              assignee: { id: "user-2", login: "mira" },
+            },
+          ],
+        }}
+        filter={{
+          view: "open",
+          repository: "",
+          text: "",
+          labels: [],
+          assignees: ["~me"],
+        }}
+        you={you}
+        people={[{ login: "mira", groups: "HAL" }]}
+      />,
+    );
+
+    expect(screen.getByRole("link", { name: /T-2/ })).toHaveTextContent("You");
+    expect(screen.getByRole("link", { name: /HAL-7/ })).toHaveTextContent(
+      "mira",
+    );
+    fireEvent.click(
+      screen.getByRole("button", { name: "Assignee filter: Assigned to me" }),
+    );
+    expect(
+      screen.getByRole("checkbox", { name: /Assigned to me/ }),
+    ).toHaveAttribute("href", "/tasks");
+    expect(screen.getByRole("checkbox", { name: /mira/ })).toHaveAttribute(
+      "href",
+      "/tasks?assignee=%7Eme%2Cmira",
+    );
+  });
+
+  it("assigns a group task as soon as a member is picked", async () => {
+    const assign = vi.fn(async () => ({ error: null, saved: 1 }));
+    render(
+      <TaskDetail
+        task={{ ...brief, key: "HAL-2" }}
+        actions={actions({ assign })}
+        you="Daniel88dev"
+        space={hal}
+      />,
+    );
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Unassigned. Assign someone" }),
+    );
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /mira/ }));
+    });
+    let sent = assign.mock.calls.at(-1) as unknown as [unknown, FormData];
+    expect(sent[1].get("assignee")).toBe("mira");
+    expect(sent[1].get("task")).toBe("HAL-2");
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Assign to me" }));
+    });
+    sent = assign.mock.calls.at(-1) as unknown as [unknown, FormData];
+    expect(sent[1].get("assignee")).toBe("Daniel88dev");
+  });
+
+  it("keeps a personal task with its owner", () => {
+    render(
+      <TaskDetail
+        task={brief}
+        actions={actions()}
+        you="Daniel88dev"
+        space={{ kind: "personal", name: "Personal", members: [] }}
+      />,
+    );
+
+    expect(
+      screen.getByText("Personal tasks are always yours."),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /Assign someone/ }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("starts a group task unassigned in New task, locking a personal one", async () => {
+    const create = vi.fn(async () => ({ error: null, saved: 1 }));
+    render(
+      <NewTaskForm
+        action={create}
+        defaults={{ repository: "", parent: "", source: "", title: "" }}
+        you="Daniel88dev"
+        spaces={[
+          {
+            prefix: "T",
+            name: "Personal",
+            kind: "personal",
+            who: "Only you",
+            next: "T-9",
+            labels: [],
+            members: [],
+          },
+          {
+            prefix: "HAL",
+            who: "2 members",
+            next: "HAL-3",
+            labels: [],
+            ...hal,
+          },
+        ]}
+      />,
+    );
+
+    expect(
+      screen.getByText("Personal tasks are always yours."),
+    ).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /^Space:/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Halcyon Labs/ }));
+    fireEvent.click(
+      screen.getByRole("button", { name: "Unassigned. Assign someone" }),
+    );
+    fireEvent.click(screen.getByRole("button", { name: /mira/ }));
+    fireEvent.change(screen.getByLabelText("Title"), {
+      target: { value: "Board" },
+    });
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Create task" }));
+    });
+    const sent = create.mock.calls[0] as unknown as [unknown, FormData];
+    expect(sent[1].get("space")).toBe("HAL");
+    expect(sent[1].get("assignee")).toBe("mira");
+  });
+});
+
 describe("TaskDialogContent", () => {
   it("opens the full page with a plain link, so the dialog is not reopened", () => {
     render(<TaskDialogContent task={brief} actions={actions()} />);
@@ -681,6 +833,7 @@ describe("NewTaskForm", () => {
             who: "Only you",
             next: "T-9",
             labels: [],
+            members: [],
           },
           {
             prefix: "HAL",
@@ -689,6 +842,7 @@ describe("NewTaskForm", () => {
             who: "3 members",
             next: "HAL-3",
             labels: [{ name: "design", colour: "pink" }],
+            members: [],
           },
         ]}
       />,

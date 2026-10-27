@@ -9,6 +9,7 @@ import { invalidTask, taskError, type TaskError } from "./errors";
 import {
   SessionEnded,
   SessionStarted,
+  TaskAssigneeChanged,
   TaskCreated,
   TaskKindChanged,
   TaskStatusChanged,
@@ -25,6 +26,7 @@ import type { RepositoryReference } from "./repository-reference";
 import { Session, type FinishOutcome, type SessionOutcome } from "./session";
 import { formatTaskKey, PERSONAL_KEY_PREFIX } from "./task-key";
 import type { TaskKind } from "./task-kind";
+import type { SpaceMember } from "./task-space";
 import type { LinkKind, TaskLink } from "./task-link";
 import { isOpen, type Priority, type TaskStatus } from "./task-status";
 
@@ -56,6 +58,8 @@ export type TaskState = {
   readonly priority: Priority;
   readonly labels: readonly string[];
   readonly repository: RepositoryReference | null;
+  /** Only a group task stores one: a personal task is always its owner's. */
+  readonly assignee: SpaceMember | null;
   readonly parentId: string | null;
   readonly links: readonly TaskLink[];
   readonly references: readonly ExternalReference[];
@@ -143,6 +147,7 @@ export class Task extends AggregateRoot<Props> {
         priority: input.priority ?? "none",
         labels: labels.value,
         repository: input.repository ?? null,
+        assignee: null,
         parentId: input.parentId ?? null,
         links: [],
         references: dedupeReferences(input.references ?? []),
@@ -188,6 +193,45 @@ export class Task extends AggregateRoot<Props> {
 
     this.#state = next;
     this.#touch(actor, now);
+    return ok(undefined);
+  }
+
+  /**
+   * `members` are the group's members now; a login is matched the way GitHub
+   * compares them, ignoring case.
+   */
+  assign(
+    login: string | null,
+    members: readonly SpaceMember[],
+    actor: Actor,
+    now: Date,
+  ): Result<void, TaskError> {
+    if (this.isPersonal) {
+      return err(
+        taskError(
+          "invalid-assignee",
+          `${this.key} is a personal task, so it is always assigned to its owner. Leave the assignee out.`,
+        ),
+      );
+    }
+    const wanted = login?.trim().replace(/^@/, "").toLowerCase() || null;
+    const member = wanted
+      ? members.find((candidate) => candidate.login.toLowerCase() === wanted)
+      : null;
+    if (wanted && !member) {
+      return err(
+        taskError(
+          "invalid-assignee",
+          `${login} is not a member of the group ${this.key} belongs to. Assign it to a member, or leave it unassigned.`,
+        ),
+      );
+    }
+    const from = this.#state.assignee?.userId ?? null;
+    const to = member?.userId ?? null;
+    if (from === to) return ok(undefined);
+    this.#state = { ...this.#state, assignee: member ?? null };
+    this.#touch(actor, now);
+    this.record(new TaskAssigneeChanged(this.id.value, from, to, now));
     return ok(undefined);
   }
 
@@ -590,6 +634,16 @@ export class Task extends AggregateRoot<Props> {
 
   get key(): string {
     return formatTaskKey(this.props.number, this.props.keyPrefix);
+  }
+
+  get isPersonal(): boolean {
+    return this.props.keyPrefix === PERSONAL_KEY_PREFIX;
+  }
+
+  get assigneeId(): string | null {
+    return this.isPersonal
+      ? this.props.ownerId
+      : (this.#state.assignee?.userId ?? null);
   }
 
   get createdAt(): Date {
