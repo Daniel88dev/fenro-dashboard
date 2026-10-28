@@ -11,6 +11,12 @@ export type TaskSpace = {
   readonly kind: "personal" | "group";
 };
 
+/** Someone a group task can be assigned to; the login is kept for display. */
+export type SpaceMember = {
+  readonly userId: string;
+  readonly login: string;
+};
+
 export function personalSpace(userId: string): TaskSpace {
   return {
     ownerId: userId,

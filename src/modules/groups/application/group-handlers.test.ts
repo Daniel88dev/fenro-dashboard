@@ -11,6 +11,7 @@ import { DeleteGroupHandler } from "./commands/delete-group";
 import {
   AcceptInvitationHandler,
   InviteMemberHandler,
+  RemoveMemberHandler,
 } from "./commands/membership-commands";
 import { MyGroupsHandler, myGroupsQuery } from "./queries/my-groups";
 import { GroupHandler, groupQuery } from "./queries/group";
@@ -21,11 +22,17 @@ const ana: Person = { id: "user-ana", login: "ana-k" };
 
 function setUp(taskCount = 0) {
   const store = new InMemoryGroupStore();
+  const released: { groupId: string; userId: string }[] = [];
   const tasks = {
     summary: async () => ({ count: taskCount, nextNumber: taskCount + 1 }),
+    release: async (groupId: string, userId: string) => {
+      released.push({ groupId, userId });
+    },
   };
   return {
     store,
+    released,
+    leave: new RemoveMemberHandler(store, tasks, clock),
     create: new CreateGroupHandler(store, clock),
     invite: new InviteMemberHandler(store, clock),
     accept: new AcceptInvitationHandler(store, clock),
@@ -44,6 +51,47 @@ const createHal = (by: Person = daniel, prefix = "HAL", id = "org-hal") =>
   });
 
 describe("group handlers", () => {
+  it("unassigns a member's group tasks when they leave", async () => {
+    const { create, invite, accept, leave, released } = setUp();
+    await create.handle(createHal());
+    await invite.handle({
+      type: "groups.invite-member",
+      groupId: "org-hal",
+      by: daniel,
+      login: "ana-k",
+    });
+    await accept.handle({
+      type: "groups.accept-invitation",
+      groupId: "org-hal",
+      by: ana,
+    });
+
+    const left = await leave.handle({
+      type: "groups.remove-member",
+      groupId: "org-hal",
+      by: ana,
+      userId: ana.id,
+    });
+
+    expect(left.ok).toBe(true);
+    expect(released).toEqual([{ groupId: "org-hal", userId: "user-ana" }]);
+  });
+
+  it("keeps assignments when removing a member is refused", async () => {
+    const { create, leave, released } = setUp();
+    await create.handle(createHal());
+
+    const left = await leave.handle({
+      type: "groups.remove-member",
+      groupId: "org-hal",
+      by: daniel,
+      userId: daniel.id,
+    });
+
+    expect(left.ok).toBe(false);
+    expect(released).toEqual([]);
+  });
+
   it("refuses a prefix another group uses", async () => {
     const { create } = setUp();
     await create.handle(createHal());

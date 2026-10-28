@@ -137,7 +137,12 @@ import { InProcessAnswerNotifications } from "@/modules/tasks/infrastructure/in-
 import { CommandBus, QueryBus } from "@/shared/application";
 import { unwrap } from "@/shared/domain";
 
-import { personalSpace } from "@/modules/tasks/domain";
+import type { SpaceMembers } from "@/modules/tasks/application/ports/space-members";
+import {
+  SpaceMembersHandler,
+  type SpaceMembersQuery,
+} from "@/modules/tasks/application/queries/space-members";
+import { personalSpace, type SpaceMember } from "@/modules/tasks/domain";
 
 import { createTasksMcpServer, type AgentAccess } from "./tasks-mcp-server";
 
@@ -149,16 +154,26 @@ let storage: InMemoryPictureStorage;
 let notifications: InProcessAnswerNotifications;
 const tickets = new HmacUploadTickets("test-secret");
 
+const members: SpaceMembers = {
+  of: async (ownerId) =>
+    ownerId === "group-hal"
+      ? [
+          { userId: OWNER, login: "Daniel88dev" },
+          { userId: "user-2", login: "mira" },
+        ]
+      : [],
+};
+
 function buses() {
   const clock = () => now;
   const commandBus = new CommandBus();
   commandBus.register<CreateTaskCommand>(
     "tasks.create-task",
-    new CreateTaskHandler(store, store, clock),
+    new CreateTaskHandler(store, store, clock, members),
   );
   commandBus.register<UpdateTaskCommand>(
     "tasks.update-task",
-    new UpdateTaskHandler(store, store, clock),
+    new UpdateTaskHandler(store, store, clock, members),
   );
   commandBus.register<StartTaskCommand>(
     "tasks.start-task",
@@ -268,6 +283,10 @@ function buses() {
   queryBus.register<SkillQuery, SkillResult>(
     "tasks.skill",
     new SkillHandler(store, clock),
+  );
+  queryBus.register<SpaceMembersQuery, readonly SpaceMember[]>(
+    "tasks.space-members",
+    new SpaceMembersHandler(members),
   );
   queryBus.register<ListTasksQuery, TaskList>(
     "tasks.list-tasks",
@@ -735,6 +754,53 @@ describe("the tasks MCP server", () => {
     expect((await planner.call("list_tasks", { space: "NOPE" })).isError).toBe(
       true,
     );
+  });
+
+  it("assigns group tasks and lists them by assignee", async () => {
+    const planner = await connect(agent("planner"));
+    await planner.call("save_task", { title: "Personal chore" });
+    await planner.call("save_task", {
+      title: "Mine in the group",
+      space: "HAL",
+      assignee: "me",
+    });
+    await planner.call("save_task", { title: "Open", space: "HAL" });
+    const reassigned = parse<{ assignee: string | null }>(
+      await planner.call("save_task", { task: "HAL-2", assignee: "mira" }),
+    );
+
+    const assigneeOf = async (filter: Record<string, unknown>) =>
+      Object.fromEntries(
+        parse<{ tasks: { key: string; assignee: string | null }[] }>(
+          await planner.call("list_tasks", filter),
+        ).tasks.map((task) => [task.key, task.assignee]),
+      );
+
+    expect(reassigned.assignee).toBe("mira");
+    expect(await assigneeOf({})).toEqual({
+      "T-1": "me",
+      "HAL-1": "me",
+      "HAL-2": "mira",
+    });
+    expect(await assigneeOf({ assignee: "me" })).toEqual({
+      "T-1": "me",
+      "HAL-1": "me",
+    });
+    expect(await assigneeOf({ assignee: "@Mira" })).toEqual({
+      "HAL-2": "mira",
+    });
+    expect(
+      (await planner.call("list_tasks", { assignee: "stranger" })).isError,
+    ).toBe(true);
+    expect(
+      (await planner.call("save_task", { task: "T-1", assignee: "mira" }))
+        .isError,
+    ).toBe(true);
+
+    await planner.call("save_task", { task: "HAL-2", assignee: null });
+    expect(await assigneeOf({ assignee: "unassigned" })).toEqual({
+      "HAL-2": null,
+    });
   });
 
   it("keeps a task open until its criteria are met", async () => {

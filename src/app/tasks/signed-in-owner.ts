@@ -1,8 +1,10 @@
+import { groupQuery } from "@/modules/groups/application/queries/group";
 import { watchedRepositoryNamesQuery } from "@/modules/github-insights/application/queries/watched-repository-names";
 import { signedInUserQuery } from "@/modules/identity/application/queries/signed-in-user";
 import { listLabelsQuery } from "@/modules/tasks/application/queries/list-labels";
 import { listTasksQuery } from "@/modules/tasks/application/queries/list-tasks";
 import { nextTaskKeyQuery } from "@/modules/tasks/application/queries/next-task-key";
+import { spaceOfTask, type SpaceMember } from "@/modules/tasks/domain";
 import type { ParentOption } from "@/modules/tasks/ui/parent-select";
 import type { RepositoryOption } from "@/modules/tasks/ui/repository-select";
 import type { SpaceOption } from "@/modules/tasks/ui/space-select";
@@ -15,10 +17,44 @@ export async function tasksContext(now?: Date) {
   const user = await container.queryBus.ask(signedInUserQuery());
   const spaces = user ? await spacesOf(container.queryBus, user) : null;
   const ask = container.queryBus.ask.bind(container.queryBus);
+  const groupMembers = async (): Promise<Map<string, SpaceMember[]>> => {
+    if (!user || !spaces) return new Map();
+    const details = await Promise.all(
+      spaces.groups.map((group) => ask(groupQuery(group.prefix, user.id))),
+    );
+    return new Map(
+      details.flatMap((detail) =>
+        detail.ok
+          ? [
+              [
+                detail.value.id,
+                detail.value.members.map(({ userId, login }) => ({
+                  userId,
+                  login,
+                })),
+              ] as const,
+            ]
+          : [],
+      ),
+    );
+  };
+  const spaceOf = async (key: string) => {
+    const space = spaces ? spaceOfTask(spaces.all, key) : undefined;
+    if (!space || !user) return undefined;
+    if (space.kind === "personal") return { ...space, members: [] };
+    const group = await ask(groupQuery(space.prefix, user.id));
+    const members = group.ok
+      ? group.value.members.map(({ userId, login }) => ({ userId, login }))
+      : [];
+    return { ...space, members };
+  };
   return {
     container,
     ownerId: user?.id ?? null,
+    you: user ? { id: user.id, login: user.githubLogin } : null,
     spaces,
+    groupMembers,
+    spaceOf,
     repositoryOptions: async (): Promise<RepositoryOption[]> => {
       if (!user) return [];
       const watched = await ask(
@@ -42,9 +78,10 @@ export async function tasksContext(now?: Date) {
     },
     spaceOptions: async (): Promise<SpaceOption[]> => {
       if (!spaces) return [];
+      const members = await groupMembers();
       return Promise.all(
         spaces.all.map(async (space) => {
-          const members = spaces.groups.find(
+          const count = spaces.groups.find(
             (group) => group.id === space.ownerId,
           )?.members;
           const [labels, next] = await Promise.all([
@@ -56,13 +93,14 @@ export async function tasksContext(now?: Date) {
             name: space.name,
             kind: space.kind,
             who:
-              members === undefined
+              count === undefined
                 ? "Only you"
-                : members === 1
+                : count === 1
                   ? "1 member"
-                  : `${members} members`,
+                  : `${count} members`,
             next,
             labels,
+            members: members.get(space.ownerId) ?? [],
           };
         }),
       );

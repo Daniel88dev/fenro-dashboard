@@ -53,6 +53,8 @@ export type TaskFilter = {
   readonly epicId?: string;
   readonly outsideEpics?: boolean;
   readonly needsAnswer?: boolean;
+  /** User ids; null stands for unassigned. Any of them matches. */
+  readonly assignees?: readonly (string | null)[];
   readonly text?: string;
   readonly limit?: number;
 };
@@ -179,6 +181,7 @@ export class TaskIndex {
       priority: record.priority,
       labels: record.labels,
       repository: fullName(record),
+      assignee: record.assignee,
       parent: this.#keyOf(record.parentId),
       epic: this.epicMention(record),
       progress: this.progress(record),
@@ -304,6 +307,12 @@ function matchesScope(
   }
   if (filter.parentId && record.parentId !== filter.parentId) return false;
   if (filter.needsAnswer && !record.openQuestionnaire) return false;
+  if (
+    filter.assignees?.length &&
+    !filter.assignees.includes(record.assignee?.id ?? null)
+  ) {
+    return false;
+  }
   if (words.length > 0) {
     const haystack = `${taskKey(record)} ${record.title}`.toLowerCase();
     if (!words.every((word) => haystack.includes(word))) return false;
@@ -412,6 +421,7 @@ export function brief(
     priority: detail.priority,
     labels: detail.labels,
     repository: fullName(detail),
+    assignee: detail.assignee,
     description: detail.description,
     acceptanceCriteria: detail.criteria.map((criterion) => ({
       number: criterion.number,

@@ -45,6 +45,7 @@ async function NewTaskScreen({
   const {
     container,
     ownerId,
+    you,
     spaces,
     repositoryOptions,
     parentOptions,
@@ -85,6 +86,7 @@ async function NewTaskScreen({
       <NewTaskForm
         action={TASK_ACTIONS.create}
         defaults={defaults}
+        you={you?.login}
         labels={await container.queryBus.ask(listLabelsQuery(ownerId))}
         repositories={await repositoryOptions()}
         parents={await parentOptions(spaces.all.map((space) => space.ownerId))}

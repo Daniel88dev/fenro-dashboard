@@ -33,6 +33,7 @@ import {
   type QuestionnaireView,
 } from "@/modules/tasks/application/queries/questionnaire";
 import type {
+  AssigneeItem,
   BriefSkill,
   LabelItem,
   QuestionnaireItem,
@@ -41,6 +42,7 @@ import type {
   TaskBrief,
 } from "@/modules/tasks/application/queries/read-models";
 import { skillQuery } from "@/modules/tasks/application/queries/skill";
+import { spaceMembersQuery } from "@/modules/tasks/application/queries/space-members";
 import { taskBriefQuery } from "@/modules/tasks/application/queries/task-brief";
 import {
   LABEL_COLOURS,
@@ -83,6 +85,9 @@ export const SKILLS = `Skills: a skill is a set of instructions a person linked 
 
 const WAIT_MINUTES = WAIT_BUDGET_MS / 60_000;
 
+const ME = "me";
+const UNASSIGNED = "unassigned";
+
 export const QUESTIONS = `Questions: when only the person can settle something (a design direction, a scope call, a preference), ask_questions posts a round of up to ${MAX_QUESTIONS} questions to the task; they answer on the task page, often from a phone. Ask only what blocks you, not what you can find out. Give each choice question ${MIN_SUGGESTIONS} to ${MAX_SUGGESTIONS} suggestions and mark the one you would pick as recommended. The person can always answer in their own words, so never add an "Other" suggestion. To show a design or a screenshot, attach_picture first and put its id on the question or a suggestion. A task has one open round at a time, and it shows as blocked until answered. If the person is at hand, wait_for_answers waits for them, up to ${WAIT_MINUTES} minutes from posting; otherwise, or when that runs out, finish_session with outcome paused, and the next session's brief carries the answers. get_answers reads a round; withdraw_questions takes back a round you no longer need.`;
 
 export const INSTRUCTIONS = `Fenro is the task list you work from. Tasks carry context between sessions, so record what you learn as you go.
@@ -97,6 +102,8 @@ The loop:
 A task is not done while it has open sub-tasks or unmet criteria. Tasks are named by key, like T-12; a person may paste a task's link instead (…/tasks/T-12), which works wherever a key does.
 
 Tasks live in spaces. T- keys are the person's own; a group they belong to shares its tasks with every member, and its keys carry the group's prefix, like HAL-12. list_tasks and start_task cover every space; give list_tasks a space to narrow it. save_task files new work in the parent's or discovered_from's space, or in the space you name. Parents, sub-tasks and blockers never cross spaces. A task can sit under a parent: get_task shows its parent and sub-tasks, save_task with parent moves it, and list_tasks with parent lists a parent's sub-tasks.
+
+Every task has an assignee: a personal task is always the person's own ("me"), and a group task starts unassigned until someone takes it. Assign a group task with save_task and assignee only when the person asks you to; list_tasks with assignee "me" lists what is theirs.
 
 An epic (type: "epic") is a larger piece of work that holds tasks. It sits at the top, has no parent, and is done when its tasks are; nobody starts a session on one, so work its tasks instead. File work that belongs to an epic with save_task and the epic's key as parent, and list an epic's tasks with list_tasks and epic. list_tasks with type: "epic" lists the epics.
 
@@ -145,6 +152,39 @@ export function createTasksMcpServer(
       }),
     );
   const url = (key: string) => ({ url: links.task(key) });
+  const assigneeOf = (assignee: AssigneeItem | null) =>
+    !assignee ? null : assignee.id === ownerId ? ME : assignee.login;
+
+  const membersOf = async (space: TaskSpace) =>
+    space.kind === "group"
+      ? queryBus.ask(spaceMembersQuery(space.ownerId, space.prefix))
+      : [];
+  /** `me` becomes the token owner's login in that group. */
+  const loginFor = async (
+    assignee: string | null | undefined,
+    space: TaskSpace | undefined,
+  ) => {
+    if (assignee?.trim().toLowerCase() !== ME || !space) return assignee;
+    const members = await membersOf(space);
+    return (
+      members.find((member) => member.userId === ownerId)?.login ?? assignee
+    );
+  };
+  const assigneeIds = async (
+    assignee: string,
+    shown: readonly TaskSpace[],
+  ): Promise<(string | null)[] | undefined> => {
+    const wanted = assignee.trim().replace(/^@/, "").toLowerCase();
+    if (wanted === ME) return [ownerId];
+    if (wanted === UNASSIGNED) return [null];
+    for (const space of shown) {
+      const member = (await membersOf(space)).find(
+        (candidate) => candidate.login.toLowerCase() === wanted,
+      );
+      if (member) return [member.userId];
+    }
+    return undefined;
+  };
 
   const standing = async (
     task: string,
@@ -154,7 +194,11 @@ export function createTasksMcpServer(
     if (!outcome.ok) return refused(outcome.error);
     const found = await brief(task, 0, false, owner);
     return found.ok
-      ? json({ ...standingOf(found.value), ...url(found.value.key) })
+      ? json({
+          ...standingOf(found.value),
+          assignee: assigneeOf(found.value.assignee),
+          ...url(found.value.key),
+        })
       : refused(found.error);
   };
 
@@ -198,6 +242,12 @@ export function createTasksMcpServer(
           .describe(
             "Only one space's tasks, by key prefix: T for personal, or a group's, like HAL",
           ),
+        assignee: z
+          .string()
+          .optional()
+          .describe(
+            'Only tasks assigned to "me" (your personal tasks and group tasks assigned to you), "unassigned" group tasks, or a group member by GitHub login',
+          ),
         limit: z.number().int().min(1).max(100).optional(),
       }),
       annotations: { readOnlyHint: true, openWorldHint: false },
@@ -207,22 +257,37 @@ export function createTasksMcpServer(
         ? spaceWithPrefix(spaces, input.space)
         : undefined;
       if (input.space && !space) return unknownSpace(input.space);
-      return json(
-        await queryBus.ask(
-          listTasksQuery(space ? space.ownerId : owners, {
-            ready: input.ready,
-            statuses: input.status,
-            includeClosed: input.include_closed,
-            repository: input.repository,
-            labels: input.labels,
-            parent: input.parent,
-            kinds: input.type ? [input.type] : undefined,
-            epic: input.epic,
-            text: input.text,
-            limit: input.limit,
-          }),
-        ),
+      const assignees = input.assignee
+        ? await assigneeIds(input.assignee, space ? [space] : spaces)
+        : undefined;
+      if (input.assignee && !assignees) {
+        return text(
+          `${input.assignee} is not a member of ${space ? space.name : "any of your groups"}. Use "me", "unassigned" or a member's GitHub login.`,
+          true,
+        );
+      }
+      const list = await queryBus.ask(
+        listTasksQuery(space ? space.ownerId : owners, {
+          ready: input.ready,
+          statuses: input.status,
+          includeClosed: input.include_closed,
+          repository: input.repository,
+          labels: input.labels,
+          parent: input.parent,
+          kinds: input.type ? [input.type] : undefined,
+          epic: input.epic,
+          text: input.text,
+          assignees,
+          limit: input.limit,
+        }),
       );
+      return json({
+        ...list,
+        tasks: list.tasks.map((task) => ({
+          ...task,
+          assignee: assigneeOf(task.assignee),
+        })),
+      });
     },
   );
 
@@ -243,6 +308,7 @@ export function createTasksMcpServer(
       return found.ok
         ? json({
             ...found.value,
+            assignee: assigneeOf(found.value.assignee),
             ...roundsOf(found.value),
             skills: found.value.skills.map(skillSummaryOf),
             ...url(found.value.key),
@@ -522,6 +588,13 @@ export function createTasksMcpServer(
           .nullable()
           .optional()
           .describe("owner/name; null clears"),
+        assignee: z
+          .string()
+          .nullable()
+          .optional()
+          .describe(
+            "Group tasks only: a member's GitHub login, or \"me\"; null unassigns. Personal tasks are always their owner's, so leave it out for them",
+          ),
         parent: z
           .string()
           .nullable()
@@ -582,6 +655,7 @@ export function createTasksMcpServer(
           addLabels: input.add_labels,
           removeLabels: input.remove_labels,
           repository: input.repository,
+          assignee: await loginFor(input.assignee, spaceOfTask(spaces, task)),
           parent: input.parent,
           addCriteria: input.add_criteria,
           removeCriteria: input.remove_criteria,
@@ -618,6 +692,7 @@ export function createTasksMcpServer(
         priority: input.priority,
         labels: [...(input.labels ?? []), ...(input.add_labels ?? [])],
         repository: input.repository,
+        assignee: await loginFor(input.assignee, space),
         parent: input.parent,
         criteria: input.add_criteria,
         references: attach,
@@ -934,6 +1009,7 @@ export function createTasksMcpServer(
           return found.ok
             ? json({
                 ...found.value,
+                assignee: assigneeOf(found.value.assignee),
                 ...roundsOf(found.value),
                 ...url(found.value.key),
               })

@@ -9,6 +9,8 @@ import {
 import type { Command, CommandHandler } from "@/shared/application";
 import { err, type Result } from "@/shared/domain";
 
+import type { GroupTasks } from "../ports/group-tasks";
+
 type MembershipCommand<TType extends string> = Command<TType, GroupError> & {
   readonly groupId: string;
   readonly by: Person;
@@ -134,9 +136,23 @@ export class RemoveMemberHandler
   extends MembershipHandler<RemoveMemberCommand>
   implements CommandHandler<RemoveMemberCommand>
 {
-  constructor(groups: GroupRepository, clock: () => Date) {
+  constructor(
+    groups: GroupRepository,
+    private readonly tasks: GroupTasks,
+    clock: () => Date,
+  ) {
     super(groups, clock, (group, command, now) =>
       group.remove(command.by, command.userId, now),
     );
+  }
+
+  async handle(
+    command: RemoveMemberCommand,
+  ): Promise<Result<void, GroupError>> {
+    const removed = await super.handle(command);
+    if (removed.ok) {
+      await this.tasks.release(command.groupId, command.userId, command.by);
+    }
+    return removed;
   }
 }

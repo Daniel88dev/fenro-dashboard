@@ -17,8 +17,9 @@ import {
   PencilSimple,
 } from "@phosphor-icons/react/ssr";
 
-import type { TaskKind } from "@/modules/tasks/domain";
+import type { SpaceMember, TaskKind } from "@/modules/tasks/domain";
 
+import { AssigneeSelect, LockedAssignee } from "./assignee-select";
 import { LabelPicker } from "./label-picker";
 import { MarkdownEditor } from "./markdown-editor";
 import type { LabelOption } from "./labels";
@@ -36,6 +37,7 @@ export type TaskActions = {
   readonly create: TaskAction;
   readonly update: TaskAction;
   readonly labels: TaskAction;
+  readonly assign: TaskAction;
   readonly kind: TaskAction;
   readonly edit: TaskAction;
   readonly note: TaskAction;
@@ -269,11 +271,13 @@ export function NewTaskForm({
   repositories = [],
   parents = [],
   spaces = [],
+  you,
   variant = "page",
   cancel,
 }: {
   action: TaskAction;
   defaults: NewTaskDefaults;
+  you?: string;
   parents?: readonly ParentOption[];
   labels?: readonly LabelOption[];
   repositories?: readonly RepositoryOption[];
@@ -358,6 +362,23 @@ export function NewTaskForm({
       )}
     </Field>
   );
+  const assignee = you ? (
+    <Field label="Assignee">
+      {(id) =>
+        space?.kind === "group" ? (
+          <AssigneeSelect
+            key={spacePrefix}
+            id={id}
+            members={space.members}
+            you={you}
+            groupName={space.name}
+          />
+        ) : (
+          <LockedAssignee login={you} />
+        )
+      }
+    </Field>
+  ) : null;
   const labelField = (
     <fieldset className="m-0 min-w-0 border-0 p-0">
       <legend className="text-ink mb-1.5 p-0 text-[12.5px] font-medium">
@@ -443,6 +464,7 @@ export function NewTaskForm({
                 {repository}
                 <PrioritySegments />
               </div>
+              {assignee}
               {labelField}
               <details
                 className="group"
@@ -467,6 +489,7 @@ export function NewTaskForm({
               </div>
               <div className="flex flex-col gap-[18px]">
                 <KindSegments value={kind} onChange={setKind} />
+                {assignee}
                 {repository}
                 <PrioritySegments />
                 {labelField}
@@ -673,6 +696,43 @@ export function TaskLabelsForm({
           catalogue={catalogue}
           defaultValue={labels}
           onPick={submit}
+        />
+      )}
+    </ActionForm>
+  );
+}
+
+export function TaskAssigneeForm({
+  action,
+  task,
+  assignee,
+  members,
+  you,
+  groupName,
+}: {
+  action: TaskAction;
+  task: string;
+  assignee: string | null;
+  members: readonly SpaceMember[];
+  you: string;
+  groupName: string;
+}) {
+  return (
+    <ActionForm
+      action={action}
+      label="Assignee"
+      task={task}
+      resetOnSave={false}
+      className="flex flex-col gap-1.5"
+    >
+      {() => (
+        <AssigneeSelect
+          members={members}
+          you={you}
+          groupName={groupName}
+          defaultValue={assignee}
+          onPick={submit}
+          offerMe
         />
       )}
     </ActionForm>

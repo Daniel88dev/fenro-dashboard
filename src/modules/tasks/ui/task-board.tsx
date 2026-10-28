@@ -26,6 +26,7 @@ import {
 } from "@/modules/tasks/application/queries/read-models";
 import type { TaskStatus } from "@/modules/tasks/domain";
 
+import { Avatar, assigneeLogin, assigneeWords, type Reader } from "./assignee";
 import { colourOf, LabelDot, type LabelOption } from "./labels";
 import { QuestionsChip } from "./questions-chip";
 import { EpicProgress, EpicTag, TaskKindIcon } from "./task-kind";
@@ -103,11 +104,13 @@ function moved(columns: readonly BoardColumn[], move: Move): BoardColumn[] {
 export function TaskBoard({
   columns,
   labels,
+  you,
   move,
   done,
 }: {
   columns: readonly BoardColumn[];
   labels: readonly LabelOption[];
+  you?: Reader;
   move: MoveTask;
   done?: DoneWindowLinks;
 }) {
@@ -201,6 +204,7 @@ export function TaskBoard({
                     <BoardCard
                       task={task}
                       labels={labels}
+                      you={you}
                       dragging={dragging === task.key}
                       onDragStart={(event) => {
                         event.dataTransfer.effectAllowed = "move";
@@ -244,6 +248,7 @@ const MOVE_TARGETS: readonly TaskStatus[] = [
 function BoardCard({
   task,
   labels,
+  you,
   dragging,
   onDragStart,
   onDragEnd,
@@ -251,6 +256,7 @@ function BoardCard({
 }: {
   task: TaskListItem;
   labels: readonly LabelOption[];
+  you?: Reader;
   dragging: boolean;
   onDragStart: (event: DragEvent<HTMLElement>) => void;
   onDragEnd: () => void;
@@ -271,14 +277,22 @@ function BoardCard({
       <div className="flex items-center gap-2">
         <TaskKindIcon kind={task.kind} />
         <span className="text-ink-faint font-mono text-[12px]">{task.key}</span>
-        {priority ? (
-          <span className="text-ink-muted ml-auto text-[12px]">{priority}</span>
-        ) : null}
-        <MoveMenu
-          task={task}
-          className={priority ? "" : "ml-auto"}
-          onMove={onMove}
-        />
+        <span className="ml-auto flex items-center gap-2">
+          {priority ? (
+            <span className="text-ink-muted text-[12px]">{priority}</span>
+          ) : null}
+          {epic ? null : (
+            <span
+              role="img"
+              aria-label={assigneeLabel(task, you)}
+              title={assigneeLabel(task, you)}
+              className="flex"
+            >
+              <Avatar login={assigneeLogin(task.assignee, you)} size="sm" />
+            </span>
+          )}
+          <MoveMenu task={task} className="" onMove={onMove} />
+        </span>
       </div>
       <Link
         href={taskHref(task.key)}
@@ -291,6 +305,13 @@ function BoardCard({
       <CardFacts task={task} labels={labels} />
     </article>
   );
+}
+
+function assigneeLabel(task: TaskListItem, you?: Reader): string {
+  const words = assigneeWords(task.assignee, you);
+  return words === "Unassigned"
+    ? "Unassigned"
+    : `Assigned to ${words === "You" ? "you" : words}`;
 }
 
 function CardFacts({

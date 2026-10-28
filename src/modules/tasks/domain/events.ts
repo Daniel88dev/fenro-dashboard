@@ -42,6 +42,19 @@ export class TaskKindChanged extends BaseDomainEvent {
   }
 }
 
+export class TaskAssigneeChanged extends BaseDomainEvent {
+  readonly name = "tasks.task-assignee-changed";
+
+  constructor(
+    aggregateId: string,
+    readonly from: string | null,
+    readonly to: string | null,
+    occurredAt?: Date,
+  ) {
+    super(aggregateId, occurredAt);
+  }
+}
+
 export class SessionStarted extends BaseDomainEvent {
   readonly name = "tasks.session-started";
 

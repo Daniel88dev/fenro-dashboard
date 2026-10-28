@@ -124,6 +124,7 @@ export async function createTaskAction(
       : undefined,
     labels: labelsOf(formData),
     repository: text(formData, "repository") || undefined,
+    assignee: text(formData, "assignee") || undefined,
     parent: text(formData, "parent") || undefined,
     criteria: lines(formData, "criteria"),
     references: source ? [{ url: source, isSource: true }] : [],
@@ -174,6 +175,27 @@ export async function updateTaskAction(
       : undefined,
   };
   return answer(state, await container.commandBus.dispatch(command), task);
+}
+
+export async function assignTaskAction(
+  state: TaskFormState,
+  formData: FormData,
+): Promise<TaskFormState> {
+  const session = await signedIn();
+  if (!session) return { error: SIGNED_OUT, saved: state.saved };
+  const { spaces, actor, container } = session;
+
+  const task = text(formData, "task");
+  const command: UpdateTaskCommand = {
+    type: "tasks.update-task",
+    ownerId: spaces.ownerOf(task),
+    actor,
+    task,
+    assignee: text(formData, "assignee") || null,
+  };
+  const outcome = await container.commandBus.dispatch(command);
+  if (outcome.ok) revalidatePath("/tasks");
+  return answer(state, outcome, task);
 }
 
 export async function changeKindAction(

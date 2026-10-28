@@ -15,7 +15,7 @@ export default async function TaskDialogPage({
   params,
 }: PageProps<"/tasks/[key]">) {
   const key = decodeURIComponent((await params).key);
-  const { container, spaces } = await tasksContext();
+  const { container, spaces, you } = await tasksContext();
   if (!spaces) return null;
 
   const ownerId = spaces.ownerOf(key);
@@ -36,6 +36,7 @@ export default async function TaskDialogPage({
         actions={TASK_ACTIONS}
         labels={labels}
         picturesEnabled={picturesEnabled()}
+        you={you ?? undefined}
       />
     </RouteDialog>
   );

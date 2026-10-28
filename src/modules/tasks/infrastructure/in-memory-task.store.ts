@@ -18,6 +18,7 @@ import {
   LabelRenamed,
   Skill,
   skillExists,
+  PERSONAL_KEY_PREFIX,
   Task,
   TaskGraph,
   taskError,
@@ -99,6 +100,12 @@ export class InMemoryTaskStore
       (task) => task.ownerId === ownerId && task.number === number,
     );
     return stored ? this.#restore(stored) : undefined;
+  }
+
+  async assignedTo(ownerId: string, userId: string): Promise<Task[]> {
+    return this.#owned(ownerId)
+      .filter((task) => task.state.assignee?.userId === userId)
+      .map((task) => this.#restore(task));
   }
 
   async nextNumber(ownerId: string): Promise<number> {
@@ -684,6 +691,12 @@ export class InMemoryTaskStore
       repository: state.repository
         ? { owner: state.repository.owner, name: state.repository.name }
         : null,
+      assignee:
+        stored.keyPrefix === PERSONAL_KEY_PREFIX
+          ? { id: stored.ownerId, login: null }
+          : state.assignee
+            ? { id: state.assignee.userId, login: state.assignee.login }
+            : null,
       parentId: state.parentId,
       blockedBy: blockedBy(state),
       hold: state.hold,

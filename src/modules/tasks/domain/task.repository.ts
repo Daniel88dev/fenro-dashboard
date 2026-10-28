@@ -11,6 +11,7 @@ import type { TaskGraph } from "./task-graph";
 export interface TaskRepository {
   findById(ownerId: string, id: string): Promise<Task | undefined>;
   findByNumber(ownerId: string, number: number): Promise<Task | undefined>;
+  assignedTo(ownerId: string, userId: string): Promise<Task[]>;
 
   /** A race is caught by `save`. */
   nextNumber(ownerId: string): Promise<number>;
