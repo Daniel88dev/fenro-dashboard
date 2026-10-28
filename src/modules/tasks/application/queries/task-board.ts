@@ -36,18 +36,26 @@ export class TaskBoardHandler implements QueryHandler<
       await this.tasks.records(query.ownerId),
       this.clock(),
     );
-    const filter = resolveFilter(index, query.filter);
-    if (!filter) {
-      return {
-        done: query.done,
-        columns: BOARD_STATUSES.map((status) => ({
-          status,
-          total: 0,
-          tasks: [],
-          finishedEarlier: 0,
-        })),
-      };
-    }
-    return board(index, filter, query.done);
+    return taskBoard(index, query.filter, query.done);
   }
+}
+
+export function taskBoard(
+  index: TaskIndex,
+  input: TaskBoardQuery["filter"],
+  done: DoneWindow,
+): TaskBoard {
+  const filter = resolveFilter(index, input);
+  if (!filter) {
+    return {
+      done,
+      columns: BOARD_STATUSES.map((status) => ({
+        status,
+        total: 0,
+        tasks: [],
+        finishedEarlier: 0,
+      })),
+    };
+  }
+  return board(index, filter, done);
 }

@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   defaultLabelColour,
@@ -34,6 +34,7 @@ import {
   searchTasksQuery,
 } from "./queries/search-tasks";
 import { TaskBoardHandler, taskBoardQuery } from "./queries/task-board";
+import { TasksScreenHandler, tasksScreenQuery } from "./queries/tasks-screen";
 import {
   TaskCountsByRepositoryHandler,
   taskCountsByRepositoryQuery,
@@ -518,6 +519,79 @@ describe("the board", () => {
     });
 
     expect(!moved.ok && moved.error.code).toBe("invalid-transition");
+  });
+});
+
+describe("the tasks screen", () => {
+  async function work() {
+    await create({ title: "Ship tasks v2", kind: "epic" });
+    await create({
+      title: "Board",
+      parent: "T-1",
+      labels: ["ui"],
+      repository: "daniel88dev/fenro-dashboard",
+    });
+    await create({ title: "Waiting", blockedBy: ["T-2"] });
+    await create({ title: "Shipped", labels: ["ui"] });
+    await changeStatus({ actor: DANIEL, task: "T-4", status: "done" });
+  }
+
+  it("answers the list, its counts and facets from one read of the tasks", async () => {
+    await work();
+    const records = vi.spyOn(store, "records");
+
+    const screen = await new TasksScreenHandler(store, clock).handle(
+      tasksScreenQuery(
+        OWNER,
+        { layout: "list", filter: { limit: 100 } },
+        {
+          blocked: { states: ["blocked", "waiting"] },
+          closed: { statuses: ["done", "cancelled"] },
+          inEpic: { epic: "T-1" },
+        },
+      ),
+    );
+
+    expect(records).toHaveBeenCalledTimes(1);
+    expect(screen.content.layout).toBe("list");
+    if (screen.content.layout !== "list") return;
+    expect(screen.content.list.tasks.map((task) => task.key).sort()).toEqual([
+      "T-1",
+      "T-2",
+      "T-3",
+    ]);
+    records.mockRestore();
+    const list = new ListTasksHandler(store, clock);
+    const total = async (filter: Parameters<typeof listTasksQuery>[1]) =>
+      (await list.handle(listTasksQuery(OWNER, filter))).total;
+    expect(screen.counts).toEqual({
+      blocked: await total({ states: ["blocked", "waiting"] }),
+      closed: 1,
+      inEpic: 1,
+    });
+    expect(screen.epics.map((task) => task.key)).toEqual(["T-1"]);
+    expect(
+      screen.labels.map((label) => [label.name, label.openTasks, label.tasks]),
+    ).toEqual([["ui", 1, 2]]);
+    expect(screen.repositories).toEqual([
+      { name: "daniel88dev/fenro-dashboard", openTasks: 1, tasks: 1 },
+    ]);
+  });
+
+  it("answers the board the board query would", async () => {
+    await work();
+    const query = { epic: "T-1" };
+
+    const screen = await new TasksScreenHandler(store, clock).handle(
+      tasksScreenQuery(OWNER, { layout: "board", filter: query, done: "week" }),
+    );
+
+    expect(screen.content).toEqual({
+      layout: "board",
+      board: await new TaskBoardHandler(store, clock).handle(
+        taskBoardQuery(OWNER, query, "week"),
+      ),
+    });
   });
 });
 

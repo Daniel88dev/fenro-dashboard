@@ -303,6 +303,11 @@ import {
   type TaskBoardQuery,
 } from "@/modules/tasks/application/queries/task-board";
 import {
+  TasksScreenHandler,
+  type TasksScreen,
+  type TasksScreenQuery,
+} from "@/modules/tasks/application/queries/tasks-screen";
+import {
   TaskCountsByRepositoryHandler,
   type TaskCountsByRepositoryQuery,
 } from "@/modules/tasks/application/queries/task-counts-by-repository";
@@ -577,6 +582,10 @@ function registerTasks(
   queryBus.register<TaskBoardQuery, TaskBoard>(
     "tasks.task-board",
     new TaskBoardHandler(taskReads, clock),
+  );
+  queryBus.register<TasksScreenQuery, TasksScreen>(
+    "tasks.tasks-screen",
+    new TasksScreenHandler(taskReads, clock),
   );
   queryBus.register<ListLabelsQuery, LabelItem[]>(
     "tasks.list-labels",
