@@ -1,9 +1,9 @@
-import { groupQuery } from "@/modules/groups/application/queries/group";
 import { watchedRepositoryNamesQuery } from "@/modules/github-insights/application/queries/watched-repository-names";
 import { signedInUserQuery } from "@/modules/identity/application/queries/signed-in-user";
 import { listLabelsQuery } from "@/modules/tasks/application/queries/list-labels";
 import { listTasksQuery } from "@/modules/tasks/application/queries/list-tasks";
 import { nextTaskKeyQuery } from "@/modules/tasks/application/queries/next-task-key";
+import { spaceMembersQuery } from "@/modules/tasks/application/queries/space-members";
 import { spaceOfTask, type SpaceMember } from "@/modules/tasks/domain";
 import type { ParentOption } from "@/modules/tasks/ui/parent-select";
 import type { RepositoryOption } from "@/modules/tasks/ui/repository-select";
@@ -17,24 +17,19 @@ export async function tasksContext(now?: Date) {
   const user = await container.queryBus.ask(signedInUserQuery());
   const spaces = user ? await spacesOf(container.queryBus, user) : null;
   const ask = container.queryBus.ask.bind(container.queryBus);
-  const groupMembers = async (): Promise<Map<string, SpaceMember[]>> => {
-    if (!user || !spaces) return new Map();
-    const details = await Promise.all(
-      spaces.groups.map((group) => ask(groupQuery(group.prefix, user.id))),
-    );
+  const groupMembers = async (): Promise<
+    Map<string, readonly SpaceMember[]>
+  > => {
+    if (!spaces) return new Map();
     return new Map(
-      details.flatMap((detail) =>
-        detail.ok
-          ? [
-              [
-                detail.value.id,
-                detail.value.members.map(({ userId, login }) => ({
-                  userId,
-                  login,
-                })),
-              ] as const,
-            ]
-          : [],
+      await Promise.all(
+        spaces.groups.map(
+          async (group) =>
+            [
+              group.id,
+              await ask(spaceMembersQuery(group.id, group.prefix)),
+            ] as const,
+        ),
       ),
     );
   };
@@ -42,11 +37,10 @@ export async function tasksContext(now?: Date) {
     const space = spaces ? spaceOfTask(spaces.all, key) : undefined;
     if (!space || !user) return undefined;
     if (space.kind === "personal") return { ...space, members: [] };
-    const group = await ask(groupQuery(space.prefix, user.id));
-    const members = group.ok
-      ? group.value.members.map(({ userId, login }) => ({ userId, login }))
-      : [];
-    return { ...space, members };
+    return {
+      ...space,
+      members: await ask(spaceMembersQuery(space.ownerId, space.prefix)),
+    };
   };
   return {
     container,

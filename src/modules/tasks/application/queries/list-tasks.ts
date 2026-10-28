@@ -45,9 +45,16 @@ export class ListTasksHandler implements QueryHandler<
       await this.tasks.records(query.ownerId),
       this.clock(),
     );
-    const filter = resolveFilter(index, query.filter);
-    return filter ? listTasks(index, filter) : { total: 0, tasks: [] };
+    return listTasksIn(index, query.filter);
   }
+}
+
+export function listTasksIn(
+  index: TaskIndex,
+  input: TaskListFilterInput,
+): TaskList {
+  const filter = resolveFilter(index, input);
+  return filter ? listTasks(index, filter) : { total: 0, tasks: [] };
 }
 
 export function resolveFilter(

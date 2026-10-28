@@ -4,10 +4,7 @@ import { DashboardChrome } from "@/modules/github-insights/ui/dashboard-chrome";
 import { TaskLoading } from "@/modules/tasks/ui/task-loading";
 import { SignInPanel } from "@/modules/identity/ui/sign-in-panel";
 import type { ListTasksQuery } from "@/modules/tasks/application/queries/list-tasks";
-import { listLabelsQuery } from "@/modules/tasks/application/queries/list-labels";
-import { listTaskRepositoriesQuery } from "@/modules/tasks/application/queries/list-task-repositories";
-import { listTasksQuery } from "@/modules/tasks/application/queries/list-tasks";
-import { taskBoardQuery } from "@/modules/tasks/application/queries/task-board";
+import { tasksScreenQuery } from "@/modules/tasks/application/queries/tasks-screen";
 import {
   ASSIGNED_TO_ME,
   isTaskView,
@@ -35,7 +32,6 @@ export const metadata = {
 };
 
 const LIST_LIMIT = 100;
-const EPIC_LIMIT = 100;
 
 const VIEW_FILTERS: Record<TaskView, ListTasksQuery["filter"]> = {
   open: {},
@@ -98,13 +94,13 @@ async function TasksScreen({
     : spaces.all;
   const ownerId = shown.map((space) => space.ownerId);
 
-  const members = await groupMembers();
-  const people = peopleIn(members, spaces.groups);
-  const userIdOf = new Map(
-    [...members.values()]
-      .flat()
-      .map((member) => [member.login.toLowerCase(), member.userId]),
+  // Members only matter before the tasks when the filter names a person by
+  // login; otherwise both are read at once.
+  const membersRead = groupMembers();
+  const byLogin = filter.assignees?.some(
+    (token) => token !== ASSIGNED_TO_ME && token !== UNASSIGNED,
   );
+  const userIdOf = byLogin ? loginsToIds(await membersRead) : new Map();
 
   const scope: ListTasksQuery["filter"] = {
     repository: filter.repository || undefined,
@@ -122,67 +118,63 @@ async function TasksScreen({
       : undefined,
     ...epicScope(filter.epic ?? ""),
   };
-  const ask = container.queryBus.ask.bind(container.queryBus);
   const onBoard = filter.layout === "board";
-  const [
-    labels,
-    repositories,
-    epics,
-    needing,
-    content,
-    scopeTotals,
-    ...totals
-  ] = await Promise.all([
-    ask(listLabelsQuery(ownerId)),
-    ask(listTaskRepositoriesQuery(ownerId)),
-    ask(listTasksQuery(ownerId, { kinds: ["epic"], limit: EPIC_LIMIT })),
-    ask(listTasksQuery(ownerId, { needsAnswer: true, limit: 1 })),
-    onBoard
-      ? ask(taskBoardQuery(ownerId, scope, filter.done))
-      : ask(
-          listTasksQuery(ownerId, {
-            ...VIEW_FILTERS[filter.view],
-            ...scope,
-            limit: LIST_LIMIT,
-          }),
-        ),
-    Promise.all(
-      (["", "epics", "none"] as const).map((rail) =>
-        ask(listTasksQuery(ownerId, { ...epicScope(rail), limit: 1 })),
+  const [members, screen] = await Promise.all([
+    membersRead,
+    container.queryBus.ask(
+      tasksScreenQuery(
+        ownerId,
+        onBoard
+          ? { layout: "board", filter: scope, done: filter.done ?? "week" }
+          : {
+              layout: "list",
+              filter: {
+                ...VIEW_FILTERS[filter.view],
+                ...scope,
+                limit: LIST_LIMIT,
+              },
+            },
+        {
+          needing: { needsAnswer: true },
+          "rail:all": epicScope(""),
+          "rail:epics": epicScope("epics"),
+          "rail:none": epicScope("none"),
+          ...(onBoard
+            ? {}
+            : Object.fromEntries(
+                TASK_VIEWS.map(({ view }) => [
+                  `view:${view}`,
+                  { ...VIEW_FILTERS[view], ...scope },
+                ]),
+              )),
+        },
       ),
     ),
-    ...(onBoard
-      ? []
-      : TASK_VIEWS.map(({ view }) =>
-          ask(
-            listTasksQuery(ownerId, {
-              ...VIEW_FILTERS[view],
-              ...scope,
-              limit: 1,
-            }),
-          ),
-        )),
   ]);
+  const { content, counts: totals } = screen;
   const counts = onBoard
     ? undefined
     : Object.fromEntries(
-        TASK_VIEWS.map(({ view }, index) => [view, totals[index]!.total]),
+        TASK_VIEWS.map(({ view }) => [view, totals[`view:${view}`]!]),
       );
-  const [all, epicsOnly, none] = scopeTotals.map((result) => result.total);
   return (
     <TaskList
-      list={"columns" in content ? undefined : content}
-      board={"columns" in content ? content : undefined}
+      list={content.layout === "list" ? content.list : undefined}
+      board={content.layout === "board" ? content.board : undefined}
       filter={filter}
       counts={counts}
-      labels={labels}
-      repositories={repositories}
-      epics={epics.tasks}
-      scopeCounts={{ all: all!, epics: epicsOnly!, none: none! }}
+      labels={screen.labels}
+      repositories={screen.repositories}
+      epics={screen.epics}
+      scopeCounts={{
+        all: totals["rail:all"]!,
+        epics: totals["rail:epics"]!,
+        none: totals["rail:none"]!,
+      }}
       spaces={spaces.all}
-      needingAnswers={needing.total}
+      needingAnswers={totals.needing!}
       you={you}
-      people={people}
+      people={peopleIn(members, spaces.groups)}
       move={moveTaskAction}
     />
   );
@@ -193,6 +185,16 @@ function epicScope(scope: string): ListTasksQuery["filter"] {
   if (scope === "epics") return { kinds: ["epic"] };
   if (scope === "none") return { outsideEpics: true };
   return { epic: scope };
+}
+
+function loginsToIds(
+  members: ReadonlyMap<string, readonly { userId: string; login: string }[]>,
+): Map<string, string> {
+  return new Map(
+    [...members.values()]
+      .flat()
+      .map((member) => [member.login.toLowerCase(), member.userId]),
+  );
 }
 
 function peopleIn(
