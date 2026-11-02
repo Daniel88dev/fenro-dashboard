@@ -10,8 +10,10 @@ import {
 } from "vitest";
 
 const push = vi.fn();
+let pathname = "/tasks";
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push, refresh: vi.fn() }),
+  usePathname: () => pathname,
 }));
 
 import type {
@@ -67,6 +69,7 @@ beforeEach(() => {
   vi.useFakeTimers();
   asked.length = 0;
   push.mockReset();
+  pathname = "/tasks";
   answer = () => none;
   vi.stubGlobal(
     "fetch",
@@ -194,6 +197,20 @@ describe("the search palette", () => {
 
     expect(push).toHaveBeenCalledWith("/tasks/T-44");
     expect(dialog).not.toHaveAttribute("open");
+  });
+
+  it("loads the chosen task as a full page from a task page", async () => {
+    pathname = "/tasks/T-4";
+    const assign = vi.fn();
+    vi.stubGlobal("location", { ...window.location, assign });
+    answer = () => ({ ...none, byNumber: [hit("T-44", "Retry the sync")] });
+    const dialog = await openWithShortcut();
+    await type("44");
+
+    fireEvent.click(within(dialog).getByText("Retry the sync"));
+
+    expect(assign).toHaveBeenCalledWith("/tasks/T-44");
+    expect(push).not.toHaveBeenCalled();
   });
 
   it("says when nothing matches", async () => {

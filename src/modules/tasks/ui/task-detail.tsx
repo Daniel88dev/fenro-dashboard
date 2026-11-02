@@ -56,6 +56,7 @@ import {
 import { TaskSkills } from "./task-skills";
 import { EpicProgress, kindWord, TaskKindIcon } from "./task-kind";
 import { StateChip } from "./state-chip";
+import { TaskLink } from "./task-link";
 import { taskHref } from "./task-state";
 
 const DATE = new Intl.DateTimeFormat("en", {
@@ -586,7 +587,7 @@ export function JournalSection({
 
 function MentionLink({ task }: { task: TaskMention }) {
   return (
-    <Link
+    <TaskLink
       href={taskHref(task.key)}
       className="hover:bg-surface-sunken focus-visible:outline-pr -mx-1.5 flex min-w-0 items-center gap-2 rounded-md px-1.5 py-0.5 focus-visible:outline-2"
       title={task.title}
@@ -597,7 +598,7 @@ function MentionLink({ task }: { task: TaskMention }) {
         {task.title}
       </span>
       <StateChip state={task.state} />
-    </Link>
+    </TaskLink>
   );
 }
 
@@ -624,7 +625,7 @@ export function TaskTrail({
       ) : null}
       {task.parent ? (
         <>
-          <Link
+          <TaskLink
             href={taskHref(task.parent.key)}
             title={`${task.parent.kind === "epic" ? "Epic" : "Parent"}: ${task.parent.title}`}
             className="hover:text-ink flex min-w-0 items-center gap-1.5"
@@ -639,7 +640,7 @@ export function TaskTrail({
             )}
             <span className="font-mono">{task.parent.key}</span>
             <span className="max-w-[40ch] truncate">{task.parent.title}</span>
-          </Link>
+          </TaskLink>
           {caret}
         </>
       ) : null}
@@ -684,14 +685,14 @@ export function TaskProperties({ task }: { task: TaskBrief }) {
       ) : null}
       {task.epic && task.epic.key !== task.parent?.key ? (
         <Property label="Epic">
-          <Link
+          <TaskLink
             href={taskHref(task.epic.key)}
             className="text-epic-strong flex min-w-0 items-center gap-2 hover:underline"
           >
             <TaskKindIcon kind="epic" />
             <span className="font-mono text-[12.5px]">{task.epic.key}</span>
             <span className="min-w-0 truncate">{task.epic.title}</span>
-          </Link>
+          </TaskLink>
         </Property>
       ) : null}
       {task.parent ? (
@@ -891,13 +892,13 @@ export function TaskDetail({
                 }
                 aside={
                   open ? (
-                    <Link
+                    <TaskLink
                       href={`/tasks/new?parent=${key}`}
                       className="text-ink-soft hover:bg-surface-sunken focus-visible:outline-pr flex h-7 items-center gap-1.5 rounded-lg px-2.5 text-[12px] font-medium focus-visible:outline-2"
                     >
                       <Plus aria-hidden="true" className="size-[13px]" />
                       {task.kind === "epic" ? "Add task" : "Add sub-task"}
-                    </Link>
+                    </TaskLink>
                   ) : null
                 }
               >

@@ -7,6 +7,7 @@ import { SignInPanel } from "@/modules/identity/ui/sign-in-panel";
 import { listLabelsQuery } from "@/modules/tasks/application/queries/list-labels";
 import { taskBriefQuery } from "@/modules/tasks/application/queries/task-brief";
 import { TaskDetail } from "@/modules/tasks/ui/task-detail";
+import { OnTaskPage } from "@/modules/tasks/ui/task-link";
 import { picturesEnabled } from "@/shared/infrastructure/container";
 
 import { signInWithGitHubAction } from "../../sign-in/actions";
@@ -76,17 +77,19 @@ async function TaskScreen({
   ]);
   if (!task.ok) notFound();
   return (
-    <TaskDetail
-      task={task.value}
-      actions={TASK_ACTIONS}
-      labels={labels}
-      repositories={repositories}
-      parents={parents}
-      picturesEnabled={picturesEnabled()}
-      now={now}
-      round={Number.isInteger(shownRound) ? shownRound : null}
-      you={you?.login}
-      space={space}
-    />
+    <OnTaskPage>
+      <TaskDetail
+        task={task.value}
+        actions={TASK_ACTIONS}
+        labels={labels}
+        repositories={repositories}
+        parents={parents}
+        picturesEnabled={picturesEnabled()}
+        now={now}
+        round={Number.isInteger(shownRound) ? shownRound : null}
+        you={you?.login}
+        space={space}
+      />
+    </OnTaskPage>
   );
 }
