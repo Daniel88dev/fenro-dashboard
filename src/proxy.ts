@@ -11,5 +11,13 @@ export function proxy(request: NextRequest) {
     request.headers.get("host"),
     getEnv().APP_URL,
   );
-  return target ? NextResponse.redirect(target, 308) : NextResponse.next();
+  if (target) return NextResponse.redirect(target, 308);
+  // The router refreshes a task page behind a task dialog with that page as
+  // Next-Url; intercepted, it answers with a dialog and the router reloads.
+  if (request.headers.get("next-url") === request.nextUrl.pathname) {
+    const headers = new Headers(request.headers);
+    headers.delete("next-url");
+    return NextResponse.next({ request: { headers } });
+  }
+  return NextResponse.next();
 }
