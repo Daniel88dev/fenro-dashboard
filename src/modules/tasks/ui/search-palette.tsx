@@ -1,7 +1,7 @@
 "use client";
 
 import { Check, FileText, MagnifyingGlass } from "@phosphor-icons/react/ssr";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
   useEffect,
   useRef,
@@ -28,6 +28,7 @@ import type {
 import { searchWords } from "@/modules/tasks/application/queries/search-tasks";
 
 import { StateChip } from "./state-chip";
+import { isTaskPage } from "./task-link";
 import { TaskKindIcon } from "./task-kind";
 
 export type PalettePage = {
@@ -121,6 +122,7 @@ function useTaskSearch(
 
 export function SearchPalette({ pages }: { pages: readonly PalettePage[] }) {
   const router = useRouter();
+  const pathname = usePathname();
   const mod = useModifierKey();
   const slot = useRef<HTMLDivElement>(null);
   const dialog = useRef<HTMLDialogElement>(null);
@@ -175,7 +177,11 @@ export function SearchPalette({ pages }: { pages: readonly PalettePage[] }) {
 
   function go(href: string) {
     dialog.current?.close();
-    router.push(href);
+    if (isTaskPage(pathname) && href.startsWith("/tasks/")) {
+      window.location.assign(href);
+    } else {
+      router.push(href);
+    }
   }
 
   const words = searchWords(query);
