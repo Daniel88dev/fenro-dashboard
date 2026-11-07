@@ -7,12 +7,14 @@ import {
   THEME_COOKIE,
   themeAttribute,
 } from "@/modules/github-insights/ui/theme";
+import { TaskDialogs } from "@/modules/tasks/ui/task-dialogs";
 import { getEnv } from "@/shared/config/env";
 import {
   BROWSER_SENTRY_META,
   browserSentryConfig,
 } from "@/shared/infrastructure/observability/sentry-options";
 
+import { TASK_ACTIONS } from "./tasks/task-actions";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -54,8 +56,10 @@ export default async function RootLayout({
         )}
       </head>
       <body className="flex min-h-full flex-col">
-        {children}
-        {modal}
+        <TaskDialogs actions={TASK_ACTIONS}>
+          {children}
+          {modal}
+        </TaskDialogs>
       </body>
     </html>
   );
