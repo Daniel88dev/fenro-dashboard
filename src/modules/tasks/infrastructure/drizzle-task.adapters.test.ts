@@ -433,6 +433,96 @@ describe.skipIf(!url)("Postgres tasks adapters", () => {
       });
     });
 
+    it("reads only the tasks around one task", async () => {
+      const epic = aTask({ number: 1, kind: "epic", title: "Ship v2" });
+      const parent = aTask({ number: 2, parentId: epic.id.value });
+      const task = aTask({ number: 3, parentId: parent.id.value });
+      const subtask = aTask({ number: 4, parentId: task.id.value });
+      const grandchild = aTask({ number: 5, parentId: subtask.id.value });
+      const blocker = aTask({ number: 6 });
+      const blockersBlocker = aTask({ number: 7 });
+      const related = aTask({ number: 8 });
+      const blocked = aTask({ number: 9 });
+      const sibling = aTask({ number: 10, parentId: parent.id.value });
+      const unrelated = aTask({ number: 11 });
+      const theirs = aTask({ number: 3, ownerId: "user-2" });
+      unwrap(task.link("blocked-by", blocker.id.value, daniel, t0));
+      unwrap(task.link("relates-to", related.id.value, daniel, t0));
+      unwrap(blocker.link("blocked-by", blockersBlocker.id.value, daniel, t0));
+      unwrap(blocked.link("blocked-by", task.id.value, daniel, t0));
+      await saved(
+        epic,
+        parent,
+        blockersBlocker,
+        blocker,
+        related,
+        task,
+        subtask,
+        grandchild,
+        blocked,
+        sibling,
+        unrelated,
+        theirs,
+      );
+      const store = new DrizzleTaskReadStore(db);
+      const numbers = async (reference: { id: string } | { number: number }) =>
+        (await store.recordsAround("user-1", reference))
+          .map((record) => record.number)
+          .sort((a, b) => a - b);
+
+      // The parent's other children count towards its state, so the sibling
+      // comes too; nothing two links away from the task does.
+      expect(await numbers({ number: 3 })).toEqual([
+        1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
+      ]);
+      expect(await numbers({ id: task.id.value })).toEqual(
+        await numbers({ number: 3 }),
+      );
+      expect(await numbers({ number: 11 })).toEqual([11]);
+      expect(await numbers({ number: 99 })).toEqual([]);
+    });
+
+    it("counts each label's tasks, open and all, across owners", async () => {
+      const done = aTask({ number: 2, labels: ["ui", "bug"] });
+      unwrap(done.changeStatus("done", daniel, clear, t0));
+      await saved(
+        aTask({ number: 1, labels: ["ui"] }),
+        done,
+        aTask({ number: 1, labels: ["ui"], ownerId: "user-2" }),
+        aTask({ number: 1, labels: ["ui"], ownerId: "user-3" }),
+      );
+      const counts = await new DrizzleTaskReadStore(db).labelCounts([
+        "user-1",
+        "user-2",
+      ]);
+
+      expect([...counts].sort((a, b) => a.name.localeCompare(b.name))).toEqual([
+        { name: "bug", openTasks: 0, tasks: 1 },
+        { name: "ui", openTasks: 2, tasks: 3 },
+      ]);
+    });
+
+    it("lists the titles of open tasks only", async () => {
+      const done = aTask({ number: 2, title: "Shipped" });
+      unwrap(done.changeStatus("done", daniel, clear, t0));
+      await saved(
+        aTask({ number: 1, title: "Open", kind: "epic", priority: "high" }),
+        done,
+      );
+
+      expect(
+        await new DrizzleTaskReadStore(db).openTaskTitles("user-1"),
+      ).toEqual([
+        {
+          keyPrefix: "T",
+          number: 1,
+          kind: "epic",
+          title: "Open",
+          priority: "high",
+        },
+      ]);
+    });
+
     it("finds descriptions holding every word, with LIKE wildcards taken literally", async () => {
       await saved(
         aTask({

@@ -303,6 +303,11 @@ import {
   type TaskBoardQuery,
 } from "@/modules/tasks/application/queries/task-board";
 import {
+  ParentOptionsHandler,
+  type ParentOptionItem,
+  type ParentOptionsQuery,
+} from "@/modules/tasks/application/queries/parent-options";
+import {
   TasksScreenHandler,
   type TasksScreen,
   type TasksScreenQuery,
@@ -582,6 +587,10 @@ function registerTasks(
   queryBus.register<TaskBoardQuery, TaskBoard>(
     "tasks.task-board",
     new TaskBoardHandler(taskReads, clock),
+  );
+  queryBus.register<ParentOptionsQuery, ParentOptionItem[]>(
+    "tasks.parent-options",
+    new ParentOptionsHandler(taskReads),
   );
   queryBus.register<TasksScreenQuery, TasksScreen>(
     "tasks.tasks-screen",

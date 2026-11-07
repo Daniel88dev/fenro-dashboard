@@ -1,7 +1,7 @@
 import type { Query, QueryHandler } from "@/shared/application";
 
 import type { TaskOwners, TaskReadStore } from "../ports/task-read-store";
-import { labelItems } from "./list-labels";
+import { labelCounts, labelItems } from "./list-labels";
 import { repositoryItems } from "./list-task-repositories";
 import { listTasksIn, type TaskListFilterInput } from "./list-tasks";
 import { MAX_LIMIT, TaskIndex } from "./projections";
@@ -82,7 +82,11 @@ export class TasksScreenHandler implements QueryHandler<
         ]),
       ),
       epics: listTasksIn(index, { kinds: ["epic"], limit: MAX_LIMIT }).tasks,
-      labels: labelItems(catalogues.flat(), records, skillLists.flat()),
+      labels: labelItems(
+        catalogues.flat(),
+        labelCounts(records),
+        skillLists.flat(),
+      ),
       repositories: repositoryItems(records),
     };
   }

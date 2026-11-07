@@ -18,6 +18,18 @@ export type TaskOwners = string | readonly string[];
 
 export interface TaskReadStore {
   records(owners: TaskOwners): Promise<TaskRecord[]>;
+  /**
+   * The task, its ancestors, sub-tasks and linked tasks, and the sub-tasks and
+   * blockers of each of those: everything a brief names or derives state from.
+   * Empty when the owner has no such task.
+   */
+  recordsAround(
+    ownerId: string,
+    task: { readonly id: string } | { readonly number: number },
+  ): Promise<TaskRecord[]>;
+  labelCounts(owners: TaskOwners): Promise<LabelCountRecord[]>;
+  /** Not done or cancelled. */
+  openTaskTitles(owners: TaskOwners): Promise<TaskTitleRecord[]>;
   detail(ownerId: string, id: string): Promise<TaskDetailRecord | undefined>;
   descriptionsContaining(
     ownerId: string,
@@ -108,6 +120,20 @@ export type QuestionnaireRecord = {
   readonly answeredAt: Date | null;
   readonly withdrawnAt: Date | null;
   readonly withdrawnReason: string | null;
+};
+
+export type LabelCountRecord = {
+  readonly name: string;
+  readonly openTasks: number;
+  readonly tasks: number;
+};
+
+export type TaskTitleRecord = {
+  readonly keyPrefix: string;
+  readonly number: number;
+  readonly kind: TaskKind;
+  readonly title: string;
+  readonly priority: Priority;
 };
 
 export type LabelRecord = {

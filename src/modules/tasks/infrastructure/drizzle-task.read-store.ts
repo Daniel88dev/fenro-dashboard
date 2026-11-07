@@ -7,10 +7,13 @@ import {
   getTableColumns,
   ilike,
   inArray,
+  notInArray,
   sql,
+  type SQL,
 } from "drizzle-orm";
 
 import type {
+  LabelCountRecord,
   LabelRecord,
   PictureRecord,
   QuestionnaireRecord,
@@ -22,6 +25,7 @@ import type {
   TaskDetailRecord,
   TaskReadStore,
   TaskRecord,
+  TaskTitleRecord,
 } from "@/modules/tasks/application/ports/task-read-store";
 import {
   isLabelColour,
@@ -102,6 +106,124 @@ export class DrizzleTaskReadStore implements TaskReadStore {
       .where(inArray(taskTable.ownerId, ids));
     if (rows.length === 0) return [];
     return this.#records(rows);
+  }
+
+  async recordsAround(
+    ownerId: string,
+    reference: { readonly id: string } | { readonly number: number },
+  ): Promise<TaskRecord[]> {
+    const owned = eq(taskTable.ownerId, ownerId);
+    const parentOf = async (where: SQL) =>
+      (
+        await this.db
+          .select({ id: taskTable.id, parentId: taskTable.parentId })
+          .from(taskTable)
+          .where(and(owned, where))
+      )[0];
+    const target = await parentOf(
+      "id" in reference
+        ? eq(taskTable.id, reference.id)
+        : eq(taskTable.number, reference.number),
+    );
+    if (!target) return [];
+
+    const near = new Set([target.id]);
+    let parentId = target.parentId;
+    while (parentId && !near.has(parentId)) {
+      near.add(parentId);
+      parentId = (await parentOf(eq(taskTable.id, parentId)))?.parentId ?? null;
+    }
+    const [children, outgoing, incoming] = await Promise.all([
+      this.db
+        .select({ id: taskTable.id })
+        .from(taskTable)
+        .where(and(owned, eq(taskTable.parentId, target.id))),
+      this.db
+        .select({ id: taskLink.targetId })
+        .from(taskLink)
+        .where(eq(taskLink.taskId, target.id)),
+      this.db
+        .select({ id: taskLink.taskId })
+        .from(taskLink)
+        .where(eq(taskLink.targetId, target.id)),
+    ]);
+    for (const { id } of [...children, ...outgoing, ...incoming]) near.add(id);
+
+    const ids = [...near];
+    const [grandchildren, blockers] = await Promise.all([
+      this.db
+        .select({ id: taskTable.id })
+        .from(taskTable)
+        .where(and(owned, inArray(taskTable.parentId, ids))),
+      this.db
+        .select({ id: taskLink.targetId })
+        .from(taskLink)
+        .where(
+          and(inArray(taskLink.taskId, ids), eq(taskLink.kind, "blocked-by")),
+        ),
+    ]);
+    const all = new Set([
+      ...ids,
+      ...grandchildren.map((row) => row.id),
+      ...blockers.map((row) => row.id),
+    ]);
+    const rows = await this.db
+      .select(listedTask)
+      .from(taskTable)
+      .where(and(owned, inArray(taskTable.id, [...all])));
+    return this.#records(rows);
+  }
+
+  async labelCounts(
+    owners: string | readonly string[],
+  ): Promise<LabelCountRecord[]> {
+    const ids = [owners].flat();
+    if (ids.length === 0) return [];
+    const name = sql<string>`unnest(${taskTable.labels})`;
+    const rows = await this.db
+      .select({
+        name,
+        tasks: count(),
+        openTasks: sql<number>`count(*) filter (where ${notInArray(
+          taskTable.status,
+          ["done", "cancelled"],
+        )})`.mapWith(Number),
+      })
+      .from(taskTable)
+      .where(inArray(taskTable.ownerId, ids))
+      .groupBy(name);
+    return rows.map((row) => ({
+      name: row.name,
+      tasks: Number(row.tasks),
+      openTasks: row.openTasks,
+    }));
+  }
+
+  async openTaskTitles(
+    owners: string | readonly string[],
+  ): Promise<TaskTitleRecord[]> {
+    const ids = [owners].flat();
+    if (ids.length === 0) return [];
+    const rows = await this.db
+      .select({
+        keyPrefix: taskTable.keyPrefix,
+        number: taskTable.number,
+        kind: taskTable.kind,
+        title: taskTable.title,
+        priority: taskTable.priority,
+      })
+      .from(taskTable)
+      .where(
+        and(
+          inArray(taskTable.ownerId, ids),
+          notInArray(taskTable.status, ["done", "cancelled"]),
+        ),
+      );
+    return rows.map((row) => ({
+      ...row,
+      kind: row.kind as TaskKind,
+      priority: row.priority as Priority,
+    }));
   }
 
   async descriptionsContaining(

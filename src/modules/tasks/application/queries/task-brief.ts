@@ -50,16 +50,20 @@ export class TaskBriefHandler implements QueryHandler<
 
   async handle(query: TaskBriefQuery): Promise<TaskBriefResult> {
     const now = this.clock();
-    const index = new TaskIndex(await this.tasks.records(query.ownerId), now);
-
     const reference = query.task.trim();
-    const byId = index.get(reference.toLowerCase());
-    let id = byId?.id;
+    let around = await this.tasks.recordsAround(query.ownerId, {
+      id: reference.toLowerCase(),
+    });
+    let id = around.length > 0 ? reference.toLowerCase() : undefined;
     if (!id) {
       const key = readTaskKey(reference);
       if (!key.ok) return key;
-      id = index.records.find((record) => matchesKey(record, key.value))?.id;
+      around = await this.tasks.recordsAround(query.ownerId, {
+        number: key.value.number,
+      });
+      id = around.find((record) => matchesKey(record, key.value))?.id;
     }
+    const index = new TaskIndex(around, now);
 
     const detail = id ? await this.tasks.detail(query.ownerId, id) : undefined;
     if (!detail) return err(taskNotFound(reference));
