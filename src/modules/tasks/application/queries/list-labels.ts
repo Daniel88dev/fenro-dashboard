@@ -2,6 +2,7 @@ import { defaultLabelColour, isOpen } from "@/modules/tasks/domain";
 import type { Query, QueryHandler } from "@/shared/application";
 
 import type {
+  LabelCountRecord,
   LabelRecord,
   SkillRecord,
   TaskOwners,
@@ -26,18 +27,35 @@ export class ListLabelsHandler implements QueryHandler<
 
   async handle(query: ListLabelsQuery): Promise<LabelItem[]> {
     const owners = [query.ownerId].flat();
-    const [catalogues, records, skillLists] = await Promise.all([
+    const [catalogues, counts, skillLists] = await Promise.all([
       Promise.all(owners.map((owner) => this.tasks.labels(owner))),
-      this.tasks.records(owners),
+      this.tasks.labelCounts(owners),
       Promise.all(owners.map((owner) => this.tasks.skills(owner))),
     ]);
-    return labelItems(catalogues.flat(), records, skillLists.flat());
+    return labelItems(catalogues.flat(), counts, skillLists.flat());
   }
+}
+
+export function labelCounts(
+  records: readonly TaskRecord[],
+): LabelCountRecord[] {
+  const counts = new Map<string, LabelCountRecord>();
+  for (const record of records) {
+    for (const name of record.labels) {
+      const count = counts.get(name) ?? { name, openTasks: 0, tasks: 0 };
+      counts.set(name, {
+        name,
+        openTasks: count.openTasks + (isOpen(record.status) ? 1 : 0),
+        tasks: count.tasks + 1,
+      });
+    }
+  }
+  return [...counts.values()];
 }
 
 export function labelItems(
   catalogue: readonly LabelRecord[],
-  records: readonly TaskRecord[],
+  counts: readonly LabelCountRecord[],
   skills: readonly SkillRecord[],
 ): LabelItem[] {
   const linked = new Map<string, string[]>();
@@ -60,20 +78,18 @@ export function labelItems(
       items.set(label.name, { ...blank(label.name), colour: label.colour });
     }
   }
-  for (const record of records) {
-    for (const name of record.labels) {
-      // A name a task carries is always listed, even one written before
-      // there was a catalogue to add it to.
-      const item = items.get(name) ?? {
-        ...blank(name),
-        colour: defaultLabelColour(name),
-      };
-      items.set(name, {
-        ...item,
-        openTasks: item.openTasks + (isOpen(record.status) ? 1 : 0),
-        tasks: item.tasks + 1,
-      });
-    }
+  for (const count of counts) {
+    // A name a task carries is always listed, even one written before there
+    // was a catalogue to add it to.
+    const item = items.get(count.name) ?? {
+      ...blank(count.name),
+      colour: defaultLabelColour(count.name),
+    };
+    items.set(count.name, {
+      ...item,
+      openTasks: item.openTasks + count.openTasks,
+      tasks: item.tasks + count.tasks,
+    });
   }
   // A skill can link a name no task or catalogue entry has yet.
   for (const name of linked.keys()) {

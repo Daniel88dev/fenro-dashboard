@@ -1,7 +1,7 @@
 import { watchedRepositoryNamesQuery } from "@/modules/github-insights/application/queries/watched-repository-names";
 import { signedInUserQuery } from "@/modules/identity/application/queries/signed-in-user";
 import { listLabelsQuery } from "@/modules/tasks/application/queries/list-labels";
-import { listTasksQuery } from "@/modules/tasks/application/queries/list-tasks";
+import { parentOptionsQuery } from "@/modules/tasks/application/queries/parent-options";
 import { nextTaskKeyQuery } from "@/modules/tasks/application/queries/next-task-key";
 import { spaceMembersQuery } from "@/modules/tasks/application/queries/space-members";
 import { spaceOfTask, type SpaceMember } from "@/modules/tasks/domain";
@@ -62,14 +62,8 @@ export async function tasksContext(now?: Date) {
     /** Links never cross spaces, so only the given owners' tasks are offered. */
     parentOptions: async (
       owners: string | readonly string[] | undefined = user?.id,
-    ): Promise<ParentOption[]> => {
-      if (!owners || owners.length === 0) return [];
-      const { tasks } = await ask(listTasksQuery(owners, { limit: 100 }));
-      return [
-        ...tasks.filter((task) => task.kind === "epic"),
-        ...tasks.filter((task) => task.kind !== "epic"),
-      ].map(({ key, title, kind }) => ({ key, title, kind }));
-    },
+    ): Promise<ParentOption[]> =>
+      owners && owners.length > 0 ? ask(parentOptionsQuery(owners)) : [],
     spaceOptions: async (): Promise<SpaceOption[]> => {
       if (!spaces) return [];
       const members = await groupMembers();

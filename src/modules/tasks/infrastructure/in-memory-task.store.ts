@@ -1,4 +1,5 @@
 import type {
+  LabelCountRecord,
   LabelRecord,
   PictureRecord,
   QuestionnaireRecord,
@@ -10,8 +11,11 @@ import type {
   TaskDetailRecord,
   TaskReadStore,
   TaskRecord,
+  TaskTitleRecord,
 } from "@/modules/tasks/application/ports/task-read-store";
+import { labelCounts } from "@/modules/tasks/application/queries/list-labels";
 import {
+  isOpen,
   Label,
   labelExists,
   Questionnaire,
@@ -563,6 +567,68 @@ export class InMemoryTaskStore
     return [...this.#tasks.values()]
       .filter((task) => ids.includes(task.ownerId))
       .map((task) => this.#record(task));
+  }
+
+  async recordsAround(
+    ownerId: string,
+    reference: { readonly id: string } | { readonly number: number },
+  ): Promise<TaskRecord[]> {
+    const owned = this.#owned(ownerId);
+    const target = owned.find((task) =>
+      "id" in reference
+        ? task.id === reference.id
+        : task.number === reference.number,
+    );
+    if (!target) return [];
+    const byId = new Map(owned.map((task) => [task.id, task]));
+    const childrenOf = (ids: ReadonlySet<string>) =>
+      owned.filter(
+        (task) => task.state.parentId && ids.has(task.state.parentId),
+      );
+
+    const near = new Set([target.id]);
+    let parentId = target.state.parentId;
+    while (parentId && !near.has(parentId) && byId.has(parentId)) {
+      near.add(parentId);
+      parentId = byId.get(parentId)!.state.parentId;
+    }
+    for (const child of childrenOf(new Set([target.id]))) near.add(child.id);
+    for (const link of target.state.links) near.add(link.taskId);
+    for (const other of owned) {
+      if (other.state.links.some((link) => link.taskId === target.id)) {
+        near.add(other.id);
+      }
+    }
+
+    const all = new Set(near);
+    for (const child of childrenOf(near)) all.add(child.id);
+    for (const id of near) {
+      const task = byId.get(id);
+      for (const blocker of task ? blockedBy(task.state) : []) all.add(blocker);
+    }
+    return owned
+      .filter((task) => all.has(task.id))
+      .map((task) => this.#record(task));
+  }
+
+  async labelCounts(
+    owners: string | readonly string[],
+  ): Promise<LabelCountRecord[]> {
+    return labelCounts(await this.records(owners));
+  }
+
+  async openTaskTitles(
+    owners: string | readonly string[],
+  ): Promise<TaskTitleRecord[]> {
+    return (await this.records(owners))
+      .filter((record) => isOpen(record.status))
+      .map(({ keyPrefix, number, kind, title, priority }) => ({
+        keyPrefix,
+        number,
+        kind,
+        title,
+        priority,
+      }));
   }
 
   async descriptionsContaining(

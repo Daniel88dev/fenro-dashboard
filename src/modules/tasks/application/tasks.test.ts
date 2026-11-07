@@ -5,6 +5,7 @@ import {
   type Actor,
   type LabelColour,
 } from "@/modules/tasks/domain";
+import { isErr, unwrap } from "@/shared/domain";
 import { InMemoryTaskStore } from "@/modules/tasks/infrastructure/in-memory-task.store";
 
 import {
@@ -34,6 +35,11 @@ import {
   searchTasksQuery,
 } from "./queries/search-tasks";
 import { TaskBoardHandler, taskBoardQuery } from "./queries/task-board";
+import {
+  ParentOptionsHandler,
+  parentOptionsQuery,
+} from "./queries/parent-options";
+import { TaskBriefHandler, taskBriefQuery } from "./queries/task-brief";
 import { TasksScreenHandler, tasksScreenQuery } from "./queries/tasks-screen";
 import {
   TaskCountsByRepositoryHandler,
@@ -592,6 +598,58 @@ describe("the tasks screen", () => {
         taskBoardQuery(OWNER, query, "week"),
       ),
     });
+  });
+});
+
+describe("one task's brief", () => {
+  it("reads the tasks around it, not every task, and names them by key or id", async () => {
+    await create({ title: "Ship tasks v2", kind: "epic" });
+    await create({ title: "Board", parent: "T-1" });
+    await create({ title: "Drag a card", parent: "T-2" });
+    await create({ title: "Waiting", blockedBy: ["T-2"] });
+    await create({ title: "Unrelated" });
+    const records = vi.spyOn(store, "records");
+    const handler = new TaskBriefHandler(store, clock);
+
+    const byKey = await handler.handle(taskBriefQuery(OWNER, "T-2"));
+    const board = unwrap(byKey);
+    const byId = unwrap(await handler.handle(taskBriefQuery(OWNER, board.id)));
+
+    expect(records).not.toHaveBeenCalled();
+    expect(byId).toEqual(board);
+    expect(board).toMatchObject({
+      key: "T-2",
+      state: "waiting",
+      parent: { key: "T-1" },
+      epic: { key: "T-1", title: "Ship tasks v2" },
+      subtasks: [{ key: "T-3", state: "ready" }],
+      blocks: [{ key: "T-4", state: "blocked" }],
+    });
+    expect(isErr(await handler.handle(taskBriefQuery(OWNER, "T-9")))).toBe(
+      true,
+    );
+    expect(isErr(await handler.handle(taskBriefQuery(OWNER, "nonsense")))).toBe(
+      true,
+    );
+  });
+});
+
+describe("parent options", () => {
+  it("offers open tasks, epics first, then by priority and number", async () => {
+    await create({ title: "Low", priority: "low" });
+    await create({ title: "Urgent", priority: "urgent" });
+    await create({ title: "Ship tasks v2", kind: "epic" });
+    await create({ title: "Shipped" });
+    await changeStatus({ actor: DANIEL, task: "T-4", status: "done" });
+
+    const options = await new ParentOptionsHandler(store).handle(
+      parentOptionsQuery(OWNER),
+    );
+    expect(options).toEqual([
+      { key: "T-3", title: "Ship tasks v2", kind: "epic" },
+      { key: "T-2", title: "Urgent", kind: "task" },
+      { key: "T-1", title: "Low", kind: "task" },
+    ]);
   });
 });
 
