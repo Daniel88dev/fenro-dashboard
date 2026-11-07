@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 const push = vi.hoisted(() => vi.fn());
 
 vi.mock("next/navigation", () => ({
+  usePathname: () => "/tasks",
   useRouter: () => ({ push, prefetch: vi.fn(), back: vi.fn() }),
 }));
 
@@ -742,7 +743,7 @@ describe("assignees", () => {
 });
 
 describe("TaskDialogContent", () => {
-  it("opens the full page with a plain link, so the dialog is not reopened", () => {
+  it("links to the full page", () => {
     render(<TaskDialogContent task={brief} actions={actions()} />);
 
     const full = screen.getByRole("link", { name: "Full page" });

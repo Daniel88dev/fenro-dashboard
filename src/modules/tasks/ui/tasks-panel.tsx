@@ -9,6 +9,7 @@ import {
 } from "@/modules/github-insights/ui/panel";
 
 import { StateChip } from "./state-chip";
+import { TaskLink } from "./task-link";
 import { taskHref } from "./task-state";
 
 export function TasksPanel({
@@ -53,9 +54,9 @@ export function TasksPanel({
         <PanelList>
           {data.shown.map((task) => (
             <li key={task.id}>
-              <Link
+              <TaskLink
                 href={taskHref(task.id)}
-                scroll={false}
+                preview={{ title: task.title }}
                 className="hover:bg-surface-raised focus-visible:outline-pr grid grid-cols-[52px_minmax(0,1fr)_auto] items-center gap-x-3 px-3.5 py-2.5 focus-visible:outline-2 focus-visible:-outline-offset-2"
               >
                 <span className="text-ink-faint font-mono text-[12.5px]">
@@ -70,7 +71,7 @@ export function TasksPanel({
                   </span>
                 </span>
                 <StateChip state={task.state} />
-              </Link>
+              </TaskLink>
             </li>
           ))}
         </PanelList>

@@ -11,7 +11,6 @@ import {
   X,
 } from "@phosphor-icons/react/ssr";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import {
   useActionState,
   useCallback,
@@ -19,7 +18,6 @@ import {
   useId,
   useRef,
   useState,
-  useTransition,
   type DragEvent,
   type ReactNode,
 } from "react";
@@ -29,6 +27,7 @@ import { PICTURE_TYPES } from "@/modules/tasks/domain";
 
 import type { TaskAction } from "./task-forms";
 import { EMPTY_FORM_STATE } from "./task-form-state";
+import { useTaskRefresh } from "./task-refresh";
 
 export function pictureSrc(picture: Pick<PictureItem, "id">): string {
   return `/api/pictures/${picture.id}`;
@@ -69,8 +68,7 @@ type Upload = {
 const pasteTargets: symbol[] = [];
 
 function usePictureUploads(taskKey: string) {
-  const router = useRouter();
-  const [, startTransition] = useTransition();
+  const refresh = useTaskRefresh();
   const [uploads, setUploads] = useState<readonly Upload[]>([]);
 
   const change = useCallback(
@@ -122,7 +120,7 @@ function usePictureUploads(taskKey: string) {
         };
         request.onload = () => {
           if (request.status === 201) {
-            startTransition(() => router.refresh());
+            refresh();
             // Keep the preview until the refreshed list shows the real one.
             setTimeout(() => dismiss(id), 1500);
             change(id, { progress: 1 });
@@ -146,7 +144,7 @@ function usePictureUploads(taskKey: string) {
         request.send(file);
       }
     },
-    [taskKey, change, dismiss, router],
+    [taskKey, change, dismiss, refresh],
   );
 
   useEffect(() => {

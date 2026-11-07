@@ -1,71 +1,50 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
-import {
-  createContext,
-  useContext,
-  useEffect,
-  type ComponentProps,
-  type MouseEvent,
-  type ReactNode,
-} from "react";
+import { usePathname } from "next/navigation";
+import type { ComponentProps, MouseEvent } from "react";
 
-import { RouteDialog } from "./route-dialog";
-import { OPEN_PARAM, taskHref } from "./task-state";
-
-const TaskPage = createContext<string | null>(null);
-
-// From a task page, any router navigation to a task URL is caught by the
-// dialog interception route and reloads the page. So the page opens tasks in a
-// dialog of its own: links change the address in place and refresh the page.
-export function OnTaskPage({
-  taskKey,
-  children,
-}: {
-  taskKey: string;
-  children: ReactNode;
-}) {
-  const router = useRouter();
-  useEffect(() => {
-    const page = taskHref(taskKey);
-    const restored = () => {
-      if (window.location.pathname === page) router.refresh();
-    };
-    window.addEventListener("popstate", restored);
-    return () => window.removeEventListener("popstate", restored);
-  }, [router, taskKey]);
-  return <TaskPage value={taskKey}>{children}</TaskPage>;
-}
+import { useTaskDialogs, type TaskPreview } from "./task-dialogs";
 
 const TASK_HREF = /^\/tasks\/([^/?#]+)$/;
 
 export function TaskLink({
   href,
+  preview,
   onClick,
+  onFocus,
+  onPointerEnter,
   ...props
-}: Omit<ComponentProps<"a">, "href"> & { href: string }) {
-  const page = useContext(TaskPage);
-  const router = useRouter();
-  if (page === null) return <Link href={href} onClick={onClick} {...props} />;
-  const key = TASK_HREF.exec(href)?.[1];
-  if (!key || key === "new") {
+}: Omit<ComponentProps<"a">, "href"> & {
+  href: string;
+  preview?: Omit<TaskPreview, "key">;
+}) {
+  const dialogs = useTaskDialogs();
+  const pathname = usePathname();
+  const key = TASK_HREF.exec(href.split("?")[0]!)?.[1];
+  if (key === "new" && isTaskPage(pathname)) {
     return <a href={href} onClick={onClick} {...props} />;
   }
+  if (!dialogs || !key || key === "new" || href.includes("?")) {
+    return <Link href={href} onClick={onClick} {...props} />;
+  }
   const target = decodeURIComponent(key);
-  const inPage =
-    target === page
-      ? taskHref(page)
-      : `${taskHref(page)}?${OPEN_PARAM}=${encodeURIComponent(target)}`;
   return (
     <a
-      href={inPage}
+      href={href}
+      onPointerEnter={(event) => {
+        onPointerEnter?.(event);
+        dialogs.prefetch(target);
+      }}
+      onFocus={(event) => {
+        onFocus?.(event);
+        dialogs.prefetch(target);
+      }}
       onClick={(event) => {
         onClick?.(event);
         if (event.defaultPrevented || opensElsewhere(event)) return;
         event.preventDefault();
-        window.history.pushState(null, "", inPage);
-        router.refresh();
+        dialogs.open(target, preview && { key: target, ...preview });
       }}
       {...props}
     />
@@ -79,26 +58,6 @@ function opensElsewhere(event: MouseEvent): boolean {
     event.ctrlKey ||
     event.shiftKey ||
     event.altKey
-  );
-}
-
-export function TaskPageDialog({
-  taskKey,
-  children,
-}: {
-  taskKey: string;
-  children: ReactNode;
-}) {
-  const open = useSearchParams().get(OPEN_PARAM);
-  if (open !== taskKey) return null;
-  return (
-    <RouteDialog
-      labelledBy="task-dialog-title"
-      width="sm:w-[920px]"
-      onClose={() => window.history.back()}
-    >
-      {children}
-    </RouteDialog>
   );
 }
 

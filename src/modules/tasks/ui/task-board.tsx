@@ -31,6 +31,7 @@ import { colourOf, LabelDot, type LabelOption } from "./labels";
 import { QuestionsChip } from "./questions-chip";
 import { EpicProgress, EpicTag, TaskKindIcon } from "./task-kind";
 import { StateChip } from "./state-chip";
+import { TaskLink } from "./task-link";
 import { taskHref } from "./task-state";
 
 export type MoveTask = (
@@ -294,14 +295,14 @@ function BoardCard({
           <MoveMenu task={task} className="" onMove={onMove} />
         </span>
       </div>
-      <Link
+      <TaskLink
         href={taskHref(task.key)}
-        scroll={false}
+        preview={{ title: task.title, kind: task.kind }}
         draggable={false}
         className="text-ink focus-visible:outline-pr rounded-sm text-[13.5px] leading-[1.35] hover:underline hover:underline-offset-2 focus-visible:outline-2"
       >
         {task.title}
-      </Link>
+      </TaskLink>
       <CardFacts task={task} labels={labels} />
     </article>
   );

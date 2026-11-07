@@ -31,6 +31,7 @@ import { SpaceFilter } from "./space-filter";
 import { TaskBoard, type MoveTask } from "./task-board";
 import { EpicProgress, EpicTag, TaskKindIcon } from "./task-kind";
 import { StateChip } from "./state-chip";
+import { TaskLink } from "./task-link";
 import { taskHref } from "./task-state";
 
 export const TASK_VIEWS = [
@@ -406,13 +407,12 @@ export function TaskList({
             {pickedEpic ? (
               <>
                 {" in epic "}
-                <Link
+                <TaskLink
                   href={taskHref(pickedEpic)}
-                  scroll={false}
                   className="hover:text-ink font-mono underline underline-offset-2"
                 >
                   {pickedEpic}
-                </Link>
+                </TaskLink>
               </>
             ) : null}
             {filter.repository ? (
@@ -721,9 +721,9 @@ function TaskRow({
 }) {
   const priority = PRIORITY_WORDS[task.priority];
   return (
-    <Link
+    <TaskLink
       href={taskHref(task.key)}
-      scroll={false}
+      preview={{ title: task.title, kind: task.kind }}
       className={`hover:bg-surface-raised focus-visible:outline-pr grid grid-cols-[18px_64px_minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1 px-4 py-3 focus-visible:outline-2 focus-visible:-outline-offset-2 md:grid-cols-[18px_68px_minmax(0,1fr)_170px_64px_92px] md:px-[18px] ${
         task.kind === "epic" ? "bg-epic-wash/40" : ""
       }`}
@@ -756,7 +756,7 @@ function TaskRow({
       <span className="self-start justify-self-end md:self-center">
         <StateChip state={task.state} />
       </span>
-    </Link>
+    </TaskLink>
   );
 }
 

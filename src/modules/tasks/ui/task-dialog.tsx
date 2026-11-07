@@ -1,4 +1,5 @@
 import { ArrowsOutSimple, ChatCircleDots } from "@phosphor-icons/react/ssr";
+import Link from "next/link";
 
 import type { TaskBrief } from "@/modules/tasks/application/queries/read-models";
 
@@ -63,14 +64,14 @@ export function TaskDialogContent({
           <AgentLine task={task} />
         </div>
         <div className="flex shrink-0 items-center gap-1">
-          {/* A plain link, so the router does not intercept it again. */}
-          <a
+          <Link
             href={fullPage}
+            prefetch={false}
             className="text-ink-soft hover:bg-surface-sunken focus-visible:outline-pr flex h-[30px] items-center gap-1.5 rounded-lg px-2.5 text-[12px] font-medium focus-visible:outline-2"
           >
             <ArrowsOutSimple aria-hidden="true" className="size-3.5" />
             Full page
-          </a>
+          </Link>
           <CloseDialogButton />
         </div>
       </div>
@@ -109,8 +110,7 @@ export function TaskDialogContent({
 
       <div className="border-hairline-soft bg-surface-raised flex flex-col gap-3 border-t px-5 py-3.5 sm:flex-row sm:items-center sm:justify-between sm:px-[22px]">
         <span className="text-ink-muted hidden text-[12px] sm:block">
-          Esc closes. The address is this task&apos;s, so a reload opens the
-          full page.
+          Esc closes. Back closes too, and a reload keeps this task open.
         </span>
         <StatusActions task={task} actions={actions} menuOpensUp />
       </div>

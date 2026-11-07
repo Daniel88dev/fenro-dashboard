@@ -10,11 +10,13 @@ import {
 } from "vitest";
 
 const push = vi.fn();
-let pathname = "/tasks";
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push, refresh: vi.fn() }),
-  usePathname: () => pathname,
 }));
+
+let dialogs: { open: ReturnType<typeof vi.fn>; prefetch: () => void } | null =
+  null;
+vi.mock("./task-dialogs", () => ({ useTaskDialogs: () => dialogs }));
 
 import type {
   TaskSearch,
@@ -69,7 +71,6 @@ beforeEach(() => {
   vi.useFakeTimers();
   asked.length = 0;
   push.mockReset();
-  pathname = "/tasks";
   answer = () => none;
   vi.stubGlobal(
     "fetch",
@@ -199,18 +200,21 @@ describe("the search palette", () => {
     expect(dialog).not.toHaveAttribute("open");
   });
 
-  it("loads the chosen task as a full page from a task page", async () => {
-    pathname = "/tasks/T-4";
-    const assign = vi.fn();
-    vi.stubGlobal("location", { ...window.location, assign });
+  it("opens the chosen task in the task dialog when the page has one", async () => {
+    dialogs = { open: vi.fn(), prefetch: vi.fn() };
     answer = () => ({ ...none, byNumber: [hit("T-44", "Retry the sync")] });
     const dialog = await openWithShortcut();
     await type("44");
 
     fireEvent.click(within(dialog).getByText("Retry the sync"));
 
-    expect(assign).toHaveBeenCalledWith("/tasks/T-44");
+    expect(dialogs.open).toHaveBeenCalledWith("T-44", {
+      key: "T-44",
+      title: "Retry the sync",
+    });
     expect(push).not.toHaveBeenCalled();
+    expect(dialog).not.toHaveAttribute("open");
+    dialogs = null;
   });
 
   it("says when nothing matches", async () => {

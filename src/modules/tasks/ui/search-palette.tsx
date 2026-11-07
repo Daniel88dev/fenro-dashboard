@@ -1,7 +1,7 @@
 "use client";
 
 import { Check, FileText, MagnifyingGlass } from "@phosphor-icons/react/ssr";
-import { usePathname, useRouter } from "next/navigation";
+import { useRouter } from "next/navigation";
 import {
   useEffect,
   useRef,
@@ -28,7 +28,7 @@ import type {
 import { searchWords } from "@/modules/tasks/application/queries/search-tasks";
 
 import { StateChip } from "./state-chip";
-import { isTaskPage } from "./task-link";
+import { useTaskDialogs } from "./task-dialogs";
 import { TaskKindIcon } from "./task-kind";
 
 export type PalettePage = {
@@ -122,7 +122,7 @@ function useTaskSearch(
 
 export function SearchPalette({ pages }: { pages: readonly PalettePage[] }) {
   const router = useRouter();
-  const pathname = usePathname();
+  const dialogs = useTaskDialogs();
   const mod = useModifierKey();
   const slot = useRef<HTMLDivElement>(null);
   const dialog = useRef<HTMLDialogElement>(null);
@@ -177,11 +177,13 @@ export function SearchPalette({ pages }: { pages: readonly PalettePage[] }) {
 
   function go(href: string) {
     dialog.current?.close();
-    if (isTaskPage(pathname) && href.startsWith("/tasks/")) {
-      window.location.assign(href);
-    } else {
-      router.push(href);
-    }
+    router.push(href);
+  }
+
+  function openTask(key: string, title: string) {
+    dialog.current?.close();
+    if (dialogs) dialogs.open(key, { key, title });
+    else router.push(`/tasks/${key}`);
   }
 
   const words = searchWords(query);
@@ -207,7 +209,7 @@ export function SearchPalette({ pages }: { pages: readonly PalettePage[] }) {
         hit={hit}
         words={words}
         digits={group === "number" ? digits : undefined}
-        onSelect={() => go(`/tasks/${hit.key}`)}
+        onSelect={() => openTask(hit.key, hit.title)}
       />
     ));
 
