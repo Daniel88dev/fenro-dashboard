@@ -22,6 +22,7 @@ import { labelFill } from "./labels";
 import { skillHref, type SkillActions } from "./skill-views";
 import { ButtonForm, type TaskAction } from "./task-forms";
 import { EMPTY_FORM_STATE, type TaskFormState } from "./task-form-state";
+import { useReportPending } from "@/modules/github-insights/ui/navigation-progress";
 
 /** Not login fields: these keep password managers off them. */
 const NOT_A_LOGIN = {
@@ -243,6 +244,7 @@ function SkillPicker({
     },
     EMPTY_FORM_STATE,
   );
+  useReportPending(pending);
   const root = useRef<HTMLDivElement>(null);
   const search = useRef<HTMLInputElement>(null);
   const listId = useId();
@@ -346,6 +348,7 @@ function SkillPicker({
 export function NewLabelForm({ create }: { create: TaskAction }) {
   const [open, setOpen] = useState(false);
   const [state, formAction, pending] = useActionState(create, EMPTY_FORM_STATE);
+  useReportPending(pending);
   const input = useRef<HTMLInputElement>(null);
 
   useEffect(() => {

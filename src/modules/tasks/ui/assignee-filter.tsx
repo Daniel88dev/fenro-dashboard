@@ -4,6 +4,11 @@ import { CaretDown, Check, User } from "@phosphor-icons/react/ssr";
 import Link from "next/link";
 import { useEffect, useId, useRef, useState } from "react";
 
+import {
+  PendingSpinner,
+  usePickPending,
+} from "@/modules/github-insights/ui/navigation-progress";
+
 import { Avatar } from "./assignee";
 
 export type AssigneeFilterOption = {
@@ -60,6 +65,11 @@ export function AssigneeFilter({
     setOpen(false);
     setQuery("");
   }
+  const [pending, pick] = usePickPending();
+  const pickAndClose = () => {
+    pick();
+    close();
+  };
 
   const picked = [me, unassigned, ...people].filter((option) => option.picked);
   const only = picked.length === 1 ? picked[0]! : null;
@@ -101,10 +111,14 @@ export function AssigneeFilter({
           />
         )}
         {label}
-        <CaretDown
-          aria-hidden="true"
-          className="text-ink-faint size-3 shrink-0"
-        />
+        {pending ? (
+          <PendingSpinner className="size-3" />
+        ) : (
+          <CaretDown
+            aria-hidden="true"
+            className="text-ink-faint size-3 shrink-0"
+          />
+        )}
       </button>
 
       {open ? (
@@ -143,8 +157,8 @@ export function AssigneeFilter({
               className="border-hairline bg-surface-raised text-ink placeholder:text-ink-faint focus-visible:outline-pr mx-0.5 mb-1.5 h-11 rounded-lg border px-2.5 text-[15px] focus-visible:outline-2 sm:h-[30px] sm:text-[12.5px]"
             />
             <div className="flex min-h-0 flex-col overflow-y-auto">
-              <Choice option={me} onPick={close} />
-              <Choice option={unassigned} onPick={close} />
+              <Choice option={me} onPick={pickAndClose} />
+              <Choice option={unassigned} onPick={pickAndClose} />
               {people.length > 0 ? (
                 <>
                   <div className="bg-hairline-soft mx-1 my-1 h-px" />
@@ -152,7 +166,11 @@ export function AssigneeFilter({
                     People in your groups
                   </p>
                   {shown.map((person) => (
-                    <Choice key={person.label} option={person} onPick={close} />
+                    <Choice
+                      key={person.label}
+                      option={person}
+                      onPick={pickAndClose}
+                    />
                   ))}
                   {shown.length === 0 ? (
                     <p className="text-ink-muted px-2.5 py-1.5 text-[12.5px]">
@@ -168,7 +186,7 @@ export function AssigneeFilter({
                 <Link
                   href={clearHref}
                   scroll={false}
-                  onClick={close}
+                  onClick={pickAndClose}
                   className="text-ink-muted hover:text-ink hover:bg-surface-sunken focus-visible:outline-pr flex min-h-[34px] items-center rounded-lg px-2.5 text-[12.5px] focus-visible:outline-2"
                 >
                   Clear the assignee filter

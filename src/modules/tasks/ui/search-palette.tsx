@@ -1,7 +1,6 @@
 "use client";
 
 import { Check, FileText, MagnifyingGlass } from "@phosphor-icons/react/ssr";
-import { useRouter } from "next/navigation";
 import {
   useEffect,
   useRef,
@@ -20,6 +19,7 @@ import {
   CommandList,
   CommandShortcut,
 } from "@/modules/github-insights/ui/command";
+import { usePendingPush } from "@/modules/github-insights/ui/navigation-progress";
 import { Spinner } from "@/modules/github-insights/ui/spinner";
 import type {
   TaskSearch,
@@ -121,7 +121,7 @@ function useTaskSearch(
 }
 
 export function SearchPalette({ pages }: { pages: readonly PalettePage[] }) {
-  const router = useRouter();
+  const [, push] = usePendingPush();
   const dialogs = useTaskDialogs();
   const mod = useModifierKey();
   const slot = useRef<HTMLDivElement>(null);
@@ -177,13 +177,13 @@ export function SearchPalette({ pages }: { pages: readonly PalettePage[] }) {
 
   function go(href: string) {
     dialog.current?.close();
-    router.push(href);
+    push(href);
   }
 
   function openTask(key: string, title: string) {
     dialog.current?.close();
     if (dialogs) dialogs.open(key, { key, title });
-    else router.push(`/tasks/${key}`);
+    else push(`/tasks/${key}`);
   }
 
   const words = searchWords(query);

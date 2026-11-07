@@ -18,6 +18,7 @@ import { SkillHistory } from "./skill-history";
 import { changedBy, type SkillActions } from "./skill-views";
 import { ButtonForm } from "./task-forms";
 import { EMPTY_FORM_STATE } from "./task-form-state";
+import { useReportPending } from "@/modules/github-insights/ui/navigation-progress";
 
 /** Not login fields: these keep password managers off them. */
 const NOT_A_LOGIN = {
@@ -54,6 +55,7 @@ export function SkillEditor({
     actions.save,
     EMPTY_FORM_STATE,
   );
+  useReportPending(pending);
   const [instructions, setInstructions] = useState(skill?.instructions ?? "");
   const [preview, setPreview] = useState(false);
   const [dirty, setDirty] = useState(false);

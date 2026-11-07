@@ -14,6 +14,7 @@ import { Plus } from "@phosphor-icons/react/ssr";
 
 import { Chip } from "./chip";
 import { Spinner } from "./spinner";
+import { useReportPending } from "./navigation-progress";
 
 export type AddRepositoriesState = {
   readonly error: string | null;
@@ -129,6 +130,7 @@ export function AddRepositories({
     },
     EMPTY_ADD_STATE,
   );
+  useReportPending(pending);
   const toggleRef = useRef<HTMLButtonElement>(null);
   const anchorRef = useRef<HTMLDivElement>(null);
   const [offset, setOffset] = useState<number | null>(null);
@@ -385,6 +387,7 @@ function AddManually({
     },
     EMPTY_ADD_STATE,
   );
+  useReportPending(pending);
 
   return (
     <form

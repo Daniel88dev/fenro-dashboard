@@ -35,6 +35,8 @@
   --color-bar-ink-muted: #b9b6ac;
   --color-bar-active: #2f3129;
   --color-bar-line: #3c3e35;
+  /* The bar is near-black in both schemes, so the line keeps one colour. */
+  --color-bar-progress: #62b8a5;
   --color-pr: #2e6f63;
   --color-pr-strong: #235a50;
   --color-issue: #a2542c;
@@ -83,6 +85,16 @@
 
 @theme {
   --animate-sync-bar: sync-bar 1.4s ease-in-out infinite;
+  --animate-appear: appear 1ms 150ms both;
+
+  @keyframes appear {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
 
   @keyframes sync-bar {
     0% {

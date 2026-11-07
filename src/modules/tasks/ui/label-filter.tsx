@@ -1,9 +1,12 @@
 "use client";
 
 import { CaretDown, Check, Tag } from "@phosphor-icons/react/ssr";
-import { useRouter } from "next/navigation";
 import { useEffect, useId, useRef, useState } from "react";
 
+import {
+  PendingSpinner,
+  usePendingPush,
+} from "@/modules/github-insights/ui/navigation-progress";
 import type { LabelColour } from "@/modules/tasks/domain";
 
 import { labelFill } from "./labels";
@@ -27,7 +30,6 @@ export function LabelFilter({
   const [query, setQuery] = useState("");
   const root = useRef<HTMLDivElement>(null);
   const search = useRef<HTMLInputElement>(null);
-  const router = useRouter();
   const listId = useId();
 
   useEffect(() => {
@@ -44,7 +46,7 @@ export function LabelFilter({
     setOpen(false);
     setQuery("");
   };
-  const go = (href: string) => router.push(href, { scroll: false });
+  const [pending, go] = usePendingPush({ scroll: false });
   const typed = query.trim().toLowerCase();
   const shown = options.filter((option) => option.name.includes(typed));
   const picked = options.filter((option) => option.picked);
@@ -88,10 +90,14 @@ export function LabelFilter({
           </span>
         ) : null}
         <span className="truncate">{summary}</span>
-        <CaretDown
-          aria-hidden="true"
-          className="text-ink-faint size-3 shrink-0"
-        />
+        {pending ? (
+          <PendingSpinner className="size-3" />
+        ) : (
+          <CaretDown
+            aria-hidden="true"
+            className="text-ink-faint size-3 shrink-0"
+          />
+        )}
       </button>
 
       {open ? (

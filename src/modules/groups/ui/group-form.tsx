@@ -3,6 +3,7 @@
 import { useActionState, useEffect, useRef, type ReactNode } from "react";
 
 import { EMPTY_GROUP_FORM, type GroupAction } from "./group-form-state";
+import { useReportPending } from "@/modules/github-insights/ui/navigation-progress";
 
 /** Not login fields: these keep password managers off them. */
 export const NOT_A_LOGIN = {
@@ -37,6 +38,7 @@ export function GroupForm({
   children: (pending: boolean) => ReactNode;
 }) {
   const [state, formAction, pending] = useActionState(action, EMPTY_GROUP_FORM);
+  useReportPending(pending);
   const form = useRef<HTMLFormElement>(null);
   useEffect(() => {
     if (resetOnSave && state.saved > 0) form.current?.reset();

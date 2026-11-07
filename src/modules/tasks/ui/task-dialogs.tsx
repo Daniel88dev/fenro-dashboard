@@ -22,6 +22,8 @@ import type { Reader } from "./assignee";
 import type { LabelOption } from "./labels";
 import { CloseDialogButton, RouteDialog } from "./route-dialog";
 import { TaskDialogContent } from "./task-dialog";
+import { useReportPending } from "@/modules/github-insights/ui/navigation-progress";
+
 import type { TaskAction, TaskActions } from "./task-forms";
 import { TaskKindIcon } from "./task-kind";
 import { TaskRefresh } from "./task-refresh";
@@ -190,8 +192,9 @@ function OpenTaskDialog({
     [actions, refresh],
   );
 
+  const result = key ? loaded.get(key) : undefined;
+  useReportPending(key !== null && result === undefined);
   if (!key) return null;
-  const result = loaded.get(key);
   return (
     <RouteDialog
       labelledBy="task-dialog-title"

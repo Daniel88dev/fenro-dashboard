@@ -37,6 +37,7 @@ import { PictureViewer, pictureSrc } from "./pictures";
 import { questionsLabel } from "./questions-chip";
 import type { TaskAction } from "./task-forms";
 import { EMPTY_FORM_STATE } from "./task-form-state";
+import { useReportPending } from "@/modules/github-insights/ui/navigation-progress";
 
 type Rounds = {
   readonly rounds: readonly QuestionnaireItem[];
@@ -337,6 +338,7 @@ function AnswerDrawer({
     answerAction,
     EMPTY_FORM_STATE,
   );
+  useReportPending(pending);
 
   const questions = round.questions;
   const answered = questions.filter((q) => hasAnswer(drafts[q.id]));

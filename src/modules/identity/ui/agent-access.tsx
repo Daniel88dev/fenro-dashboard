@@ -8,6 +8,7 @@ import { Chip } from "@/modules/github-insights/ui/chip";
 import { CopyLine } from "./copy-line";
 
 import type { AccessTokenSummary } from "@/modules/identity/application/queries/access-tokens";
+import { useReportPending } from "@/modules/github-insights/ui/navigation-progress";
 
 export type IssueTokenState = {
   readonly error: string | null;
@@ -93,6 +94,7 @@ export function AgentAccess({
     issueAction,
     EMPTY_ISSUE_STATE,
   );
+  useReportPending(pending);
   const [showRevoked, setShowRevoked] = useState(false);
   const revokedCount = tokens.filter((t) => t.state === "revoked").length;
   const shown = showRevoked

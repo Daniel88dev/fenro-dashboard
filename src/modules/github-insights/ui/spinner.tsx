@@ -1,10 +1,16 @@
 import { ArrowsClockwise } from "@phosphor-icons/react/ssr";
 
-export function Spinner({ className = "size-3.5" }: { className?: string }) {
+export function Spinner({
+  className = "size-3.5",
+  colour = "text-pr",
+}: {
+  className?: string;
+  colour?: string;
+}) {
   return (
     <ArrowsClockwise
       aria-hidden="true"
-      className={`text-pr shrink-0 motion-safe:animate-spin ${className}`}
+      className={`${colour} shrink-0 motion-safe:animate-spin ${className}`}
     />
   );
 }

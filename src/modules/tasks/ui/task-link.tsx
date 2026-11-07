@@ -34,6 +34,7 @@ export function TaskLink({
   return (
     <a
       href={href}
+      data-progress="off"
       onPointerEnter={(event) => {
         onPointerEnter?.(event);
         dialogs.prefetch(target);

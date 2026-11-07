@@ -4,6 +4,7 @@ import {
   useActionState,
   useEffect,
   useId,
+  useOptimistic,
   useRef,
   useState,
   type ReactNode,
@@ -17,6 +18,10 @@ import {
   PencilSimple,
 } from "@phosphor-icons/react/ssr";
 
+import {
+  PendingSpinner,
+  useReportPending,
+} from "@/modules/github-insights/ui/navigation-progress";
 import type { SpaceMember, TaskKind } from "@/modules/tasks/domain";
 
 import { AssigneeSelect, LockedAssignee } from "./assignee-select";
@@ -64,11 +69,11 @@ const PRIMARY =
 const SECONDARY =
   "border-hairline bg-surface text-ink hover:bg-surface-sunken focus-visible:outline-pr inline-flex h-[34px] cursor-pointer items-center gap-1.5 rounded-lg border px-[13px] text-[12.5px] font-medium whitespace-nowrap focus-visible:outline-2 disabled:cursor-wait disabled:opacity-70";
 const QUIET =
-  "border-hairline bg-surface text-ink hover:bg-surface-sunken focus-visible:outline-pr h-[30px] cursor-pointer rounded-lg border px-[10px] text-[12px] font-medium focus-visible:outline-2 disabled:cursor-wait disabled:opacity-70";
+  "border-hairline bg-surface text-ink hover:bg-surface-sunken focus-visible:outline-pr inline-flex h-[30px] cursor-pointer items-center gap-1.5 rounded-lg border px-[10px] text-[12px] font-medium focus-visible:outline-2 disabled:cursor-wait disabled:opacity-70";
 const MENU_ROW =
   "hover:bg-surface-sunken focus-visible:outline-pr flex w-full cursor-pointer items-center gap-2 rounded-lg px-2.5 py-2 text-left text-[13px] focus-visible:outline-2 disabled:cursor-wait disabled:opacity-70";
 const LINK =
-  "text-ink-muted hover:text-issue-strong focus-visible:outline-pr cursor-pointer rounded-md px-1.5 py-1 text-[12px] focus-visible:outline-2 disabled:cursor-wait";
+  "text-ink-muted hover:text-issue-strong focus-visible:outline-pr inline-flex cursor-pointer items-center gap-1.5 rounded-md px-1.5 py-1 text-[12px] focus-visible:outline-2 disabled:cursor-wait";
 
 export const PRIORITY_OPTIONS = [
   ["none", "No priority"],
@@ -84,6 +89,7 @@ function ActionForm({
   task,
   resetOnSave = true,
   className,
+  onSubmit,
   children,
 }: {
   action: TaskAction;
@@ -91,9 +97,12 @@ function ActionForm({
   task?: string;
   resetOnSave?: boolean;
   className?: string;
+  /** Runs inside the form's transition, so it may set optimistic state. */
+  onSubmit?: () => void;
   children: (pending: boolean) => ReactNode;
 }) {
   const [state, formAction, pending] = useActionState(action, EMPTY_FORM_STATE);
+  useReportPending(pending);
   const form = useRef<HTMLFormElement>(null);
   useEffect(() => {
     if (resetOnSave && state.saved > 0) form.current?.reset();
@@ -102,7 +111,14 @@ function ActionForm({
   return (
     <form
       ref={form}
-      action={formAction}
+      action={
+        onSubmit
+          ? (formData: FormData) => {
+              onSubmit();
+              formAction(formData);
+            }
+          : formAction
+      }
       aria-label={label}
       className={className ?? "flex flex-col gap-2"}
     >
@@ -814,6 +830,7 @@ export function CriterionForm({
   met: boolean;
   evidence: ReactNode;
 }) {
+  const [shownMet, showMet] = useOptimistic(met);
   return (
     <ActionForm
       action={action}
@@ -821,35 +838,41 @@ export function CriterionForm({
       task={task}
       resetOnSave={false}
       className="flex flex-col gap-1"
+      onSubmit={() => showMet(!met)}
     >
       {(pending) => (
-        <div className="grid grid-cols-[18px_minmax(0,1fr)] items-start gap-x-2.5 py-2">
+        <div className="grid grid-cols-[18px_minmax(0,1fr)_14px] items-start gap-x-2.5 py-2">
           <input type="hidden" name="criterion" value={number} />
           <input type="hidden" name="met" value={met ? "false" : "true"} />
           <button
             type="submit"
             disabled={pending}
             role="checkbox"
-            aria-checked={met}
-            aria-label={`${met ? "Untick" : "Tick"} criterion ${number}`}
-            className={`focus-visible:outline-pr mt-0.5 grid size-4 cursor-pointer place-items-center rounded-[5px] border-[1.5px] focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-wait disabled:opacity-60 ${
-              met
+            aria-checked={shownMet}
+            aria-label={`${shownMet ? "Untick" : "Tick"} criterion ${number}`}
+            className={`focus-visible:outline-pr mt-0.5 grid size-4 cursor-pointer place-items-center rounded-[5px] border-[1.5px] focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-wait ${
+              shownMet
                 ? "border-pr bg-pr text-on-pr"
                 : "border-hairline bg-surface hover:border-ink-faint"
             }`}
           >
-            {met ? (
+            {shownMet ? (
               <Check aria-hidden="true" weight="bold" className="size-[11px]" />
             ) : null}
           </button>
           <span className="flex flex-col gap-0.5">
             <span
-              className={`text-[13px] ${met ? "text-ink-soft" : "text-ink"}`}
+              className={`text-[13px] ${shownMet ? "text-ink-soft" : "text-ink"}`}
             >
               {text}
             </span>
-            {met && evidence ? (
+            {shownMet && evidence ? (
               <span className="text-ink-muted text-[12px]">{evidence}</span>
+            ) : null}
+          </span>
+          <span className="mt-0.5 flex size-[14px] items-center">
+            {pending ? (
+              <PendingSpinner className="size-3" colour="text-ink-faint" />
             ) : null}
           </span>
         </div>
@@ -908,6 +931,7 @@ export function InlineForm({
           )}
           {extra}
           <button type="submit" disabled={pending} className={QUIET}>
+            {pending ? <PendingSpinner colour="text-current" /> : null}
             {button}
           </button>
         </div>
@@ -929,6 +953,7 @@ export function ButtonForm({
   task,
   label,
   values,
+  icon,
   children,
   tone = "secondary",
 }: {
@@ -936,6 +961,8 @@ export function ButtonForm({
   task: string;
   label: string;
   values: Readonly<Record<string, string>>;
+  /** Gives way to the spinner while the action runs. */
+  icon?: ReactNode;
   children: ReactNode;
   tone?: "quiet" | "primary" | "secondary" | "menu" | "link";
 }) {
@@ -960,8 +987,10 @@ export function ButtonForm({
             type="submit"
             disabled={pending}
             aria-label={label}
+            aria-busy={pending || undefined}
             className={BUTTON_TONES[tone]}
           >
+            {pending ? <PendingSpinner colour="text-current" /> : icon}
             {children}
           </button>
         </>

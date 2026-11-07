@@ -28,6 +28,7 @@ import { PICTURE_TYPES } from "@/modules/tasks/domain";
 import type { TaskAction } from "./task-forms";
 import { EMPTY_FORM_STATE } from "./task-form-state";
 import { useTaskRefresh } from "./task-refresh";
+import { useReportPending } from "@/modules/github-insights/ui/navigation-progress";
 
 export function pictureSrc(picture: Pick<PictureItem, "id">): string {
   return `/api/pictures/${picture.id}`;
@@ -666,6 +667,7 @@ export function PictureViewer({
     removeAction ?? keepPicture,
     EMPTY_FORM_STATE,
   );
+  useReportPending(pending);
   const picture = index === null ? undefined : pictures[index];
 
   useEffect(() => {
