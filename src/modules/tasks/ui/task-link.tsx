@@ -11,6 +11,8 @@ import {
   type ReactNode,
 } from "react";
 
+import { useTrackedTransition } from "@/modules/github-insights/ui/navigation-progress";
+
 import { RouteDialog } from "./route-dialog";
 import { OPEN_PARAM, taskHref } from "./task-state";
 
@@ -47,6 +49,7 @@ export function TaskLink({
 }: Omit<ComponentProps<"a">, "href"> & { href: string }) {
   const page = useContext(TaskPage);
   const router = useRouter();
+  const [, startTransition] = useTrackedTransition();
   if (page === null) return <Link href={href} onClick={onClick} {...props} />;
   const key = TASK_HREF.exec(href)?.[1];
   if (!key || key === "new") {
@@ -65,7 +68,7 @@ export function TaskLink({
         if (event.defaultPrevented || opensElsewhere(event)) return;
         event.preventDefault();
         window.history.pushState(null, "", inPage);
-        router.refresh();
+        startTransition(() => router.refresh());
       }}
       {...props}
     />

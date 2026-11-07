@@ -9,6 +9,11 @@ import {
 import Link from "next/link";
 import { useEffect, useId, useRef, useState } from "react";
 
+import {
+  PendingSpinner,
+  usePickPending,
+} from "@/modules/github-insights/ui/navigation-progress";
+
 import { SpacePrefix } from "./space-select";
 
 export type SpaceFilterGroup = {
@@ -54,6 +59,11 @@ export function SpaceFilter({
       : picked.length === 1
         ? `Personal + ${picked[0]!.prefix}`
         : `Personal + ${picked.length} groups`;
+  const [pending, pick] = usePickPending();
+  const pickSpace = () => {
+    pick();
+    setOpen(false);
+  };
   const close = () => {
     setOpen(false);
     button.current?.focus();
@@ -82,10 +92,14 @@ export function SpaceFilter({
           className="text-ink-faint size-[15px] shrink-0"
         />
         {label}
-        <CaretDown
-          aria-hidden="true"
-          className="text-ink-faint size-3 shrink-0"
-        />
+        {pending ? (
+          <PendingSpinner className="size-3" />
+        ) : (
+          <CaretDown
+            aria-hidden="true"
+            className="text-ink-faint size-3 shrink-0"
+          />
+        )}
       </button>
 
       {open ? (
@@ -109,18 +123,10 @@ export function SpaceFilter({
             <p className="text-ink-muted px-2.5 pt-2 pb-1.5 text-[12px] font-medium">
               Show tasks from
             </p>
-            <Choice
-              href={personalHref}
-              on={personalOnly}
-              onPick={() => setOpen(false)}
-            >
+            <Choice href={personalHref} on={personalOnly} onPick={pickSpace}>
               Only my personal tasks
             </Choice>
-            <Choice
-              href={allHref}
-              on={!personalOnly}
-              onPick={() => setOpen(false)}
-            >
+            <Choice href={allHref} on={!personalOnly} onPick={pickSpace}>
               Personal and groups
             </Choice>
             <ul className="m-0 flex list-none flex-col gap-px p-0 pt-0.5 pb-1 pl-[26px]">
@@ -133,7 +139,7 @@ export function SpaceFilter({
                       scroll={false}
                       role="checkbox"
                       aria-checked={ticked}
-                      onClick={() => setOpen(false)}
+                      onClick={pickSpace}
                       className={`hover:bg-surface-sunken focus-visible:outline-pr flex min-h-[34px] items-center gap-2.5 rounded-lg px-2.5 text-[13px] focus-visible:outline-2 ${personalOnly ? "text-ink-muted" : "text-ink"}`}
                     >
                       <span

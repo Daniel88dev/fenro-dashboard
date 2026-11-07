@@ -9,7 +9,6 @@ import {
 } from "@phosphor-icons/react/ssr";
 import Link from "next/link";
 import {
-  startTransition,
   useEffect,
   useId,
   useOptimistic,
@@ -24,6 +23,7 @@ import {
   type DoneWindow,
   type TaskListItem,
 } from "@/modules/tasks/application/queries/read-models";
+import { useTrackedTransition } from "@/modules/github-insights/ui/navigation-progress";
 import type { TaskStatus } from "@/modules/tasks/domain";
 
 import { Avatar, assigneeLogin, assigneeWords, type Reader } from "./assignee";
@@ -115,6 +115,7 @@ export function TaskBoard({
   done?: DoneWindowLinks;
 }) {
   const [shown, moveOptimistically] = useOptimistic(columns, moved);
+  const [, startTransition] = useTrackedTransition();
   const [dragging, setDragging] = useState<string | null>(null);
   const [over, setOver] = useState<TaskStatus | null>(null);
   const [notice, setNotice] = useState<string | null>(null);

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { cookies } from "next/headers";
 
+import { NavigationProgressProvider } from "@/modules/github-insights/ui/navigation-progress";
 import {
   parseTheme,
   THEME_COOKIE,
@@ -54,8 +55,10 @@ export default async function RootLayout({
         )}
       </head>
       <body className="flex min-h-full flex-col">
-        {children}
-        {modal}
+        <NavigationProgressProvider>
+          {children}
+          {modal}
+        </NavigationProgressProvider>
       </body>
     </html>
   );

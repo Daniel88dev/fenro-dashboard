@@ -19,7 +19,6 @@ import {
   useId,
   useRef,
   useState,
-  useTransition,
   type DragEvent,
   type ReactNode,
 } from "react";
@@ -29,6 +28,10 @@ import { PICTURE_TYPES } from "@/modules/tasks/domain";
 
 import type { TaskAction } from "./task-forms";
 import { EMPTY_FORM_STATE } from "./task-form-state";
+import {
+  useReportPending,
+  useTrackedTransition,
+} from "@/modules/github-insights/ui/navigation-progress";
 
 export function pictureSrc(picture: Pick<PictureItem, "id">): string {
   return `/api/pictures/${picture.id}`;
@@ -70,7 +73,7 @@ const pasteTargets: symbol[] = [];
 
 function usePictureUploads(taskKey: string) {
   const router = useRouter();
-  const [, startTransition] = useTransition();
+  const [, startTransition] = useTrackedTransition();
   const [uploads, setUploads] = useState<readonly Upload[]>([]);
 
   const change = useCallback(
@@ -146,7 +149,7 @@ function usePictureUploads(taskKey: string) {
         request.send(file);
       }
     },
-    [taskKey, change, dismiss, router],
+    [taskKey, change, dismiss, router, startTransition],
   );
 
   useEffect(() => {
@@ -668,6 +671,7 @@ export function PictureViewer({
     removeAction ?? keepPicture,
     EMPTY_FORM_STATE,
   );
+  useReportPending(pending);
   const picture = index === null ? undefined : pictures[index];
 
   useEffect(() => {

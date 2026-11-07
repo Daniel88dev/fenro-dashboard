@@ -208,8 +208,8 @@ export function StatusActions({
         label="Mark done"
         values={{ status: "done" }}
         tone="primary"
+        icon={<Check aria-hidden="true" weight="bold" className="size-3.5" />}
       >
-        <Check aria-hidden="true" weight="bold" className="size-3.5" />
         Mark done
       </ButtonForm>
       <Menu

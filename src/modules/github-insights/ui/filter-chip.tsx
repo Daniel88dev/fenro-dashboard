@@ -1,7 +1,8 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useTransition } from "react";
+
+import { useTrackedTransition } from "./navigation-progress";
 
 // A navigation, since pressed chips live in the URL; the button stays
 // mounted across it so focus stays on the chip.
@@ -15,7 +16,7 @@ export function FilterChip({
   pressed: boolean;
 }) {
   const router = useRouter();
-  const [isPending, startTransition] = useTransition();
+  const [isPending, startTransition] = useTrackedTransition();
 
   return (
     <button

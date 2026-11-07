@@ -2,8 +2,13 @@
 
 import { BookBookmark, CaretDown, Check } from "@phosphor-icons/react/ssr";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useEffect, useId, useRef, useState } from "react";
+
+import {
+  PendingSpinner,
+  usePendingPush,
+  usePickPending,
+} from "@/modules/github-insights/ui/navigation-progress";
 
 export type RepositoryFilterOption = {
   readonly name: string;
@@ -24,7 +29,9 @@ export function RepositoryFilter({
   const [query, setQuery] = useState("");
   const root = useRef<HTMLDivElement>(null);
   const search = useRef<HTMLInputElement>(null);
-  const router = useRouter();
+  const [pushing, push] = usePendingPush({ scroll: false });
+  const [picking, pick] = usePickPending();
+  const pending = pushing || picking;
   const listId = useId();
 
   useEffect(() => {
@@ -40,6 +47,10 @@ export function RepositoryFilter({
   const close = () => {
     setOpen(false);
     setQuery("");
+  };
+  const pickAndClose = () => {
+    pick();
+    close();
   };
   const typed = query.trim().toLowerCase();
   const shown = options.filter((option) =>
@@ -74,10 +85,14 @@ export function RepositoryFilter({
           className="text-ink-faint size-[15px] shrink-0"
         />
         <span className={`truncate ${picked ? "font-mono" : ""}`}>{label}</span>
-        <CaretDown
-          aria-hidden="true"
-          className="text-ink-faint size-3 shrink-0"
-        />
+        {pending ? (
+          <PendingSpinner className="size-3" />
+        ) : (
+          <CaretDown
+            aria-hidden="true"
+            className="text-ink-faint size-3 shrink-0"
+          />
+        )}
       </button>
 
       {open ? (
@@ -107,7 +122,7 @@ export function RepositoryFilter({
               event.preventDefault();
               if (!shown[0]) return;
               close();
-              router.push(shown[0].href, { scroll: false });
+              push(shown[0].href);
             }}
             placeholder="Find a repository"
             autoComplete="off"
@@ -120,7 +135,7 @@ export function RepositoryFilter({
           <ul className="m-0 flex max-h-[280px] list-none flex-col overflow-y-auto p-0">
             {typed ? null : (
               <li>
-                <Option href={allHref} on={!picked} onPick={close}>
+                <Option href={allHref} on={!picked} onPick={pickAndClose}>
                   <span className="min-w-0 flex-1 truncate">
                     All repositories
                   </span>
@@ -132,7 +147,7 @@ export function RepositoryFilter({
                 <Option
                   href={option.href}
                   on={isPicked(option.name)}
-                  onPick={close}
+                  onPick={pickAndClose}
                 >
                   <span className="min-w-0 flex-1 truncate font-mono">
                     {option.name}

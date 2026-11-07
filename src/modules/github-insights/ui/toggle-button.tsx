@@ -1,7 +1,9 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useTransition, type ReactNode } from "react";
+import type { ReactNode } from "react";
+
+import { useTrackedTransition } from "./navigation-progress";
 
 export type ToggleButtonProps = {
   readonly label: string;
@@ -23,7 +25,7 @@ export function ToggleButton({
   children,
 }: ToggleButtonProps) {
   const router = useRouter();
-  const [isPending, startTransition] = useTransition();
+  const [isPending, startTransition] = useTrackedTransition();
 
   return (
     <button

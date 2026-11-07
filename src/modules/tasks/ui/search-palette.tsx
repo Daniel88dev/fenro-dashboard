@@ -1,7 +1,7 @@
 "use client";
 
 import { Check, FileText, MagnifyingGlass } from "@phosphor-icons/react/ssr";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import {
   useEffect,
   useRef,
@@ -20,6 +20,7 @@ import {
   CommandList,
   CommandShortcut,
 } from "@/modules/github-insights/ui/command";
+import { usePendingPush } from "@/modules/github-insights/ui/navigation-progress";
 import { Spinner } from "@/modules/github-insights/ui/spinner";
 import type {
   TaskSearch,
@@ -121,7 +122,7 @@ function useTaskSearch(
 }
 
 export function SearchPalette({ pages }: { pages: readonly PalettePage[] }) {
-  const router = useRouter();
+  const [, push] = usePendingPush();
   const pathname = usePathname();
   const mod = useModifierKey();
   const slot = useRef<HTMLDivElement>(null);
@@ -180,7 +181,7 @@ export function SearchPalette({ pages }: { pages: readonly PalettePage[] }) {
     if (isTaskPage(pathname) && href.startsWith("/tasks/")) {
       window.location.assign(href);
     } else {
-      router.push(href);
+      push(href);
     }
   }
 

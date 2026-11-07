@@ -16,6 +16,7 @@ import {
 } from "@/modules/tasks/ui/search-palette";
 
 import { FenroMark } from "./fenro-mark";
+import { NavigationProgressBar } from "./navigation-progress";
 import { SavedThemeToggle } from "./saved-theme-toggle";
 
 type Screen = "repositories" | "tasks" | "skills" | "settings";
@@ -107,6 +108,7 @@ export function DashboardChrome({
           </div>
           {account}
         </div>
+        <NavigationProgressBar />
       </header>
 
       <main className="flex min-h-0 flex-1 flex-col gap-[18px] px-4 py-5 sm:px-8 sm:py-[26px]">
