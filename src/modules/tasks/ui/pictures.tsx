@@ -11,7 +11,6 @@ import {
   X,
 } from "@phosphor-icons/react/ssr";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import {
   useActionState,
   useCallback,
@@ -28,10 +27,8 @@ import { PICTURE_TYPES } from "@/modules/tasks/domain";
 
 import type { TaskAction } from "./task-forms";
 import { EMPTY_FORM_STATE } from "./task-form-state";
-import {
-  useReportPending,
-  useTrackedTransition,
-} from "@/modules/github-insights/ui/navigation-progress";
+import { useTaskRefresh } from "./task-refresh";
+import { useReportPending } from "@/modules/github-insights/ui/navigation-progress";
 
 export function pictureSrc(picture: Pick<PictureItem, "id">): string {
   return `/api/pictures/${picture.id}`;
@@ -72,8 +69,7 @@ type Upload = {
 const pasteTargets: symbol[] = [];
 
 function usePictureUploads(taskKey: string) {
-  const router = useRouter();
-  const [, startTransition] = useTrackedTransition();
+  const refresh = useTaskRefresh();
   const [uploads, setUploads] = useState<readonly Upload[]>([]);
 
   const change = useCallback(
@@ -125,7 +121,7 @@ function usePictureUploads(taskKey: string) {
         };
         request.onload = () => {
           if (request.status === 201) {
-            startTransition(() => router.refresh());
+            refresh();
             // Keep the preview until the refreshed list shows the real one.
             setTimeout(() => dismiss(id), 1500);
             change(id, { progress: 1 });
@@ -149,7 +145,7 @@ function usePictureUploads(taskKey: string) {
         request.send(file);
       }
     },
-    [taskKey, change, dismiss, router, startTransition],
+    [taskKey, change, dismiss, refresh],
   );
 
   useEffect(() => {

@@ -100,6 +100,7 @@ function leavesForNewUrl(event: MouseEvent): boolean {
   if (!(anchor instanceof HTMLAnchorElement)) return false;
   if (anchor.target && anchor.target !== "_self") return false;
   if (anchor.hasAttribute("download")) return false;
+  if (anchor.dataset.progress === "off") return false;
   const to = new URL(anchor.href, window.location.href);
   if (to.origin !== window.location.origin) return false;
   return (

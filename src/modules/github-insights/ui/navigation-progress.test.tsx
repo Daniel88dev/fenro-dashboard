@@ -62,6 +62,13 @@ function App() {
       >
         GitHub
       </a>
+      <a
+        href={ELSEWHERE}
+        data-progress="off"
+        onClick={(event) => event.preventDefault()}
+      >
+        Opens a dialog
+      </a>
       <Saving />
       <Filter />
     </NavigationProgressProvider>
@@ -89,10 +96,11 @@ describe("NavigationProgress", () => {
     expect(line()).toBeNull();
   });
 
-  it("stays off for the current page, other sites and new tabs", () => {
+  it("stays off for the current page, other sites, new tabs and opted-out links", () => {
     render(<App />);
     fireEvent.click(screen.getByText("This page"));
     fireEvent.click(screen.getByText("GitHub"));
+    fireEvent.click(screen.getByText("Opens a dialog"));
     fireEvent.click(screen.getByText("Repositories"), { metaKey: true });
     expect(line()).toBeNull();
   });

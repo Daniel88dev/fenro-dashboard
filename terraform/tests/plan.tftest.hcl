@@ -8,7 +8,8 @@ mock_provider "aws" {
   mock_resource "aws_ecr_repository" { defaults = { arn = "arn:aws:ecr:eu-central-1:123456789012:repository/daniel88dev/fenro-dashboard", repository_url = "123456789012.dkr.ecr.eu-central-1.amazonaws.com/daniel88dev/fenro-dashboard" } }
   mock_resource "aws_ssm_parameter" { defaults = { arn = "arn:aws:ssm:eu-central-1:123456789012:parameter/fenro/production/x" } }
   mock_resource "aws_apprunner_auto_scaling_configuration_version" { defaults = { arn = "arn:aws:apprunner:eu-central-1:123456789012:autoscalingconfiguration/fenro/1/abc" } }
-  mock_resource "aws_apprunner_service" { defaults = { arn = "arn:aws:apprunner:eu-central-1:123456789012:service/fenro-dashboard-production/abc", service_url = "abc.eu-central-1.awsapprunner.com" } }
+  mock_resource "aws_apprunner_service" { defaults = { arn = "arn:aws:apprunner:eu-central-1:123456789012:service/fenro-dashboard-production/abc", service_url = "abc.eu-central-1.awsapprunner.com", service_id = "abc123" } }
+  mock_resource "aws_sns_topic" { defaults = { arn = "arn:aws:sns:eu-central-1:123456789012:fenro-dashboard-production-alerts" } }
   mock_resource "aws_apprunner_custom_domain_association" { defaults = { dns_target = "abc.eu-central-1.awsapprunner.com", certificate_validation_records = [{ name = "_x.www.fenro-dashboard.com.", type = "CNAME", value = "_y.acm-validations.aws.", status = "PENDING_VALIDATION" }] } }
 }
 
@@ -181,5 +182,33 @@ run "bare_domain_validation" {
   assert {
     condition     = length(aws_route53_record.bare_cert_validation) == 1 && length(aws_route53_record.cert_validation) == 1
     error_message = "both certificates validated"
+  }
+}
+
+run "container_exit_alert" {
+  command = apply
+  variables {
+    create_service       = true
+    better_auth_secret   = "0123456789abcdef0123456789abcdef"
+    github_client_secret = "s"
+    github_client_id     = "Iv1.abc"
+    github_app_slug      = "fenro"
+    alert_email          = "ops@example.com"
+  }
+  assert {
+    condition     = aws_cloudwatch_log_metric_filter.container_exit[0].log_group_name == "/aws/apprunner/fenro-dashboard-production/abc123/service"
+    error_message = "watches the service log"
+  }
+  assert {
+    condition     = aws_sns_topic_subscription.alerts_email[0].endpoint == "ops@example.com" && length(aws_cloudwatch_metric_alarm.container_exit) == 1
+    error_message = "emails the alert"
+  }
+}
+
+run "no_alert_without_email" {
+  command = plan
+  assert {
+    condition     = length(aws_sns_topic.alerts) == 0 && length(aws_cloudwatch_metric_alarm.container_exit) == 0
+    error_message = "no alert without alert_email"
   }
 }
