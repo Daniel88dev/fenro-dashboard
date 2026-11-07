@@ -13,7 +13,9 @@ export function TaskLink({
   preview,
   onClick,
   onFocus,
+  onBlur,
   onPointerEnter,
+  onPointerLeave,
   ...props
 }: Omit<ComponentProps<"a">, "href"> & {
   href: string;
@@ -36,9 +38,17 @@ export function TaskLink({
         onPointerEnter?.(event);
         dialogs.prefetch(target);
       }}
+      onPointerLeave={(event) => {
+        onPointerLeave?.(event);
+        dialogs.cancelPrefetch(target);
+      }}
       onFocus={(event) => {
         onFocus?.(event);
         dialogs.prefetch(target);
+      }}
+      onBlur={(event) => {
+        onBlur?.(event);
+        dialogs.cancelPrefetch(target);
       }}
       onClick={(event) => {
         onClick?.(event);
