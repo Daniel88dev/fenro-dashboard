@@ -45,6 +45,7 @@ type Loaded = { readonly view: TaskDialogView } | { readonly error: string };
 type Dialogs = {
   open(key: string, preview?: TaskPreview): void;
   prefetch(key: string): void;
+  cancelPrefetch(key: string): void;
 };
 
 const DialogsContext = createContext<Dialogs | null>(null);
@@ -58,6 +59,9 @@ const DIALOG_CHANGED = "fenro:task-dialog";
 // A hover shortly before the click is the same read; an older one may have
 // missed an agent's changes, so opening asks again.
 const FRESH_FOR_MS = 15_000;
+// Each read loads all of the owner's tasks, and the production instance is
+// 0.25 vCPU / 512 MB: a pointer sweeping a list must not fire a read per row.
+export const HOVER_INTENT_MS = 150;
 
 export function TaskDialogs({
   actions,
@@ -74,12 +78,20 @@ export function TaskDialogs({
     () => new Map(),
   );
 
-  const load = useCallback((key: string, force = false) => {
+  const hovered = useRef<{
+    key: string;
+    timer?: ReturnType<typeof setTimeout>;
+  } | null>(null);
+  const prefetching = useRef(false);
+
+  const load = useCallback((key: string, force = false): Promise<void> => {
     const at = asked.current.get(key);
-    if (!force && at !== undefined && Date.now() - at < FRESH_FOR_MS) return;
+    if (!force && at !== undefined && Date.now() - at < FRESH_FOR_MS) {
+      return Promise.resolve();
+    }
     const now = Date.now();
     asked.current.set(key, now);
-    void readTask(key).then((result) => {
+    return readTask(key).then((result) => {
       if (asked.current.get(key) !== now) return;
       if ("error" in result) asked.current.delete(key);
       setLoaded((current) => {
@@ -89,6 +101,19 @@ export function TaskDialogs({
       });
     });
   }, []);
+
+  const runPrefetch = useCallback(async () => {
+    prefetching.current = true;
+    for (
+      let next = hovered.current;
+      next && !next.timer;
+      next = hovered.current
+    ) {
+      hovered.current = null;
+      await load(next.key);
+    }
+    prefetching.current = false;
+  }, [load]);
 
   const dialogs = useMemo<Dialogs>(
     () => ({
@@ -100,15 +125,30 @@ export function TaskDialogs({
         if (preview) {
           setPreviews((current) => new Map(current).set(key, preview));
         }
-        load(key);
+        void load(key);
         const url = new URL(window.location.href);
         url.hash = new URLSearchParams({ [OPEN_PARAM]: key }).toString();
         window.history.pushState({ [HISTORY_MARK]: true }, "", url);
         window.dispatchEvent(new Event(DIALOG_CHANGED));
       },
-      prefetch: (key) => load(key),
+      prefetch(key) {
+        if (hovered.current) clearTimeout(hovered.current.timer);
+        const next: { key: string; timer?: ReturnType<typeof setTimeout> } = {
+          key,
+        };
+        hovered.current = next;
+        next.timer = setTimeout(() => {
+          next.timer = undefined;
+          if (!prefetching.current) void runPrefetch();
+        }, HOVER_INTENT_MS);
+      },
+      cancelPrefetch(key) {
+        if (hovered.current?.key !== key || !hovered.current.timer) return;
+        clearTimeout(hovered.current.timer);
+        hovered.current = null;
+      },
     }),
-    [load],
+    [load, runPrefetch],
   );
 
   return (

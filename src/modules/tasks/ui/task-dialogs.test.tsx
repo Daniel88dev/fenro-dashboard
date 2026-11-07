@@ -16,7 +16,11 @@ vi.mock("next/navigation", () => ({
 import type { TaskBrief } from "@/modules/tasks/application/queries/read-models";
 
 import type { TaskActions } from "./task-forms";
-import { TaskDialogs, type TaskDialogView } from "./task-dialogs";
+import {
+  HOVER_INTENT_MS,
+  TaskDialogs,
+  type TaskDialogView,
+} from "./task-dialogs";
 import { TaskLink } from "./task-link";
 
 const brief = {
@@ -122,6 +126,18 @@ function renderList() {
   return screen.getByRole("link", { name: "T-2" });
 }
 
+function renderRows(keys: readonly string[]) {
+  render(
+    <TaskDialogs actions={actions}>
+      {keys.map((key) => (
+        <TaskLink key={key} href={`/tasks/${key}`}>
+          {key}
+        </TaskLink>
+      ))}
+    </TaskDialogs>,
+  );
+}
+
 describe("TaskDialogs", () => {
   it("opens the dialog on click, before the task arrives, without the router", () => {
     const link = renderList();
@@ -140,16 +156,56 @@ describe("TaskDialogs", () => {
   });
 
   it("reads the task on hover, so the click shows it at once", async () => {
+    vi.useFakeTimers();
     const link = renderList();
 
     fireEvent.pointerEnter(link);
+    act(() => vi.advanceTimersByTime(HOVER_INTENT_MS));
     expect(fetchTask).toHaveBeenCalledWith("/api/tasks/T-2");
     await act(async () => respond(view));
+    vi.useRealTimers();
 
     fireEvent.click(link);
 
     expect(fetchTask).toHaveBeenCalledOnce();
     expect(screen.getByText("CI is green")).toBeInTheDocument();
+  });
+
+  it("does not read tasks the pointer only passes over", () => {
+    vi.useFakeTimers();
+    renderRows(["T-2", "T-3", "T-4"]);
+
+    for (const key of ["T-2", "T-3", "T-4"]) {
+      const row = screen.getByRole("link", { name: key });
+      fireEvent.pointerEnter(row);
+      act(() => vi.advanceTimersByTime(HOVER_INTENT_MS / 3));
+      fireEvent.pointerLeave(row);
+    }
+    act(() => vi.advanceTimersByTime(HOVER_INTENT_MS * 2));
+
+    expect(fetchTask).not.toHaveBeenCalled();
+    vi.useRealTimers();
+  });
+
+  it("reads one hovered task at a time, then only the latest one", async () => {
+    vi.useFakeTimers();
+    renderRows(["T-2", "T-3", "T-4"]);
+    const rest = (key: string) => {
+      fireEvent.pointerEnter(screen.getByRole("link", { name: key }));
+      act(() => vi.advanceTimersByTime(HOVER_INTENT_MS));
+    };
+
+    rest("T-2");
+    rest("T-3");
+    rest("T-4");
+    expect(fetchTask.mock.calls).toEqual([["/api/tasks/T-2"]]);
+
+    await act(async () => respond(view));
+    expect(fetchTask.mock.calls).toEqual([
+      ["/api/tasks/T-2"],
+      ["/api/tasks/T-4"],
+    ]);
+    vi.useRealTimers();
   });
 
   it("goes back to the page when the dialog closes", async () => {
