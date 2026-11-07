@@ -136,6 +136,12 @@ variable "sentry_dsn" {
   default     = ""
 }
 
+variable "alert_email" {
+  description = "Email that hears when the app's container stops, for example out of memory. Empty creates no alert. Confirm the SNS email once after apply."
+  type        = string
+  default     = ""
+}
+
 variable "sentry_traces_sample_rate" {
   description = "Share of requests traced, 0 to 1. The free plan holds 5M spans a month; health checks are never traced."
   type        = number

@@ -51,6 +51,10 @@ github_app_slug  = ""
 sentry_dsn                = ""
 sentry_traces_sample_rate = 1
 
+# Gets an email when the app's container stops (out of memory, crash). Confirm
+# the subscription from the SNS email after the first apply.
+alert_email = ""
+
 # better_auth_secret: `openssl rand -base64 32`. It encrypts the stored GitHub
 # tokens; changing it makes every stored token unreadable and signs everybody
 # out.

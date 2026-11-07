@@ -129,6 +129,16 @@ CNAME). It costs nothing extra. Turning it on, after a release that contains
    six hours), then open `https://fenro-dashboard.com` and check it lands on
    `www`.
 
+## Alerts
+
+Running out of memory gets the container killed with exit code 137, and nothing
+inside the app can report that. With `alert_email` set, a metric filter on the
+App Runner service log counts "Container exit code" lines, and a CloudWatch
+alarm emails that address through SNS. Confirm the subscription from the first
+SNS email. Nothing calls the site, so no vCPU is billed for it. The app also
+warns in Sentry when it passes 85% of its memory
+(`src/shared/infrastructure/observability/memory-watch.ts`).
+
 ## Checking a change
 
 `terraform fmt -check -recursive`, `terraform validate`, and `terraform test`,
@@ -140,5 +150,5 @@ you meant to change.
 
 About $5.40 a month in `eu-central-1` including the domain: App Runner's
 provisioned 0.5 GB (about $3), a little vCPU while serving, the hosted zone
-($0.50), ECR storage (cents) and the domain (about $16 a year). Pictures in S3 cost
+($0.50), the exit alarm ($0.10), ECR storage (cents) and the domain (about $16 a year). Pictures in S3 cost
 cents. SSM standard parameters are free and the database is already paid for by flexi-day-be.
